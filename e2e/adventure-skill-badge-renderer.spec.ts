@@ -34,10 +34,15 @@ test("Original stage frame is unchanged while canonical completion reveals inter
 
 test("Missing and failed original artwork remain explicit and do not borrow another badge", async ({page}) => {
   const swimming=adventureSkills.find(skill => skill.id === "swimming")!.stages[5];
+  await page.route("**/badges/adventure-skills/swimming/original-stages.jpg",route=>route.fulfill({status:404,body:"Missing original"}));
   await mountBadge(page,{skillId:"swimming",progress:{stage:6,completedRequirements:0,totalRequirements:swimming.requirements.length,status:"not-started"}});
   await expect(page.getByRole("status")).toHaveText("Original badge artwork unavailable");
   await expect(page.locator("img")).toHaveCount(0);
   await expect(page.getByRole("figure")).toContainText("Swimming · Stage 6");
+  await page.unroute("**/badges/adventure-skills/swimming/original-stages.jpg");
+  await page.getByRole("button",{name:"Retry Swimming stage 6 artwork",exact:true}).click();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.locator("img")).toHaveCount(3);
   await page.route("**/badges/adventure-skills/camping/stage-2.png",route=>route.fulfill({status:404,body:"Missing original"}));
   await updateBadge(page,{skillId:"camping",progress:progress(0)});
   await expect(page.getByRole("status")).toHaveText("Original badge artwork unavailable");
