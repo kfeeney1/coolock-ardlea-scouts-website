@@ -139,3 +139,19 @@ ran the ordinary-leader denial checks successfully on both projects.
 Full local `npm run quality` passed after the CI correction: 944 units, 51 worker,
 two maintenance/eight event backend tests, production dependency audit, all
 contracts, unchanged source-complexity/shard-budget guards and build.
+
+## Merge preparation with Awards and Parent parity
+
+The combined candidate preserves the independently reviewed Awards destination,
+single-stage confirmation and Parent parity while applying Recording's pending-
+save protection to all three tabs. The offline Save regression explicitly checks
+Awards is disabled too. The three shared navigation/dialog/page resolutions match
+the previously verified integration source; the SW-219 history-settling correction
+is retained unchanged. No Rules, source-store or eligibility enforcement changes.
+
+Fresh combined local assurance passed 944 units plus worker/backend tests,
+audit/contracts/unchanged guards/build. The SW-550 integration candidate passed
+110 cross-role cases and 19 legacy cases, with five existing project-specific
+skips and zero retries. These are local source-verified integration results;
+required GitHub checks must pass again after updating this PR to current main.
+The separate deployed TEST and PMT gates remain outstanding; rollout stays off.
