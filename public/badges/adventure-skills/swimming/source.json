@@ -1,0 +1,18 @@
+{
+  "sourcePage": "https://thescoutshop.ie/products/swimming-skills",
+  "originalImage": "https://cdn.shopify.com/s/files/1/0715/5207/4043/files/SwimmingStages1-9.jpg?v=1774262914",
+  "sha256": "a6b00c49d9d13d4c83b52a185c696eb24ca2d7369f4329af38755d1e4e2ce7cb",
+  "width": 1000,
+  "height": 1000,
+  "bytes": 186811,
+  "observed": "2026-10-28",
+  "supportedStages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "handling": "Original supplier photograph retained byte-for-byte. CSS viewports select each supported original badge; no symbols, numbers, colours or outlines are redrawn. Later photographed stages are not programme-supported."
+}

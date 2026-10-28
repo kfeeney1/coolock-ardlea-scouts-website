@@ -111,6 +111,7 @@ export const suiteSpecs = {
     "adventure-skills-badgework.spec.ts",
     "adventure-skill-badge-renderer.spec.ts",
     "badgework-progress-experience.spec.ts",
+    "adventure-skill-swimming-artwork.spec.ts",
     "badgework-skill-filter.spec.ts",
     "sw265-badgework-navigation.spec.ts"
   ],

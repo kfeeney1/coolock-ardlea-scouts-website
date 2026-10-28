@@ -1,3 +1,4 @@
+import { adventureSkills } from "../src/data/adventureSkills/index";
 import { expect,test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { loginAsLeader } from "./support/authentication-helpers";
@@ -19,7 +20,11 @@ for(const redesigned of [false,true]) for(const others of [false,true]) test(`Pr
   await expect(member).toBeVisible();
   if(redesigned) {
     const badge=member.getByRole("figure",{name:"Camping stage 2",exact:true});await expect(badge).toContainText(`1/${camping.stages[1].requirements.length} competencies`);
-    await expect(member.getByTestId("badgework-progress-card-swimming-1")).toContainText("Original badge artwork unavailable");
+    const swimming=member.getByTestId("badgework-progress-card-swimming-1").getByRole("figure",{name:"Swimming stage 1",exact:true});
+    await expect(swimming).toBeVisible();await expect(swimming.getByRole("status")).toHaveCount(0);
+    await expect(swimming.locator("img")).toHaveCount(3);
+    await expect(swimming.locator("img").first()).toHaveAttribute("src","/badges/adventure-skills/swimming/original-stages.jpg");
+    await expect(swimming).toContainText(`0/${adventureSkills.find(skill=>skill.id==="swimming")!.stages[0].requirements.length} competencies`);
     const target=member.getByRole("button",{name:`${progressMemberName} · Camping · Stage 2 · Open stage`,exact:true});
     expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await member.screenshot({path:testInfo.outputPath("leader-progress.png")});

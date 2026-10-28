@@ -4,6 +4,8 @@
 export const measuredPlaywrightSpecSeconds = {
   // SW-546: complete local pinned Chromium 151 desktop/mobile run, 16 cases; conservative whole-run wall time.
   "badgework-progress-experience.spec.ts": 66.0,
+  // SW-544: original Swimming artwork, complete pinned desktop/mobile run.
+  "adventure-skill-swimming-artwork.spec.ts": 24.0,
   "leader-navigation-contract.spec.ts": 378.3,
   "leader-navigation-personas.spec.ts": 338.1,
   "meeting-integration-accessibility.spec.ts": 128.7,
