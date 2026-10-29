@@ -42,7 +42,7 @@ export async function handleHallBookingRoute(request, env, getServiceToken, fetc
     const raw = await boundedBody(request);
     let body;
     try { body = JSON.parse(raw); } catch { hallFailure(400, "hall/invalid", "A JSON booking request is required."); }
-    if (!body || typeof body !== "object" || Array.isArray(body) || !["save", "list", "history"].includes(body.action)) hallFailure(400, "hall/invalid", "Choose a booking action.");
+    if (!body || typeof body !== "object" || Array.isArray(body) || !["save", "list", "history", "get"].includes(body.action)) hallFailure(400, "hall/invalid", "Choose a booking action.");
     const store = hallFirestore(env, await getServiceToken(env), fetcher);
     await store.verifyUser(uid, token);
     if (body.action === "save") return reply(200, {ok: true, ...await saveHallBooking(store, uid, body.command)});
@@ -51,6 +51,10 @@ export async function handleHallBookingRoute(request, env, getServiceToken, fetc
       assertHallCouncil(profile, organisation, Date.now());
       if (setting?.enabled !== true || lock?.ready !== true) hallFailure(409, "hall/disabled", "Hall booking administration is not enabled.");
       if (body.cursor && !hallId(body.cursor)) hallFailure(400, "hall/invalid", "Invalid page cursor.");
+      if (body.action === "get") {
+        if (!hallId(body.id)) hallFailure(400, "hall/invalid", "Invalid booking reference.");
+        return {item: (await tx.read([`hall/group/bookings/${body.id}`]))[0]};
+      }
       if (body.action === "history" && !hallId(body.id)) hallFailure(400, "hall/invalid", "Invalid booking reference.");
       return tx.list(body.action === "history" ? `hall/group/bookings/${body.id}/history` : "hall/group/bookings", body.cursor ?? "");
     }, {readOnly: true});

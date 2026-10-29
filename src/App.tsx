@@ -78,6 +78,7 @@ const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
 const SiteSettings = lazy(() => import("./pages/SiteSettings"));
 const SystemInformation = lazy(() => import("./pages/SystemInformation"));
+const HallBookings = lazy(() => import("./pages/HallBookings"));
 
 function protectedRoute(element: ReactNode) { return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>; }
 function protectedSettingsRoute(element: ReactNode) { return protectedRoute(<ProtectedSiteSettingsRoute>{element}</ProtectedSiteSettingsRoute>); }
@@ -124,6 +125,8 @@ export default function App() {
         <Route path="/leader/communications" element={protectedRoute(<LeaderCommunications />)} />
         <Route path="/leader/meetings" element={protectedRoute(<MeetingRecords />)} />
         <Route path="/leader/weekly" element={protectedRoute(<WeeklySectionTracker />)} />
+        <Route path="/leader/hall" element={protectedRoute(<HallBookings />)} />
+        <Route path="/leader/hall/:bookingId" element={protectedRoute(<HallBookings />)} />
         <Route path="/leader/weekly/create" element={protectedRoute(<CreateWeeklyMeetingPage />)} />
         <Route path="/leader/weekly/copy/:sourceId" element={protectedRoute(<CopyWeeklyMeetingPage />)} />
         <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
