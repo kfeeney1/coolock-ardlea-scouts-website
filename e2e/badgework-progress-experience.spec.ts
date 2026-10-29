@@ -23,7 +23,7 @@ for(const redesigned of [false,true]) for(const others of [false,true]) test(`Pr
     const swimming=member.getByTestId("badgework-progress-card-swimming-1").getByRole("figure",{name:"Swimming stage 1",exact:true});
     await expect(swimming).toBeVisible();await expect(swimming.getByRole("status")).toHaveCount(0);
     await expect(swimming.locator("img")).toHaveCount(3);
-    await expect(swimming.locator("img").first()).toHaveAttribute("src","/badges/adventure-skills/swimming/original-stages.jpg");
+    await expect(swimming.locator("img").first()).toHaveAttribute("src","/badges/adventure-skills/swimming/stage-1.png");
     await expect(swimming).toContainText(`0/${adventureSkills.find(skill=>skill.id==="swimming")!.stages[0].requirements.length} competencies`);
     const target=member.getByRole("button",{name:`${progressMemberName} · Camping · Stage 2 · Open stage`,exact:true});
     expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);

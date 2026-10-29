@@ -8,6 +8,7 @@ for(const stage of swimming.stages)test(`Original Swimming stage ${stage.stage} 
   await page.emulateMedia({reducedMotion:"reduce"});
   await mountBadge(page,{skillId:"swimming",progress:progress(0),size:250});
   const figure=page.getByRole("figure",{name:`Swimming stage ${stage.stage}`,exact:true});await expect(figure).toBeVisible();await expect(figure.getByRole("status")).toHaveCount(0);
+  await expect(figure.locator("img").first()).toHaveAttribute("src",`/badges/adventure-skills/swimming/stage-${stage.stage}.png`);
   const art=figure.getByTestId("original-badge-artwork");const zero=await art.screenshot({animations:"disabled"});
   await updateBadge(page,{skillId:"swimming",progress:progress(Math.floor(stage.requirements.length/2)),size:250,unsaved:true});const partial=await art.screenshot({animations:"disabled"});
   await expect(figure).toContainText("Unsaved preview");await updateBadge(page,{skillId:"swimming",progress:progress(stage.requirements.length),size:250});await expect(figure).toContainText("Ready to award");const full=await art.screenshot({animations:"disabled"});
