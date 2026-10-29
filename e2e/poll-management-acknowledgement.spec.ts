@@ -7,6 +7,12 @@ const password = process.env.E2E_TEST_USER_PASSWORD;
 test("confirmed poll publish and close remain usable while follow-up reads are pending", async ({ page }, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
   await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
+  // The dashboard also loads polls. Finish its real discovery reads before
+  // capturing the management page, otherwise in-flight dashboard requests can
+  // be counted as additional management queries during the full-page navigation.
+  const dashboardPolls = page.getByTestId("leader-polls");
+  await expect(dashboardPolls).toBeVisible();
+  await expect(dashboardPolls.getByText("Loading active polls…", { exact: true })).toHaveCount(0);
   const discoveryTargets = new FirestoreListenTargets("audienceSections");
   const captureDiscovery = (request: Request) => {
     if (request.url().includes("google.firestore.v1.Firestore/Listen/channel")) discoveryTargets.record(request.postData());
