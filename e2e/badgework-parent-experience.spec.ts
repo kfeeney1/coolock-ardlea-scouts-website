@@ -29,7 +29,7 @@ for(const redesigned of [false,true]) test(`Parent saved-data parity and read-on
   const mobile=testInfo.project.name==="mobile-chromium";
   const context=await browser.newContext({baseURL:process.env.E2E_BASE_URL??"http://127.0.0.1:4173",isMobile:mobile,hasTouch:mobile,viewport:{width:mobile?320:1280,height:800}});const parent=await context.newPage();
   // Keep parent fallback coverage explicit even when canonical Swimming art is available.
-  await parent.route("**/badges/adventure-skills/swimming/original-stages.jpg",route=>route.fulfill({status:404,body:"Unavailable original"}));
+  await parent.route("**/badges/adventure-skills/swimming/stage-*.png",route=>route.fulfill({status:404,body:"Unavailable original"}));
   try {
     if(testInfo.project.name==="mobile-chromium")await parent.setViewportSize({width:320,height:800});
     await loginParent(parent);const section=parent.getByTestId("parent-adventure-skills");

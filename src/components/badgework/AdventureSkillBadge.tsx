@@ -1,5 +1,5 @@
 import { Box, Button, Chip, Stack, Typography } from "@mui/material";
-import { useId, useState } from "react";
+import { useState } from "react";
 import type { AdventureStageOverview } from "../../services/adventureSkillOverviewLogic.ts";
 import { adventureSkillBadgeProgress } from "../../services/adventureSkillBadgeProgress.ts";
 import { adventureSkillBadgeArtwork, badgeInteriorClip } from "../../services/adventureSkillBadgeArtwork.ts";
@@ -13,12 +13,9 @@ export default function AdventureSkillBadge({ skillId, progress, unsaved = false
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const [loadedSource, setLoadedSource] = useState<string | null>(null);
   const unavailable = !artwork || failedSource === artwork.src;
-  const clipId = `badge-viewport-${useId()}`;
-  const source = artwork?.sourceRegion;
-  const imageStyle = source && artwork ? { position: "absolute" as const, width: `${source.width / artwork.width * 100}%`, height: `${source.height / artwork.height * 100}%`, maxWidth: "none", left: `${-source.left / artwork.width * 100}%`, top: `${-source.top / artwork.height * 100}%` } : { display: "block", width: "100%", height: "100%", objectFit: "contain" as const, gridArea: "1 / 1" };
+  const imageStyle = { display: "block", width: "100%", height: "100%", objectFit: "contain" as const, gridArea: "1 / 1" };
   return <Stack component="figure" aria-label={`${badge.skillName} stage ${badge.stage}`} spacing={.75} sx={{ m: 0, minWidth: 0, width: size, maxWidth: "100%" }} data-testid={`adventure-badge-${skillId}-${badge.stage}`}>
-    <Box data-testid="original-badge-artwork" style={{ clipPath: !unavailable && artwork?.viewportPath ? `url("#${clipId}")` : undefined }} sx={{ width: "100%", aspectRatio: artwork ? `${artwork.width} / ${artwork.height}` : "1", display: "grid", position: "relative", overflow: "hidden", alignItems: "center" }}>
-      {artwork?.viewportPath && <svg width="0" height="0" aria-hidden="true" focusable="false" style={{ position: "absolute" }}><defs><clipPath id={clipId} clipPathUnits="objectBoundingBox"><path d={artwork.viewportPath} /></clipPath></defs></svg>}
+    <Box data-testid="original-badge-artwork" sx={{ width: "100%", aspectRatio: artwork ? `${artwork.width} / ${artwork.height}` : "1", display: "grid", position: "relative", overflow: "hidden", alignItems: "center" }}>
       {unavailable ? <Stack spacing={1} sx={{ p: 1, alignItems: "center" }}>
         <Typography role="status" variant="caption" sx={{ textAlign: "center" }}>Original badge artwork unavailable</Typography>
         {artwork && <Button variant="outlined" size="small" aria-label={`Retry ${badge.skillName} stage ${badge.stage} artwork`} onClick={() => { setFailedSource(null); setLoadedSource(null); }} sx={{ minHeight: 44 }}>Retry artwork</Button>}

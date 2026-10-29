@@ -1,11 +1,8 @@
 {
-  "sourcePage": "https://thescoutshop.ie/products/swimming-skills",
-  "originalImage": "https://cdn.shopify.com/s/files/1/0715/5207/4043/files/SwimmingStages1-9.jpg?v=1774262914",
-  "sha256": "a6b00c49d9d13d4c83b52a185c696eb24ca2d7369f4329af38755d1e4e2ce7cb",
-  "width": 1000,
-  "height": 1000,
-  "bytes": 186811,
-  "observed": "2026-10-28",
+  "sourceUrl": "https://scouting360.ie/wp-content/uploads/2026/06/Swimming-Adventure-Skills-1-to-6-20mar2026.pdf",
+  "sourceSha256": "9bee1086c455855c3a7112f8705eed68000c4600154e22b7a9b87453cfdb6c3d",
+  "sourceBytes": 3019600,
+  "extraction": "Page 2 original vector badge regions, crop exact outer-frame bounds; render at 378px using PyMuPDF 1.26.6 (RGB PNG). No redrawing or recolouring.",
   "supportedStages": [
     1,
     2,
@@ -14,5 +11,90 @@
     5,
     6
   ],
-  "handling": "Original supplier photograph retained byte-for-byte. CSS viewports select each supported original badge; no symbols, numbers, colours or outlines are redrawn. Later photographed stages are not programme-supported."
+  "entries": [
+    {
+      "stage": 1,
+      "page": 2,
+      "boundsPdfPoints": [
+        71.40589904785156,
+        540.427490234375,
+        143.81289672851562,
+        612.8342895507812
+      ],
+      "width": 378,
+      "height": 378,
+      "bytes": 13933,
+      "sha256": "0a1d08d3f19aeff65c387fe0525b4da21c3878afd2bfc66a7fccf1983c87456a"
+    },
+    {
+      "stage": 2,
+      "page": 2,
+      "boundsPdfPoints": [
+        148.56460571289062,
+        540.427490234375,
+        220.97169494628906,
+        612.8342895507812
+      ],
+      "width": 378,
+      "height": 378,
+      "bytes": 13555,
+      "sha256": "d23dd4bedd61dd71b3c02fb363913baed531ec301ff73d764154eaf6fb0fdd0c"
+    },
+    {
+      "stage": 3,
+      "page": 2,
+      "boundsPdfPoints": [
+        225.72340393066406,
+        540.427490234375,
+        298.1304931640625,
+        612.8342895507812
+      ],
+      "width": 378,
+      "height": 378,
+      "bytes": 12731,
+      "sha256": "db83333de9f190bdda90a642751f5a6511b2ef63ea7c98e6ffd049e3c749ce6f"
+    },
+    {
+      "stage": 4,
+      "page": 2,
+      "boundsPdfPoints": [
+        302.8822021484375,
+        540.427490234375,
+        375.2892150878906,
+        612.8342895507812
+      ],
+      "width": 378,
+      "height": 378,
+      "bytes": 16415,
+      "sha256": "a7129dac7b47bd4faa3ec7fc1c7936204a471662905c2aa2a82509a06eff3755"
+    },
+    {
+      "stage": 5,
+      "page": 2,
+      "boundsPdfPoints": [
+        380.0408935546875,
+        540.427490234375,
+        452.447998046875,
+        612.8342895507812
+      ],
+      "width": 378,
+      "height": 378,
+      "bytes": 15198,
+      "sha256": "69de49855b53581562fc9bd399cc01fffcc676ae2d031a51baf52367baa40aa1"
+    },
+    {
+      "stage": 6,
+      "page": 2,
+      "boundsPdfPoints": [
+        457.19970703125,
+        540.427490234375,
+        529.6068115234375,
+        612.8342895507812
+      ],
+      "width": 378,
+      "height": 378,
+      "bytes": 17540,
+      "sha256": "b33747a219e8c7df1d529206996e50f3be60b676275789ed43995fbba1268f93"
+    }
+  ]
 }

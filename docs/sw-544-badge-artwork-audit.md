@@ -33,14 +33,14 @@ Ireland / Scout Foundation; the source is linked above.
 | paddling | 1-9 | All 9 |
 | rowing | 1-9 | All 9 |
 | sailing | 1-9 | All 9 |
-| swimming | 1-6 | All 6, original supplier photograph viewports |
+| swimming | 1-6 | All 6, original March 2026 PDF vector artwork (SW-553) |
 
 Every original skill/stage numeral and symbol was visually checked in a contact
 sheet, against the corresponding handbook stage pages. All 81 paths and hashes
 are unique and their dimensions/checksums are verified by executable unit tests.
 The shared mapping follows canonical catalogue validation; invalid stages throw
 and all six Swimming stages resolve to distinct regions of the original
-supplier photograph. No skill/stage is inferred from another badge.
+March 2026 programme PDF. No skill/stage is inferred from another badge.
 
 ## Reconciliation with 107398.png
 
@@ -84,27 +84,18 @@ by SW-546/SW-549, and draft editor integration by SW-547.
 
 ## Verified Swimming originals and delivery boundaries
 
-On 28 October 2026, the official supplier page lists separate Swimming level
-1–6 variants and supplies a photograph of the original numbered badges:
-https://thescoutshop.ie/products/swimming-skills
-
-The exact original JPEG is retained byte-for-byte at
-`public/badges/adventure-skills/swimming/original-stages.jpg`; source URL,
-SHA-256, dimensions, byte length and observation date are recorded in the adjacent
-`source.json`. No numerals, symbols, colours, frames or proportions were redrawn.
-The source is a photograph of embroidered badges, unlike the other nine skills'
-handbook illustrations; this difference is explicit rather than substituting art.
-
-The single shared mapping selects source-pixel viewports. A viewport silhouette
-excludes adjacent badges in the supplier's sheet, selecting only original pixels.
-It does not paint an outline or change image bytes. Interior clipping is mapped
-back into the full source photograph, preserving the original frame colours at
-zero/partial/full completion. The source contains later badges too, but only the
-six stages in the canonical programme are mapped. Stages 7–9 still throw and
-cannot appear as supported badgework.
-
-The 2026 programme booklet confirms those six supported stages:
+SW-553 supersedes the 28 October supplier photograph with the original flat
+artwork supplied by the owner on 29 October 2026:
 https://scouting360.ie/wp-content/uploads/2026/06/Swimming-Adventure-Skills-1-to-6-20mar2026.pdf
+
+Page 2 contains six vector badges. The exact outer-frame regions are rendered
+as individual 378px RGB PNGs, without redrawing/recolouring, changing numerals or
+substituting symbols. Source PDF checksum, extraction bounds, renderer version,
+per-image checksums and dimensions are recorded in `swimming/source.json`.
+The obsolete JPEG and photograph viewport/silhouette code are removed. Original
+PDF outlines are retained, including the source's dark red/maroon stage-6 frame;
+no approximate screenshot brown is painted over it. Only stages 1-6 are mapped.
+The other 81 original images remain byte-identical.
 
 The runtime component still handles missing/failed image requests explicitly.
 Full leader/parent visual acceptance remains a deployed TEST/manual gate; source
