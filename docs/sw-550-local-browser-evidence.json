@@ -1,0 +1,930 @@
+{
+  "environment": "Local Firebase demo emulators; not deployed TEST or Production",
+  "verificationClientDate": "2026-10-28",
+  "mainAtIntegrationStart": "3c6b13f6b3489b24fa2e28e3c89a2a14790f0a67",
+  "localIntegrationCandidate": "59413eed8c7bb09f875714384d57b51feea6c0f5",
+  "implementationHeadsAtVerification": {
+    "947": "7d0ff6661ffcde5bf2bbccc6218b17ae64141f2a",
+    "948": "b558bdb6989481e20510ff7b3001eb8a2b077fbe",
+    "949BeforeMergeReconciliation": "e624d69866ceeb5c70bf4e4043ee02cd2a2df731"
+  },
+  "browser": "Pinned Chromium 151; desktop and Pixel 7 projects; designated cases at 320px",
+  "uniquePassingCases": 129,
+  "existingProjectSpecificSkipped": 5,
+  "retries": 0,
+  "freshRuns": [
+    {
+      "name": "cross-role",
+      "passed": 110,
+      "existingProjectSpecificSkips": 0,
+      "failed": 0,
+      "retries": 0,
+      "wholeRun": "8.5m"
+    },
+    {
+      "name": "legacy-source",
+      "passed": 19,
+      "existingProjectSpecificSkips": 5,
+      "failed": 0,
+      "retries": 0,
+      "wholeRun": "2.0m"
+    }
+  ],
+  "testFileGitBlobHashes": {
+    "e2e/adventure-skill-badge-renderer.spec.ts": "d0806b156c0bff8b8a09bca11b124df7c2eec0ce",
+    "e2e/adventure-skill-swimming-artwork.spec.ts": "44e25e4a492a6adaed21fe810aa96224cb64e499",
+    "e2e/adventure-skills-badgework.spec.ts": "57bfaa6614922cc75d21980dff442ed887ebd07e",
+    "e2e/badgework-awards-experience.spec.ts": "bfa84c3df17e81769389d02056677a027a67d7a5",
+    "e2e/badgework-experience-setting.spec.ts": "562e1f98c93f012191587c4c14b7e6a8948873cd",
+    "e2e/badgework-large-save.spec.ts": "056f1bf528079e7e5e47fc94862cf8f29c856291",
+    "e2e/badgework-parent-experience.spec.ts": "1ae7befc2cbc96a42af6ccb7600645545431acfe",
+    "e2e/badgework-progress-experience.spec.ts": "6d77d09f092ac39ba90398897fd666865dd6b960",
+    "e2e/badgework-record-experience.spec.ts": "b7f93bb8dd4557cc96d81816d8a6ced9f93d62f5",
+    "e2e/badgework-rollout-matrix.spec.ts": "3fc0edad23365b57865b5fb8b0deb2a248166bb8",
+    "e2e/badgework-skill-filter.spec.ts": "e66edbc84c3938a9c1f810b587785808cd0c36ce",
+    "e2e/badgework-source-experience.spec.ts": "1238b9f92365eed0bfeddcbb73b494074f6950bd",
+    "e2e/meeting-review-badgework.spec.ts": "396a13d265dd43b8a0d90db6cd826b294b6265d9",
+    "e2e/support/badge-renderer-harness.ts": "8b638cc8eb98dabcee6b8fdfa19391ce597827fd",
+    "e2e/sw265-badgework-navigation.spec.ts": "f9f4a8a249f7e7b2e03e9f561f70dac4a132909e",
+    "e2e/weekly-attendance-uniform.spec.ts": "6537b94a61acf823978d46b5d4b32233be4aaa9a"
+  },
+  "applicationSourceGitBlobHashes": {
+    "src/components/admin/BadgeworkAwaitingAwardQueue.tsx": "b6dc7ddf6ca8aaec4ee28b8fbe5202b824155ea3",
+    "src/components/admin/BadgeworkAwardHistory.tsx": "9c373d8bdea14dbbe20e98d5b0b9cb27d85a4b8f",
+    "src/components/admin/BadgeworkGroupCompetencyControls.tsx": "1125bd86d60635fc7f700350988b5ba7d8e00f02",
+    "src/components/admin/BadgeworkLeaveGuard.tsx": "5c2b80ff7f43e444a142582eb2f59e2130d2b88d",
+    "src/components/admin/BadgeworkModeNavigation.tsx": "26f1f14d3b3a09041f3dd4d6ba273299ad241ee7",
+    "src/components/admin/BadgeworkOverview.tsx": "8c00b40740d7c3aa0df26d4f31360798c97917dc",
+    "src/components/admin/BadgeworkRecordPanel.tsx": "b5122dbdc49a680b3077c29f4f4f40a1c5bbca08",
+    "src/components/admin/BadgeworkSelectedMemberStageSummary.tsx": "d7ea86a88990aad71dfea23651897326718b2b4a",
+    "src/components/admin/BadgeworkTrackingDialogs.tsx": "583fbb9c8a3f32605d311931801d0ac84be4339b",
+    "src/components/admin/useBadgeworkProgress.ts": "799d780a8aa88c74f767aab36221c05b694f86a5",
+    "src/components/badgework/AdventureSkillBadge.tsx": "cb07a2d7454396a62a8e051689bb3056fabe6765",
+    "src/components/parent/ParentAdventureSkillsSection.tsx": "a2ee511008da1b3d28d55ad37cf9467cf1c5d22a",
+    "src/components/parent/ParentBadgeworkDetail.tsx": "a2dd5c21ce7f04fecc64c9588f35d3888d0ff9f1",
+    "src/pages/BadgeworkTracking.tsx": "4bc9bd5ef916226aefeed1a4b5e3bdf10917fedb",
+    "src/services/adventureSkillBadgeArtwork.ts": "36d87589393cb0f4f55d14630202c6c100fbde94",
+    "src/services/adventureSkillDraftPlan.ts": "f96432e06e97db36868b304a6a2bebf9e7ead253",
+    "src/services/adventureSkillDraftPreview.ts": "9bb3051a628c11493c12b1d7c18774d8982238bb",
+    "src/services/adventureSkillDraftSave.ts": "158b9240b8920ad2b72143f854f61808b320f586"
+  },
+  "rulesGitBlobHashes": {
+    "firestore.rules": "eabfdf1d8c08bd54d7ffa8877dd3eaca8d9010e2",
+    "storage.rules": "b41c63312824297c36c95df7d0bec6726c51d67f"
+  },
+  "originalSwimmingPhotoSha256": "a6b00c49d9d13d4c83b52a185c696eb24ca2d7369f4329af38755d1e4e2ce7cb",
+  "retainedCiCorrection": {
+    "file": "e2e/leader-access-management.spec.ts",
+    "blob": "f59c00c10bec7f4a40fc9ccf703fa385da5e0116",
+    "previousGreenHead": "e624d69866ceeb5c70bf4e4043ee02cd2a2df731",
+    "previousGreenE2ERun": 40728801901,
+    "note": "Preserved during merge reconciliation; not relabelled as part of this 129-case local run."
+  },
+  "priorEvidenceCheckpoint": "e8a40aab8c3d0eea7e638da0e22f6c8b41a35cae",
+  "priorApplicationHashesStillMatch": true,
+  "skippedCases": [
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills mobile badgework \u203a shows competency statements beside per-child exception controls"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills badgework \u203a admin can select multiple members and closed meeting handoff blocks badgework"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills badgework \u203a unsaved badgework context changes use in-app confirmation and cancel keeps the draft"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills badgework \u203a saved badgework and award are visible read-only to the linked parent"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-skill-filter.spec.ts",
+      "case": "Badgework Adventure Skill filter \u203a shows only the selected Adventure Skill tile and restores all tiles when cleared"
+    }
+  ],
+  "passedCases": [
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Original stage frame is unchanged while canonical completion reveals interior colour bottom to top",
+      "duration": "1.2s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Missing and failed original artwork remain explicit and do not borrow another badge",
+      "duration": "721ms"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Shared read-only presentation fits 320px in light/dark themes and respects reduced motion",
+      "duration": "574ms"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Every supported application theme keeps original badge states readable at 320px",
+      "duration": "1.7s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 1 retains its frame and reveals canonical progress",
+      "duration": "1.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 2 retains its frame and reveals canonical progress",
+      "duration": "1.0s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 3 retains its frame and reveals canonical progress",
+      "duration": "1.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 4 retains its frame and reveals canonical progress",
+      "duration": "1.2s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 5 retains its frame and reveals canonical progress",
+      "duration": "1.2s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 6 retains its frame and reveals canonical progress",
+      "duration": "1.9s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-awards-experience.spec.ts",
+      "case": "Awards navigation is available only in the redesigned experience",
+      "duration": "6.3s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-awards-experience.spec.ts",
+      "case": "Selective and bulk confirmation create awards separately from completion and retain history/removal confirmation",
+      "duration": "7.9s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-awards-experience.spec.ts",
+      "case": "A single-stage award requires explicit confirmation and keeps saved completion intact",
+      "duration": "3.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework switch defaults off, persists and rolls back independently: superadmin@example.com",
+      "duration": "4.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework switch defaults off, persists and rolls back independently: modernsuperadmin@example.com",
+      "duration": "4.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework rollout control is hidden for test.webadmin@example.com",
+      "duration": "1.7s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework rollout control is hidden for test.scout.programme.scouter@example.com",
+      "duration": "1.5s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Backend revalidates a revoked Superuser; failed save stays off and can be retried",
+      "duration": "2.4s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-large-save.spec.ts",
+      "case": "Large manual Save commits 520 canonical changes atomically",
+      "duration": "13.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-large-save.spec.ts",
+      "case": "Large meeting Save commits 416 canonical changes atomically",
+      "duration": "12.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-parent-experience.spec.ts",
+      "case": "Parent saved-data parity and read-only navigation with redesign false",
+      "duration": "5.0s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-parent-experience.spec.ts",
+      "case": "Parent saved-data parity and read-only navigation with redesign true",
+      "duration": "6.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-parent-experience.spec.ts",
+      "case": "Forged child links cannot expose unrelated progress; parent writes remain denied",
+      "duration": "1.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress false remains independent of navigation/schedule/meeting false",
+      "duration": "2.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress false remains independent of navigation/schedule/meeting true",
+      "duration": "2.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress true remains independent of navigation/schedule/meeting false",
+      "duration": "3.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress true remains independent of navigation/schedule/meeting true",
+      "duration": "3.2s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress retains exact-stage filters, scoped CSV and matrix entry into the same member/skill/stage",
+      "duration": "5.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Member stages retain historical awards and live rollback preserves an unsaved recording draft",
+      "duration": "5.9s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Programme Scouter Progress remains limited to assigned sections",
+      "duration": "2.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "An existing recording draft survives enabling the redesign and the next visit adopts Progress",
+      "duration": "7.5s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Mixed member previews reflect individual exceptions; Discard restores saved artwork and counts",
+      "duration": "4.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "A rejected multi-member save writes nothing; retry persists counts without awarding",
+      "duration": "8.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Link navigation retains draft after Stay, then Discard leaves safely",
+      "duration": "5.5s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Link navigation retains draft after Stay, then Save leaves safely",
+      "duration": "5.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Android Back closes an open menu before asking to leave a dirty recording",
+      "duration": "5.0s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "An offline pending Save protects context until the backend acknowledges it",
+      "duration": "4.7s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule false, meeting false",
+      "duration": "4.4s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule false, meeting false",
+      "duration": "4.0s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule true, meeting false",
+      "duration": "3.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule true, meeting false",
+      "duration": "3.9s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule false, meeting true",
+      "duration": "3.7s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule false, meeting true",
+      "duration": "4.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule true, meeting true",
+      "duration": "4.7s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule true, meeting true",
+      "duration": "5.0s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule false, meeting false",
+      "duration": "4.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule false, meeting false",
+      "duration": "5.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule true, meeting false",
+      "duration": "4.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule true, meeting false",
+      "duration": "4.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule false, meeting true",
+      "duration": "4.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule false, meeting true",
+      "duration": "4.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule true, meeting true",
+      "duration": "5.6s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule true, meeting true",
+      "duration": "4.5s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-source-experience.spec.ts",
+      "case": "Redesigned recording preserves attending-only selection, closed-meeting rejection and saved source return",
+      "duration": "5.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-source-experience.spec.ts",
+      "case": "Event source Save and return retains event provenance without awarding",
+      "duration": "5.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Original stage frame is unchanged while canonical completion reveals interior colour bottom to top",
+      "duration": "1.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Missing and failed original artwork remain explicit and do not borrow another badge",
+      "duration": "854ms"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Shared read-only presentation fits 320px in light/dark themes and respects reduced motion",
+      "duration": "583ms"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-badge-renderer.spec.ts",
+      "case": "Every supported application theme keeps original badge states readable at 320px",
+      "duration": "1.8s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 1 retains its frame and reveals canonical progress",
+      "duration": "2.3s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 2 retains its frame and reveals canonical progress",
+      "duration": "2.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 3 retains its frame and reveals canonical progress",
+      "duration": "2.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 4 retains its frame and reveals canonical progress",
+      "duration": "2.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 5 retains its frame and reveals canonical progress",
+      "duration": "2.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skill-swimming-artwork.spec.ts",
+      "case": "Original Swimming stage 6 retains its frame and reveals canonical progress",
+      "duration": "2.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-awards-experience.spec.ts",
+      "case": "Awards navigation is available only in the redesigned experience",
+      "duration": "4.6s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-awards-experience.spec.ts",
+      "case": "Selective and bulk confirmation create awards separately from completion and retain history/removal confirmation",
+      "duration": "8.3s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-awards-experience.spec.ts",
+      "case": "A single-stage award requires explicit confirmation and keeps saved completion intact",
+      "duration": "4.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework switch defaults off, persists and rolls back independently: superadmin@example.com",
+      "duration": "5.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework switch defaults off, persists and rolls back independently: modernsuperadmin@example.com",
+      "duration": "4.8s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework rollout control is hidden for test.webadmin@example.com",
+      "duration": "1.8s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Badgework rollout control is hidden for test.scout.programme.scouter@example.com",
+      "duration": "1.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-experience-setting.spec.ts",
+      "case": "Backend revalidates a revoked Superuser; failed save stays off and can be retried",
+      "duration": "2.6s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-large-save.spec.ts",
+      "case": "Large manual Save commits 520 canonical changes atomically",
+      "duration": "18.4s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-large-save.spec.ts",
+      "case": "Large meeting Save commits 416 canonical changes atomically",
+      "duration": "16.6s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-parent-experience.spec.ts",
+      "case": "Parent saved-data parity and read-only navigation with redesign false",
+      "duration": "5.7s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-parent-experience.spec.ts",
+      "case": "Parent saved-data parity and read-only navigation with redesign true",
+      "duration": "7.7s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-parent-experience.spec.ts",
+      "case": "Forged child links cannot expose unrelated progress; parent writes remain denied",
+      "duration": "1.9s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress false remains independent of navigation/schedule/meeting false",
+      "duration": "3.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress false remains independent of navigation/schedule/meeting true",
+      "duration": "3.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress true remains independent of navigation/schedule/meeting false",
+      "duration": "4.0s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress true remains independent of navigation/schedule/meeting true",
+      "duration": "5.2s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Progress retains exact-stage filters, scoped CSV and matrix entry into the same member/skill/stage",
+      "duration": "6.6s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Member stages retain historical awards and live rollback preserves an unsaved recording draft",
+      "duration": "5.9s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "Programme Scouter Progress remains limited to assigned sections",
+      "duration": "3.0s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-progress-experience.spec.ts",
+      "case": "An existing recording draft survives enabling the redesign and the next visit adopts Progress",
+      "duration": "6.2s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Mixed member previews reflect individual exceptions; Discard restores saved artwork and counts",
+      "duration": "5.9s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "A rejected multi-member save writes nothing; retry persists counts without awarding",
+      "duration": "9.7s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Link navigation retains draft after Stay, then Discard leaves safely",
+      "duration": "6.2s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Link navigation retains draft after Stay, then Save leaves safely",
+      "duration": "6.3s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "Android Back closes an open menu before asking to leave a dirty recording",
+      "duration": "5.6s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-record-experience.spec.ts",
+      "case": "An offline pending Save protects context until the backend acknowledges it",
+      "duration": "5.7s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule false, meeting false",
+      "duration": "4.3s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule false, meeting false",
+      "duration": "4.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule true, meeting false",
+      "duration": "4.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule true, meeting false",
+      "duration": "5.0s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule false, meeting true",
+      "duration": "4.4s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule false, meeting true",
+      "duration": "4.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation false, schedule true, meeting true",
+      "duration": "4.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework false with navigation true, schedule true, meeting true",
+      "duration": "4.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule false, meeting false",
+      "duration": "5.8s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule false, meeting false",
+      "duration": "5.4s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule true, meeting false",
+      "duration": "4.7s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule true, meeting false",
+      "duration": "5.8s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule false, meeting true",
+      "duration": "6.0s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule false, meeting true",
+      "duration": "5.8s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation false, schedule true, meeting true",
+      "duration": "5.8s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-rollout-matrix.spec.ts",
+      "case": "Badgework true with navigation true, schedule true, meeting true",
+      "duration": "6.0s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-source-experience.spec.ts",
+      "case": "Redesigned recording preserves attending-only selection, closed-meeting rejection and saved source return",
+      "duration": "7.2s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/badgework-source-experience.spec.ts",
+      "case": "Event source Save and return retains event provenance without awarding",
+      "duration": "5.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills badgework \u203a admin can select multiple members and closed meeting handoff blocks badgework",
+      "duration": "23.5s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills badgework \u203a unsaved badgework context changes use in-app confirmation and cancel keeps the draft",
+      "duration": "5.8s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills badgework \u203a saved badgework and award are visible read-only to the linked parent",
+      "duration": "15.0s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/badgework-skill-filter.spec.ts",
+      "case": "Badgework Adventure Skill filter \u203a shows only the selected Adventure Skill tile and restores all tiles when cleared",
+      "duration": "7.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Review saves notes before canonical tracker handoff, scopes present members and returns to the same Review",
+      "duration": "5.5s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Failed save blocks tracker navigation and retains notes for a successful retry",
+      "duration": "3.7s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Empty-present and closed Review retain canonical badgework locks while authorised notes corrections remain editable",
+      "duration": "3.5s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "OFF preserves the legacy badgework presentation",
+      "duration": "2.4s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Read-only Review cannot edit badge notes, additional notes or enter the tracker from the meeting",
+      "duration": "2.1s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/sw265-badgework-navigation.spec.ts",
+      "case": "SW-265 Badgework navigation under slow progress reads \u203a Badgework can be entered, navigated and exited while overview data is delayed",
+      "duration": "6.7s"
+    },
+    {
+      "project": "chromium",
+      "spec": "e2e/weekly-attendance-uniform.spec.ts",
+      "case": "SW-325 attendance and uniform checklist keeps one compact row and applies uniform rules",
+      "duration": "6.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/adventure-skills-badgework.spec.ts",
+      "case": "Adventure Skills mobile badgework \u203a shows competency statements beside per-child exception controls",
+      "duration": "3.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Review saves notes before canonical tracker handoff, scopes present members and returns to the same Review",
+      "duration": "5.1s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Failed save blocks tracker navigation and retains notes for a successful retry",
+      "duration": "3.7s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Empty-present and closed Review retain canonical badgework locks while authorised notes corrections remain editable",
+      "duration": "3.7s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "OFF preserves the legacy badgework presentation",
+      "duration": "2.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/meeting-review-badgework.spec.ts",
+      "case": "Read-only Review cannot edit badge notes, additional notes or enter the tracker from the meeting",
+      "duration": "2.3s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/sw265-badgework-navigation.spec.ts",
+      "case": "SW-265 Badgework navigation under slow progress reads \u203a Badgework can be entered, navigated and exited while overview data is delayed",
+      "duration": "6.5s"
+    },
+    {
+      "project": "mobile-chromium",
+      "spec": "e2e/weekly-attendance-uniform.spec.ts",
+      "case": "SW-325 attendance and uniform checklist keeps one compact row and applies uniform rules",
+      "duration": "6.1s"
+    }
+  ],
+  "fullLocalQuality": {
+    "unitTests": 944,
+    "emailWorkerTests": 51,
+    "maintenanceTests": 2,
+    "eventBackendTests": 8,
+    "productionAuditContractsUnchangedGuardsAndBuild": "passed",
+    "sourceAndShardCeilingsChanged": false
+  },
+  "currentImplementationReferences": {
+    "mainAfter948": "3c6b13f6b3489b24fa2e28e3c89a2a14790f0a67",
+    "mainAfter947": "9498161afe30aea86825d33c9203031d106677ae",
+    "947MergedHead": "7d0ff6661ffcde5bf2bbccc6218b17ae64141f2a",
+    "949ReconciledHead": "86d298204db38f1357d337d70c330e1eb562f08f",
+    "949CandidateTree": "bd131347b4b6b5ed7cc7c4ff6c30eb1d1671fc3b",
+    "mainAfter949": "3aa0fb59f60c8f274f4ee22101e98a32c3b5491c"
+  },
+  "applicationHashesMatchReconciled949": true,
+  "integratedMain": "3aa0fb59f60c8f274f4ee22101e98a32c3b5491c",
+  "implementationCiAtMerge": {
+    "949": {
+      "head": "86d298204db38f1357d337d70c330e1eb562f08f",
+      "quality": 40782892861,
+      "rules": 40782892863,
+      "e2e": 40782892937,
+      "preview": 40782892883,
+      "conclusion": "success"
+    },
+    "947": {
+      "head": "7d0ff6661ffcde5bf2bbccc6218b17ae64141f2a",
+      "quality": 40780381108,
+      "e2e": 40780381129,
+      "preview": 40780381106,
+      "conclusion": "success"
+    },
+    "948": {
+      "head": "b558bdb6989481e20510ff7b3001eb8a2b077fbe",
+      "quality": 40725647029,
+      "e2e": 40725646835,
+      "preview": 40725646895,
+      "conclusion": "success"
+    }
+  }
+}

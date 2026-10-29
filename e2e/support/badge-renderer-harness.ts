@@ -2,22 +2,24 @@ import { build } from "vite";
 import react from "@vitejs/plugin-react";
 import { mkdir, mkdtemp, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import type { ThemeName } from "../../src/theme/themePreferences";
 import type { Page } from "@playwright/test";
 import type { AdventureStageOverview } from "../../src/services/adventureSkillOverviewLogic";
 
-type BadgeInput = { skillId: string; progress: AdventureStageOverview; unsaved?: boolean; size?: number; dark?: boolean };
+type BadgeInput = { skillId: string; progress: AdventureStageOverview; unsaved?: boolean; size?: number; dark?: boolean; themeName?: ThemeName };
 let bundle: Promise<string> | undefined;
 
 /** Bundle the real shared React component; no test-only product route or substitute artwork. */
 async function rendererBundle() {
   bundle ??= (async () => {
     const component = `${process.cwd()}/src/components/badgework/AdventureSkillBadge.tsx`;
+    const themes = `${process.cwd()}/src/theme/theme.ts`;
     const temporaryRoot = join(process.cwd(), "node_modules/.tmp");
     await mkdir(temporaryRoot,{recursive:true});
     const temporary = await mkdtemp(join(temporaryRoot,"badge-renderer-"));
     const entry = join(temporary,"entry.tsx");
-    await writeFile(entry, `import React from 'react'; import {createRoot} from 'react-dom/client'; import {ThemeProvider,createTheme,Box} from '@mui/material'; import Badge from ${JSON.stringify(component)};
-      const root=createRoot(document.getElementById('badge-root')); window.renderBadge=({dark,...props})=>root.render(React.createElement(ThemeProvider,{theme:createTheme({palette:{mode:dark?'dark':'light'}})},React.createElement(Box,{sx:{backgroundColor:"background.default",color:"text.primary",padding:1,width:"fit-content"}},React.createElement(Badge,props))));`);
+    await writeFile(entry, `import React from 'react'; import {createRoot} from 'react-dom/client'; import {ThemeProvider,createTheme,Box} from '@mui/material'; import Badge from ${JSON.stringify(component)}; import {themeForName} from ${JSON.stringify(themes)};
+      const root=createRoot(document.getElementById('badge-root')); window.renderBadge=({dark,themeName,...props})=>root.render(React.createElement(ThemeProvider,{theme:themeName?themeForName(themeName):createTheme({palette:{mode:dark?'dark':'light'}})},React.createElement(Box,{sx:{backgroundColor:"background.default",color:"text.primary",padding:1,width:"fit-content"}},React.createElement(Badge,props))));`);
     let result;
     try {
       result = await build({configFile:false, logLevel:"silent", define:{"process.env.NODE_ENV":JSON.stringify("production")}, plugins:[react()],
