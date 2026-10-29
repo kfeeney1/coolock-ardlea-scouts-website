@@ -31,6 +31,12 @@ async function signIn(page: Page, email: string, leader: boolean) {
   await page.getByRole("textbox", { name: leader ? "Email address" : "Email", exact: true }).fill(email);
   await page.getByRole("textbox", { name: "Password", exact: true }).fill(password!);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
+  if (!leader) {
+    // The signed-out form already has a Parent Portal heading. Wait for the
+    // approved parent's authenticated child selector before a full-page goto
+    // can interrupt sign-in/session persistence and leave the next page anonymous.
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
+  }
   await expect(page.getByRole("heading", { name: leader ? "Leader Dashboard" : "Parent Portal", exact: true })).toBeVisible();
 }
 
