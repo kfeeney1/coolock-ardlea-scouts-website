@@ -1,6 +1,7 @@
 import { approvedBackendCode, backendFailureDiagnostic } from "./backendDiagnostics.js";
 import worker from "./index.js";
-import { handleProductionRoute, runLeaderMedicalRenewalReminders } from "./productionRoutes.js";
+import { handleProductionRoute, runLeaderMedicalRenewalReminders, serviceAccessToken } from "./productionRoutes.js";
+import { handleHallBookingRoute } from "./hallBookingRoutes.js";
 
 const PRODUCTION_HOST = "https://coolockardleascouts.ie";
 const PRODUCTION_DOMAIN = "coolockardleascouts.ie";
@@ -173,6 +174,7 @@ const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
 
 export default {
   async fetch(request, env) {
+    if (new URL(request.url).pathname === "/hall-bookings") return handleHallBookingRoute(request, env, serviceAccessToken);
     const configurationError = validateDeliveryEnvironment(env);
     if (configurationError) {
       return json(request, env, 503, { ok: false, error: "Email delivery is not safely configured." });

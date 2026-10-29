@@ -53,13 +53,15 @@ test("only Super Admin receives admin promotion permission", () => {
   assert.equal(effectivePermissionsFor("super-admin", "").some((permission) => permission.id === "roles.manage.admin"), true);
 });
 
-test("Super Admin receives every administrative and operational permission regardless of Scouting appointment", () => {
+test("Super Admin retains existing overrides; hall bookings require a Council appointment", () => {
   const ids = new Set(effectivePermissionsFor("super-admin", "").map((permission) => permission.id));
   const expected = PERMISSION_REGISTRY
-    .filter((permission) => permission.grantedBy.some((grant) => grant !== "parent"))
+    .filter((permission) => permission.id !== "hall.bookings.manage" && permission.grantedBy.some((grant) => grant !== "parent"))
     .map((permission) => permission.id);
 
   assert.deepEqual([...ids].sort(), expected.sort());
+  assert.equal(ids.has("hall.bookings.manage"), false);
+  assert.equal(effectivePermissionsFor("super-admin", "Section Leader").some(permission => permission.id === "hall.bookings.manage"), true);
   assert.ok(ids.has("weekly-meetings.manage.group"));
   assert.ok(ids.has("programme.manage.group"));
   assert.ok(ids.has("event-gallery.manage.group"));

@@ -1,4 +1,5 @@
 import { activeScoutingAppointments, isGroupLeadershipAppointment, normalizeScoutingAppointmentAssignments } from "./scoutingAppointments.ts";
+import type { CanonicalScoutingAppointment } from "./scoutingAppointments.ts";
 
 export type PermissionScope = "own" | "linked-members" | "assigned-section" | "group-wide" | "system";
 export type PermissionArea =
@@ -10,6 +11,7 @@ export type PermissionArea =
   | "Consent & Medical"
   | "Finance & Subs"
   | "Equipment"
+  | "Facilities & Hall Hire"
   | "Reports"
   | "Audit"
   | "Account Approval"
@@ -18,6 +20,7 @@ export type PermissionArea =
   | "System Administration";
 
 export type PermissionGrant =
+  | CanonicalScoutingAppointment
   | "parent"
   | "leader"
   | "admin"
@@ -56,6 +59,7 @@ export const CURRENT_SCOUTING_APPOINTMENTS = [
 ] as const;
 
 export const PERMISSION_REGISTRY: PermissionDefinition[] = [
+  { id: "hall.bookings.manage", name: "Manage hall bookings", description: "Group Council members manage hall bookings group-wide through the authoritative Worker. Includes active Section Leaders, Assistant Section Leaders and Group appointments; excludes Scouters and Programme Scouters. Does not grant programme or member access.", area: "Facilities & Hall Hire", scope: "group-wide", grantedBy: ["Group Leader", "Deputy Group Leader", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Group Chairperson", "Group Youth Champion", "Group Trainer", "Section Leader", "Assistant Section Leader"], enforcement: ["Worker /hall-bookings current authoritative Council appointments", "Firestore hall client deny", "transactional hall resource lock"], protected: true },
   { id: "leader.portal.access", name: "Use the Leader portal", description: "Use the authenticated Leader dashboard, account pages and shared Leader information. Requires an active leader profile at the route boundary.", area: "Role Management", scope: "own", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["ProtectedAdminRoute", "AdminAuthProvider active adminUsers profile"], protected: true },
   { id: "navigation.appointment-views.all", name: "View all appointment navigation contexts", description: "Show the existing administrator shortcuts for Treasurer, Secretary and Quartermaster views. Does not grant page or data access.", area: "Role Management", scope: "system", grantedBy: ["admin", "super-admin"], enforcement: ["Leader navigation filter", "independent route and Firestore guards"], protected: true },
   { id: "join.manage", name: "Manage Join Us applications", description: "Use Join Us management under the existing Section Leader, Group leadership and administrator access policy.", area: "Members", scope: "assigned-section", grantedBy: ["Section Leader", "Group Leader", "admin", "super-admin"], enforcement: ["ProtectedJoinManagementRoute", "Firestore joinApplications rules"], protected: true },
@@ -116,7 +120,9 @@ export function effectivePermissionsFor(role: string, scoutingRole: string, appo
   // assignments exist. An inactive/future/expired assignment must never revive
   // its legacy label. Evaluate system-role grants even with no active appointment.
   const appointmentNames = activeAppointments.length > 0 ? activeAppointments : [""];
-  return PERMISSION_REGISTRY.filter((permission) => permission.grantedBy.some((grant) =>
+  return PERMISSION_REGISTRY.filter((permission) => permission.id === "hall.bookings.manage"
+    ? ["leader", "admin", "super-admin"].includes(role) && activeAppointments.some(appointment => permission.grantedBy.includes(appointment))
+    : permission.grantedBy.some((grant) =>
     appointmentNames.some((appointment) => grantMatches(grant, role, appointment))
   ));
 }
