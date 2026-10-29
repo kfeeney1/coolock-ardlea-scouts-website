@@ -140,6 +140,7 @@ export const suiteSpecs = {
     "subs-management.spec.ts"
   ],
   "public-pages": [
+    "public-hall-hire.spec.ts",
     "leader-communications.spec.ts",
     "public-smoke.spec.ts",
     "sitewide-tile-filters.spec.ts"
