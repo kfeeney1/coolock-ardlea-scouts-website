@@ -1,12 +1,12 @@
 # SW-164 Hall Hire delivery contract
 
-Reconciled against main `dabd334b` on 29 October 2026. The current owner instruction supersedes the September deferment. No applicable AGENTS.md, open PR overlap, epic attachments, linked issues or pre-existing children were found. The sole epic comment was the earlier deferment. The epic calls the layout a proposal for review; approval and venue facts remain open in SW-554.
+Reconciled against main `dabd334b` on 29 October 2026. The current owner instruction supersedes the September deferment. No applicable AGENTS.md, epic attachments, linked issues or pre-existing children were found initially. Owner subsequently approved the layout, neutral availability display and enquiry-not-confirmation workflow. Council membership derives from active appointments above Section Scouter, with the explicit mapping below agreed. Missing factual venue content remains unpublished.
 
 ## Delivery and gates
 
 | Ticket | Focus | Dependency |
 | --- | --- | --- |
-| SW-554 | Design, venue, enquiry and permission decisions | Owner confirmation |
+| SW-554 | Approved layout/workflow and Council mapping; outstanding venue facts | Unknown factual content stays unpublished |
 | SW-555 | Pure bounded booking/time domain | Independent, this PR |
 | SW-556 | Authoritative reservation boundary, privacy rules and audit | SW-555 and agreed permission scope |
 | SW-557 | Independent Superuser switch | SW-556; keep activation gated until complete |
@@ -38,19 +38,31 @@ All relevant source write paths, including direct/legacy saves and removals, mus
 
 Reuse `CalendarPageLayout`, `CalendarMonthToolbar`, shared calendar date/grid utilities, theme tokens, Header/emblem and Footer. The existing group grid contains protected source links, so public occupancy requires a restricted renderer rather than passing private entries to it. Hall navigation must reuse group calendar state conventions.
 
-## Proposed authoritative protocol (SW-556, not implemented)
+## Authoritative backend (SW-556)
+
+The existing Worker now exposes authenticated POST `/hall-bookings` for save, paged list and paged history. Firestore validates the user's ID token on a user-scoped profile read before any private read or write. The transaction independently re-reads the current account and organisation appointments, so stale browser claims and revoked Council assignments cannot authorise an action. Client access to all private `hall` data is denied, including for Council members: use the Worker boundary.
+
+The REST transaction reads `hall/group`, authoritative account/appointments, rollout setting and expected booking revision. It reads the union of old/new Dublin-day reservation buckets, detects overlaps against other bookings, and atomically writes booking, indexes, neutral public daily availability, immutable private history and the existing auditLog representation. Updating the shared resource revision serialises concurrent writes. An aborted transaction returns a conflict for explicit user review; no blind retries are used. Read-only paged private reads use snapshot transactions without taking the write lock.
+
+Transactions touch at most 240 unique day buckets, with two writes per day plus four metadata/audit writes (484 maximum, below Firestore's 500-write boundary). Each day is bounded to 300 occupied intervals; requests are streamed with a 32KiB cap. Index corruption fails closed. Public day projections split overnight intervals at Dublin midnight and contain only `occupied: [{start,end}]`; document IDs are dates, not source/booking identities. Public reads require both rollout enabled and readiness true, and lists are limited to 31 documents per request.
+
+No new service, API provisioning, scheduled job or subscription is introduced. The existing Worker and Firestore incur their normal per-request/read/write usage; this does not promise unlimited free usage on the existing Blaze projects. Nothing has been deployed by this work.
+
+`hall/group.ready` remains absent/false until SW-560 integration and integrated acceptance. No client can write this field. The rollout switch alone cannot expose incomplete workflows. Source-owned reservations cannot be independently edited through hall management. Authoritative source reservation integration itself remains SW-560 and is not implemented by SW-556.
+
+The following source-integration protocol remains required:
 
 Use the existing Firestore infrastructure and authenticated application boundary. A transaction must read authoritative actor profile/scope, expected revision, the shared resource lock and bounded occupancy before writing canonical changes, reservations, restricted availability and immutable audit together. Every successful mutation updates the same resource lock so concurrent overlapping submissions retry and re-evaluate against committed occupancy. Deny alternative direct writes unless rules can prove the complete invariant. Client overlap previews are advisory.
 
 The existing maintenance appointment transaction controls record revision, not cross-source resource overlap. `recordAuditEvent` is best-effort client logging and is insufficient for an atomic booking audit requirement. Extend/reuse the audit representation with an authoritative transactional write. Existing `functions/src/handler.js` is TEST-specific; do not repurpose or deploy it as a production hall backend. Choose a compatible existing boundary after reviewing environment deployment and no-new-charges constraints. No new service, API, scheduled job or paid dependency is introduced here. Any unavoidable incremental cost dependency must be surfaced before implementing it.
 
-Proposed permission scope awaiting SW-554 confirmation: active leaders manage internal assigned-section bookings; Group leadership/designated hall managers manage external, group and blocked bookings. Superuser alone controls rollout. Existing programme/member permissions remain independent. Define private read scope, manager designation and occurrence/series action rights before implementing authoritative grants.
+Agreed permission scope: current Section Leaders, Assistant Section Leaders, Group Leader, Deputy Group Leader, Group Secretary, Group Treasurer, Group Quartermaster / Bo'sun, Group Chairperson, Group Youth Champion and Group Trainer manage all hall bookings group-wide. Scouters and Programme Scouters do not. System Admin/Superuser alone does not imply Council membership. Inactive, future, expired, malformed and revoked assignments fail closed. No separate Council assignment is introduced. Superuser alone controls rollout. Programme/member permissions remain independent.
 
-## Public design and facts awaiting owner confirmation
+## Approved public design and outstanding factual content
 
 The reviewable layout is the six-part epic proposal: existing public header; hall introduction/image with Check availability; confirmed facilities; monthly time-slot availability with enquiry panel beside it on desktop/below on mobile; location/contact; existing footer. Occupied markers show times only; blank time is available subject to enquiry and subsequent confirmed reservation.
 
-Confirm the layout and permitted image, hall name, address/map, facilities, capacity, accessibility, contact destination, enquiry process and any published price/policy. The Ballinteer page is a functional reference only and has not been used as evidence of this venue's facts. No sample claims are published. Confirm whether the enquiry is email/link or a managed request record, who receives it and what acknowledgement is appropriate. An acknowledgement must explicitly state that availability/enquiry is not booking confirmation.
+Owner approved the layout and enquiry-not-confirmation workflow. Approval did not supply an image, venue facts or a named enquiry recipient. Use only verified existing contact configuration where appropriate; unknown facilities, capacity, accessibility, prices and policies stay unpublished. The Ballinteer page is a functional reference only and has not been used as evidence of this venue's facts. No sample claims are published. An acknowledgement must explicitly state that availability/enquiry is not booking confirmation.
 
 ## Rollout and rollback (SW-557)
 

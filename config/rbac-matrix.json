@@ -109,6 +109,8 @@
     "events": "leader-section",
     "financeReconciliations": "finance-section",
     "financeTransactions": "finance-section",
+    "hall": "trusted-worker-only-council-authorised",
+    "hallAvailability": "public-neutral-read-when-enabled-and-ready-server-write-only",
     "joinApplications": "public-create-leader-section",
     "leaderRegistrationRequests": "own-create-admin-review",
     "leaderTransitionInvitations": "section-leader-create-capability-read-admin-consume",

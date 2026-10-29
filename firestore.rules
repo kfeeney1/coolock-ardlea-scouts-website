@@ -2665,6 +2665,17 @@ service cloud.firestore {
       }
     }
 
+    // Only the trusted Worker may read/write private booking, lock, index and history data.
+    match /hall/{document=**} { allow read, write: if false; }
+    match /hallAvailability/{date} {
+      function hallPublicEnabled() {
+        return get(/databases/$(database)/documents/siteSettings/hallHire).data.get("enabled", false) == true
+          && get(/databases/$(database)/documents/hall/group).data.get("ready", false) == true;
+      }
+      allow get: if hallPublicEnabled();
+      allow list: if hallPublicEnabled() && request.query.limit <= 31;
+      allow write: if false;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

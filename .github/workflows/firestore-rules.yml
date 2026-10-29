@@ -10,6 +10,8 @@ on:
       - "tests/firestore/**"
       - "tests/storage/**"
       - "src/services/**"
+      - "src/security/hallBookingAccess.ts"
+      - "email-worker/src/hall*.js"
       - "src/firebase.ts"
       - "src/components/admin/AdminAuthProvider.tsx"
       - ".github/workflows/firestore-rules.yml"

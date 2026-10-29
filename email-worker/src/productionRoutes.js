@@ -157,7 +157,7 @@ async function importServicePrivateKey(pem) {
   );
 }
 
-async function serviceAccessToken(env) {
+export async function serviceAccessToken(env) {
   // Firebase runtimes supply a short-lived ADC token; Workers retain secret-based auth.
   if (typeof env.getServiceAccessToken === "function") return env.getServiceAccessToken();
   if (clean(env.FIRESTORE_EMULATOR_HOST, 200)) return "owner";
