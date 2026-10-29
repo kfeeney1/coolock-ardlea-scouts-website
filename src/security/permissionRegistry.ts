@@ -120,7 +120,9 @@ export function effectivePermissionsFor(role: string, scoutingRole: string, appo
   // assignments exist. An inactive/future/expired assignment must never revive
   // its legacy label. Evaluate system-role grants even with no active appointment.
   const appointmentNames = activeAppointments.length > 0 ? activeAppointments : [""];
-  return PERMISSION_REGISTRY.filter((permission) => permission.grantedBy.some((grant) =>
+  return PERMISSION_REGISTRY.filter((permission) => permission.id === "hall.bookings.manage"
+    ? ["leader", "admin", "super-admin"].includes(role) && activeAppointments.some(appointment => permission.grantedBy.includes(appointment))
+    : permission.grantedBy.some((grant) =>
     appointmentNames.some((appointment) => grantMatches(grant, role, appointment))
   ));
 }

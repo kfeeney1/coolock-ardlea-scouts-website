@@ -2,8 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { canManageHallBookings } from "../../src/security/hallBookingAccess.ts";
 import { CANONICAL_SCOUTING_APPOINTMENTS } from "../../src/security/scoutingAppointments.ts";
+import { effectivePermissionsFor } from "../../src/security/permissionRegistry.ts";
 const account = {active: true, role: "leader", sections: ["Cubs"]};
 const organisation = (appointment: string) => ({active: true, appointments: [{appointment, scope: "Cubs", active: true}]});
+test("permission catalogue does not imply a Superuser-only Council override", () => {
+  for (const role of ["leader", "admin", "super-admin"]) {
+    assert.equal(effectivePermissionsFor(role, "Scouter").some(permission => permission.id === "hall.bookings.manage"), false);
+    assert.equal(effectivePermissionsFor(role, "Assistant Section Leader").some(permission => permission.id === "hall.bookings.manage"), true);
+  }
+});
 test("Council hall authority includes section leadership and Group appointments only", () => {
   for (const appointment of CANONICAL_SCOUTING_APPOINTMENTS) assert.equal(canManageHallBookings(account, organisation(appointment), "2026-10-29"), !["Scouter", "Programme Scouter"].includes(appointment), appointment);
   assert.equal(canManageHallBookings(account, {active: true, scoutingRole: "Section Leader", organisationSection: "Cubs"}), true);
