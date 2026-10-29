@@ -1,5 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { exposeQuartermaster } from "./support/navigation-recovery-helpers";
+import { scheduleFixtureDb } from "./support/schedule-fixtures";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
@@ -30,9 +31,42 @@ test("admin can open and save site inactivity settings", async ({ page }, testIn
   await expect(page.getByLabel("Leader desktop inactivity timeout")).toHaveValue("20");
   await expect(page.getByLabel("Leader phone inactivity timeout")).toHaveValue("90");
   await expect(page.getByRole("switch", { name: "Enable Parent Login" })).toHaveCount(0);
+  await expect(page.getByRole("switch", { name: "Hall Hire", exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Save Settings" }).click();
   await expect(page.getByText(/Site settings saved/)).toBeVisible();
+});
+
+test("Superuser Hall Hire switch supports keyboard rollback at mobile width without deleting bookings", async ({page}, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Rollout runs on desktop and mobile Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  const db = scheduleFixtureDb();
+  const paths = ["siteSettings/hallHire", "siteSettings/hallHirePublic", "siteSettings/hallHireReadiness", "hall/group", "hall/group/bookings/e2e-rollout"];
+  const before = await Promise.all(paths.map(path => db.doc(path).get()));
+  try {
+    await db.doc(paths[0]).set({enabled: false}); await db.doc(paths[1]).set({enabled: false});
+    await db.doc(paths[2]).set({ready: true}); await db.doc(paths[3]).set({ready: true, revision: 8});
+    await db.doc(paths[4]).set({state: "confirmed", notes: "Retain this booking"});
+    const calendar = (await db.doc("siteSettings/calendarExperience").get()).data();
+    await login(page, "superadmin@example.com");
+    if (testInfo.project.name === "mobile-chromium") await page.setViewportSize({width: 320, height: 800});
+    await page.goto("/leader/settings");
+    const control = page.getByRole("switch", {name: "Hall Hire", exact: true});
+    await expect(control).toBeEnabled(); await expect(control).not.toBeChecked();
+    await control.focus(); await expect(control).toBeFocused(); await page.keyboard.press("Space");
+    await expect(control).toBeChecked(); await expect(page.getByRole("status").filter({hasText: "Hall Hire setting saved."})).toBeVisible();
+    expect((await db.doc(paths[0]).get()).get("enabled")).toBe(true);
+    expect((await db.doc(paths[1]).get()).data()).toEqual({enabled: true});
+    await page.reload(); await expect(control).toBeChecked();
+    await db.doc(paths[2]).set({ready: false}); await db.doc(paths[3]).set({ready: false, revision: 8});
+    await expect(control).toBeEnabled(); await control.focus(); await page.keyboard.press("Space");
+    await expect(control).not.toBeChecked(); await expect(control).toBeDisabled();
+    expect((await db.doc(paths[4]).get()).data()).toEqual({state: "confirmed", notes: "Retain this booking"});
+    expect((await db.doc("siteSettings/calendarExperience").get()).data()).toEqual(calendar);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  } finally {
+    for (let index = 0; index < paths.length; index++) {if (before[index].exists) await db.doc(paths[index]).set(before[index].data()!); else await db.doc(paths[index]).delete();}
+  }
 });
 
 test("Treasurer settings keep finance controls and hide session inactivity settings", async ({ page }, testInfo) => {
