@@ -2334,10 +2334,22 @@ service cloud.firestore {
         || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "meetingExperience", "badgeworkExperience", "attendanceExperience", "maintenanceExperience", "calendarExperience", "leaderTrainingExperience"])
         || (settingsId == "parentLogin" && isSuperAdmin())
         || (settingsId == "parentConsent" && isSuperAdmin())
+        || (settingsId == "hallHire" && isSuperAdmin())
+        || settingsId in ["hallHirePublic", "hallHireReadiness"]
         || settingsId == "publicNavigation";
       allow list: if false;
       function _validateWrite75(_writeData) {
-        return settingsId == "maintenanceExperience" && isSuperAdmin()
+        return settingsId == "hallHire" && isSuperAdmin()
+        && _writeData.enabled is bool
+        && _writeData.updatedBy == request.auth.uid && _writeData.updatedAt == request.time
+        && _writeData.keys().hasOnly(["enabled", "updatedBy", "updatedAt"])
+        && (!_writeData.enabled || (get(/databases/$(database)/documents/hall/group).data.get("ready", false) == true
+          && get(/databases/$(database)/documents/siteSettings/hallHireReadiness).data.get("ready", false) == true))
+        && getAfter(/databases/$(database)/documents/siteSettings/hallHirePublic).data.enabled == _writeData.enabled
+        || settingsId == "hallHirePublic" && isSuperAdmin()
+        && _writeData.enabled is bool && _writeData.keys().hasOnly(["enabled"])
+        && getAfter(/databases/$(database)/documents/siteSettings/hallHire).data.enabled == _writeData.enabled
+        || settingsId == "maintenanceExperience" && isSuperAdmin()
         && _writeData.sdkRevision == 1
         && _writeData.version in ["existing", "redesigned"]
         && _writeData.updatedBy == request.auth.uid
