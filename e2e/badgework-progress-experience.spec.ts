@@ -27,6 +27,20 @@ for(const redesigned of [false,true]) for(const others of [false,true]) test(`Pr
     await expect(swimming).toContainText(`0/${adventureSkills.find(skill=>skill.id==="swimming")!.stages[0].requirements.length} competencies`);
     const target=member.getByRole("button",{name:`${progressMemberName} · Camping · Stage 2 · Open stage`,exact:true});
     expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    if(testInfo.project.name==="mobile-chromium") {
+      for(const width of [320,390]) {
+        await page.setViewportSize({width,height:800});
+        const cards=member.getByTestId("badgework-progress-grid").locator(":scope > article, :scope > div");
+        await expect(cards).toHaveCount(10);
+        const boxes=await cards.evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right};}));
+        expect(boxes[0].y).toBe(boxes[2].y);expect(boxes[3].y).toBe(boxes[5].y);expect(boxes[6].y).toBe(boxes[8].y);
+        expect(boxes[9].y).toBeGreaterThan(boxes[8].y);expect(boxes[9].x).toBe(boxes[0].x);
+        expect(boxes.every(box=>box.x>=0 && box.right<=width)).toBe(true);
+        expect(await member.locator("figcaption .MuiTypography-root").evaluateAll(nodes=>nodes.filter(node=>node.scrollWidth>node.clientWidth).map(node=>({text:node.textContent,width:node.clientWidth,scroll:node.scrollWidth})))).toEqual([]);
+        expect(await member.locator(".MuiChip-label").evaluateAll(nodes=>nodes.every(node=>node.scrollWidth<=node.clientWidth))).toBe(true);
+      }
+      await page.setViewportSize({width:320,height:800});
+    }
     await member.screenshot({path:testInfo.outputPath("leader-progress.png")});
     await target.focus(); await expect(target).toBeFocused(); await page.keyboard.press("Enter");
     await expect(page.getByRole("heading",{name:"Record badgework",exact:true})).toBeVisible();

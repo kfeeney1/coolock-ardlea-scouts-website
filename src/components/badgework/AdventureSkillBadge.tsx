@@ -4,10 +4,10 @@ import type { AdventureStageOverview } from "../../services/adventureSkillOvervi
 import { adventureSkillBadgeProgress } from "../../services/adventureSkillBadgeProgress.ts";
 import { adventureSkillBadgeArtwork, badgeInteriorClip } from "../../services/adventureSkillBadgeArtwork.ts";
 
-type Props = { skillId: string; progress: AdventureStageOverview; unsaved?: boolean; size?: number };
+type Props = { skillId: string; progress: AdventureStageOverview; unsaved?: boolean; size?: number; compact?: boolean };
 
 /** Read-only presentation shared by leader and parent views; no write/award capabilities. */
-export default function AdventureSkillBadge({ skillId, progress, unsaved = false, size = 144 }: Props) {
+export default function AdventureSkillBadge({ skillId, progress, unsaved = false, size = 144, compact = false }: Props) {
   const badge = adventureSkillBadgeProgress(skillId, progress);
   const artwork = adventureSkillBadgeArtwork(skillId, progress.stage);
   const [failedSource, setFailedSource] = useState<string | null>(null);
@@ -30,8 +30,8 @@ export default function AdventureSkillBadge({ skillId, progress, unsaved = false
       </>}
     </Box>
     <Stack component="figcaption" spacing={.5}>
-      <Typography variant="body2" sx={{ fontWeight: 800 }}>{badge.skillName} · Stage {badge.stage}</Typography>
-      <Typography variant="caption">{badge.completed}/{badge.total} competencies</Typography>
+      <Typography variant="body2" sx={{ fontWeight: 800 }}>{badge.skillName}<Box component="span" sx={compact ? { display: { xs: "block", sm: "inline" } } : undefined}><Box component="span" sx={compact ? { display: { xs: "none", sm: "inline" } } : undefined}> · </Box>Stage {badge.stage}</Box></Typography>
+      <Typography variant="caption" aria-label={`${badge.completed}/${badge.total} competencies`}>{badge.completed}/{badge.total}<Box component="span" sx={compact ? { display: { xs: "none", sm: "inline" } } : undefined}> competencies</Box></Typography>
       <Chip size="small" variant="outlined" color={badge.status === "awarded" ? "success" : badge.status === "requirements-complete" ? "warning" : "default"} label={badge.statusLabel} sx={{ alignSelf: "flex-start", maxWidth: "100%", color: "text.primary" }} />
       {unsaved && <Typography variant="caption" sx={{ fontWeight: 700 }}>Unsaved preview</Typography>}
     </Stack>
