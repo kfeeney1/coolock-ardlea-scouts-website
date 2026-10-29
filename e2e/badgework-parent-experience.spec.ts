@@ -36,6 +36,11 @@ for(const redesigned of [false,true]) test(`Parent saved-data parity and read-on
     await expect(section).toHaveAttribute("data-experience",redesigned?"redesigned":"existing");
     await expect(section.getByRole("button",{name:/^(Save|Discard|Award|Remove award|Record badgework|Export)/})).toHaveCount(0);
     if(redesigned) {
+      if(mobile) {
+        const grid=section.getByTestId("badgework-progress-grid").first();
+        await expect(grid.locator(":scope > div")).toHaveCount(10);
+        expect(await grid.evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(" ").length)).toBe(3);
+      }
       const badge=section.getByRole("figure",{name:"Camping stage 2",exact:true});await expect(badge).toBeVisible();await expect(badge.getByRole("status")).toHaveCount(0);expect(await badge.locator("figcaption").innerText()).toBe(expected);await expect(badge.locator("img").first()).toHaveAttribute("src",source!);
       await section.getByRole("button",{name:`${progressMemberName} · Camping · Stage 2 · Open stage`,exact:true}).click();
       await expect(section.getByRole("heading",{name:"Stage 2 competencies",exact:true})).toBeFocused();
