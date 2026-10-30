@@ -70,29 +70,35 @@ export async function saveHallBooking(store, uid, command, now = Date.now()) {
     if (setting?.enabled !== true || lock?.ready !== true) hallFailure(409, "hall/disabled", "Hall booking administration is not enabled.");
     if ((previous?.revision ?? 0) !== expected) hallFailure(409, "hall/stale", "This booking changed. Reload it before saving.");
     if (previous?.source) hallFailure(409, "hall/source-owned", "Change this reservation through its original meeting, event or maintenance record.");
-    const nextDays = occupiedHallDays(booking), oldDays = previous ? occupiedHallDays(previous) : new Map();
-    const dates = [...new Set([...oldDays.keys(), ...nextDays.keys()])].sort();
-    // Two writes/day plus canonical record, lock and two audit writes stay below 500.
-    if (dates.length > 240) hallFailure(400, "hall/bounds", "This change affects too many days. Shorten or split the booking series.");
-    const buckets = await tx.read(dates.map(date => `hall/group/days/${date}`));
-    const revision = expected + 1, timestamp = new Date(now).toISOString();
-    const next = {...booking, revision, createdBy: previous?.createdBy ?? uid, createdAt: previous?.createdAt ?? timestamp, updatedBy: uid, updatedAt: timestamp};
-    for (let index = 0; index < dates.length; index++) {
-      const existing = buckets[index]?.reservations ?? [];
-      if (!Array.isArray(existing) || existing.length > 300 || existing.some(item => !hallId(item.bookingId) || !Number.isFinite(item.start) || !Number.isFinite(item.end) || item.start >= item.end)) hallFailure(409, "hall/index", "Hall availability needs reconciliation before saving.");
-      const others = existing.filter(item => item.bookingId !== booking.id), incoming = nextDays.get(dates[index]) ?? [];
-      if (others.some(item => incoming.some(value => hallOverlaps(item, value)))) hallFailure(409, "hall/conflict", "This time overlaps an existing hall reservation. Choose another time.");
-      const reservations = [...others, ...incoming.map(value => ({bookingId: booking.id, ...value}))].sort((a, b) => a.start - b.start);
-      if (reservations.length > 300) hallFailure(400, "hall/bounds", "This day has too many occupied slots.");
-      tx.set(`hall/group/days/${dates[index]}`, {reservations});
-      // The public collection is a deliberately restricted representation with no source IDs.
-      const dayStart = hallInstant(dates[index], "00:00"), dayEnd = hallInstant(dates[index], "23:59") + 60_000;
-      tx.set(`hallAvailability/${dates[index]}`, {occupied: reservations.map(({start, end}) => ({start: new Date(Math.max(start, dayStart)).toISOString(), end: new Date(Math.min(end, dayEnd)).toISOString()}))});
-    }
-    tx.set(`hall/group/bookings/${booking.id}`, next);
-    tx.set("hall/group", {...lock, revision: (lock.revision ?? 0) + 1});
-    tx.create(`hall/group/bookings/${booking.id}/history/${revision}`, {actorUid: uid, at: timestamp, previous: previous ?? null, next});
-    tx.create(`auditLog/hall-${booking.id}-${revision}`, {category: "system", action: "hall-booking-save", actorUid: uid, actorEmail: "", targetId: booking.id, targetLabel: "Hall booking", description: `Hall booking revision ${revision}: ${booking.state}`, section: "Group", createdAt: new Date(now)});
-    return {id: booking.id, revision};
+    return writeHallReservation(tx, {booking, previous, lock, uid, now});
   });
+}
+
+
+/** Internal primitive: caller must authorise and read source/lock/previous in this transaction. */
+export async function writeHallReservation(tx, {booking, previous, lock, uid, now}) {
+  const nextDays = occupiedHallDays(booking), oldDays = previous ? occupiedHallDays(previous) : new Map();
+  const dates = [...new Set([...oldDays.keys(), ...nextDays.keys()])].sort();
+  // Two writes/day plus canonical record, lock and two audit writes stay below 500.
+  if (dates.length > 240) hallFailure(400, "hall/bounds", "This change affects too many days. Shorten or split the booking series.");
+  const buckets = await tx.read(dates.map(date => `hall/group/days/${date}`));
+  const revision = (previous?.revision ?? 0) + 1, timestamp = new Date(now).toISOString();
+  const next = {...booking, revision, createdBy: previous?.createdBy ?? uid, createdAt: previous?.createdAt ?? timestamp, updatedBy: uid, updatedAt: timestamp};
+  for (let index = 0; index < dates.length; index++) {
+    const existing = buckets[index]?.reservations ?? [];
+    if (!Array.isArray(existing) || existing.length > 300 || existing.some(item => !hallId(item.bookingId) || !Number.isFinite(item.start) || !Number.isFinite(item.end) || item.start >= item.end)) hallFailure(409, "hall/index", "Hall availability needs reconciliation before saving.");
+    const others = existing.filter(item => item.bookingId !== booking.id), incoming = nextDays.get(dates[index]) ?? [];
+    if (others.some(item => incoming.some(value => hallOverlaps(item, value)))) hallFailure(409, "hall/conflict", "This time overlaps an existing hall reservation. Choose another time.");
+    const reservations = [...others, ...incoming.map(value => ({bookingId: booking.id, ...value}))].sort((a, b) => a.start - b.start);
+    if (reservations.length > 300) hallFailure(400, "hall/bounds", "This day has too many occupied slots.");
+    tx.set(`hall/group/days/${dates[index]}`, {reservations});
+    // The public collection is a deliberately restricted representation with no source IDs.
+    const dayStart = hallInstant(dates[index], "00:00"), dayEnd = hallInstant(dates[index], "23:59") + 60_000;
+    tx.set(`hallAvailability/${dates[index]}`, {occupied: reservations.map(({start, end}) => ({start: new Date(Math.max(start, dayStart)).toISOString(), end: new Date(Math.min(end, dayEnd)).toISOString()}))});
+  }
+  tx.set(`hall/group/bookings/${booking.id}`, next);
+  tx.set("hall/group", {...lock, revision: (lock?.revision ?? 0) + 1});
+  tx.create(`hall/group/bookings/${booking.id}/history/${revision}`, {actorUid: uid, at: timestamp, previous: previous ?? null, next});
+  tx.create(`auditLog/hall-${booking.id}-${revision}`, {category: "system", action: "hall-booking-save", actorUid: uid, actorEmail: "", targetId: booking.id, targetLabel: "Hall booking", description: `Hall booking revision ${revision}: ${booking.state}`, section: "Group", createdAt: new Date(now)});
+  return {id: booking.id, revision};
 }

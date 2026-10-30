@@ -84,11 +84,13 @@ export function hallFirestore(env, token, fetcher = fetch) {
             const items = rows.filter(row => row.document).map(row => ({key: row.document.name.split("/").pop(), value: decodeHallDocument(row.document)}));
             return {items: items.slice(0, 50), cursor: items.length > 50 ? items[49].key : ""};
           },
+          delete(path) { writes.push({delete: `${name}/${path}`}); },
           set(path, data) { writes.push({update: {name: `${name}/${path}`, fields: fields(data)}}); },
           create(path, data) { writes.push({update: {name: `${name}/${path}`, fields: fields(data)}, currentDocument: {exists: false}}); }
         };
         try {
           const result = await work(tx);
+          if (writes.length > 500) throw new HallBookingError(400, "hall/bounds", "This change affects too many records.");
           if (writes.length) { await call(":commit", {transaction, writes}); completed = true; }
           return result;
         } catch (error) {
