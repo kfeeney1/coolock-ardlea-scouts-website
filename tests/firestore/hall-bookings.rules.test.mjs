@@ -5,6 +5,7 @@ import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebas
 import { createMockUserToken } from "@firebase/util";
 import { collection, doc, getDoc, getDocs, limit, query, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { hallFirestore } from "../../email-worker/src/hallFirestore.js";
+import { hallSourceIdentity, saveSourceHallReservation } from "../../email-worker/src/hallSourceReservation.js";
 import { saveHallBooking } from "../../email-worker/src/hallBookingModel.js";
 import { handleHallBookingRoute } from "../../email-worker/src/hallBookingRoutes.js";
 
@@ -88,4 +89,43 @@ test("existing Worker route validates identity, Council scope, private reads and
   await seed("organisationLeadership/council", {active: false, scoutingRole: "Section Leader"});
   assert.equal((await request("council", {action: "list"})).status, 403);
   assert.equal((await request("council", {action: "save", command: {booking: booking(), expectedRevision: 1}})).status, 403);
+});
+
+
+// Trusted adapter stand-in: production source adapters must enforce their own
+// canonical programme/maintenance permissions and revisions in prepare.
+const sourceSave = (id, occupancy, remove = false) => saveSourceHallReservation(hallFirestore(runtime, "owner"), "council", "event", id, async (tx, {path, current}) => {
+  const [profile] = await tx.read(["adminUsers/council"]);
+  return {authorised: profile?.active === true, occupancy,
+    persist: () => remove ? tx.delete(path) : tx.set(path, {revision: (current?.revision ?? 0) + 1, privateProgramme: "PRIVATE PROGRAMME"})};
+});
+const sourceOccupancy = () => ({resourceId: "group-hall", kind: "internal", state: "confirmed", interval: booking().interval});
+test("real source/manual concurrent writes share one conflict lock and cannot both commit", async () => {
+  const results = await Promise.allSettled([sourceSave("source-race", sourceOccupancy()), save(booking("manual-race"))]);
+  assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+  assert.equal(results.find(result => result.status === "rejected").reason.code, "hall/conflict");
+  assert.equal((await raw("hall/group")).revision, 1);
+  assert.equal((await raw("hallAvailability/2026-10-29")).occupied.length, 1);
+  const sourceWon = results[0].status === "fulfilled";
+  assert.equal(Boolean(await raw("events/source-race")), sourceWon);
+  assert.equal(Boolean(await raw("hall/group/bookings/manual-race")), !sourceWon);
+});
+test("source deletion releases occupancy atomically while rollout and readiness are off", async () => {
+  await seed("siteSettings/hallHire", {enabled: false}); await seed("hall/group", {ready: false, revision: 0});
+  await sourceSave("remove-source", sourceOccupancy());
+  const {bookingId} = await hallSourceIdentity("event", "remove-source");
+  assert.equal(JSON.stringify(await raw(`hall/group/bookings/${bookingId}`)).includes("PRIVATE PROGRAMME"), false);
+  await sourceSave("remove-source", null, true);
+  assert.equal(await raw("events/remove-source"), undefined);
+  assert.equal((await raw(`hall/group/bookings/${bookingId}`)).state, "cancelled");
+  assert.deepEqual(await raw("hallAvailability/2026-10-29"), {occupied: []});
+  assert.equal((await raw(`hall/group/bookings/${bookingId}/history/2`)).previous.state, "confirmed");
+});
+test("failed source audit precondition leaves canonical source and projection unmodified", async () => {
+  const {bookingId} = await hallSourceIdentity("event", "audit-source");
+  await seed(`auditLog/hall-${bookingId}-1`, {preexisting: true});
+  await assert.rejects(sourceSave("audit-source", sourceOccupancy()), {status: 409});
+  assert.equal(await raw("events/audit-source"), undefined);
+  assert.equal(await raw(`hall/group/bookings/${bookingId}`), undefined);
+  assert.equal(await raw("hallAvailability/2026-10-29"), undefined);
 });

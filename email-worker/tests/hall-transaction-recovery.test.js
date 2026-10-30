@@ -38,3 +38,11 @@ test("contention recovery is bounded and callback permission/conflict failures s
   await assert.rejects(retryStore.transaction(async tx => {callbacks++; if (callbacks === 2) throw new Error("Council membership revoked"); tx.set("hall/group", {revision: 1});}), /membership revoked/);
   assert.equal(second.writes.length, 1); assert.equal(callbacks, 2);
 });
+
+test("source adapters cannot exceed the total Firestore write budget", async () => {
+  const transport = provider("ABORTED"), store = hallFirestore(env, "service", transport.fetch);
+  await assert.rejects(store.transaction(async tx => {for (let index = 0; index < 501; index++) tx.delete(`events/source-${index}`);}), {code: "hall/bounds"});
+  assert.equal(transport.writes.length, 0);
+  assert.equal(transport.begins.length, 1);
+  assert.deepEqual(transport.rollbacks, ["transaction-1"]);
+});
