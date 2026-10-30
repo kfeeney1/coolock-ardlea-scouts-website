@@ -1,3 +1,4 @@
+import { hallSourcePath } from "../../src/services/hallBookingAdministration.ts";
 import { maintenanceHallSourcePath } from "../../src/services/hallBookingAdministration.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -34,4 +35,10 @@ test("maintenance source navigation resolves canonical owners without accepting 
   assert.equal(maintenanceHallSourcePath({collection: "maintenance/group/appointments", id: "task-maintenance-source-001"}), "/maintenance/tasks/maintenance-source-001");
   assert.equal(maintenanceHallSourcePath({collection: "members", id: "maintenance-appointment-001"}), null);
   assert.equal(maintenanceHallSourcePath({collection: "maintenance/group/appointments", id: "../../members/private"}), null);
+});
+
+test("weekly meeting source routes preserve protected canonical scope and reject path injection", () => {
+  assert.equal(hallSourcePath({collection: "weeklyMeetings", id: "meeting-one"}), "/leader/weekly?meeting=meeting-one");
+  assert.equal(hallSourcePath({collection: "weeklyMeetings", id: "../members/private"}), null);
+  assert.equal(hallSourcePath({collection: "members", id: "member"}), null);
 });

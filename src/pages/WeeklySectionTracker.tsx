@@ -1,3 +1,4 @@
+import MeetingHallUse from "../components/hall/MeetingHallUse";
 import { saveWeeklyMeetingWrites, saveWeeklyMeetingInBackground } from "../services/weeklyMeetingSaveWrites";
 import MeetingIncidentLeaveGuard from "../components/admin/MeetingIncidentLeaveGuard";
 import { useMeetingIncidentDraft } from "../hooks/useMeetingIncidentDraft";
@@ -69,6 +70,7 @@ export default function WeeklySectionTracker() {
   const incident=useMeetingIncidentDraft(meetingId,workflow.redesigned);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
+  const [hallDraftDirty,setHallDraftDirty]=useState(false);
   const saveInFlight=useRef<Promise<boolean>|null>(null);
   const reopenInFlight=useRef(false);
   const refreshSequence=useRef(0);
@@ -198,12 +200,13 @@ export default function WeeklySectionTracker() {
 
   </Stack>:<Stack spacing={2} sx={{minWidth:0,pb:{xs:"calc(104px + env(safe-area-inset-bottom))",sm:"calc(64px + env(safe-area-inset-bottom))"}}}>
     {workflow.changed&&<Alert severity="info">The meeting workflow setting changed. This editor keeps its current layout and edits. The new layout applies after leaving this meeting.</Alert>}
-    <EditorControls onShare={()=>void programmeShare.start()} saving={saving||programmeShare.busy} dirty={hasUnsavedChanges} error={error} selected={selected} step={step} setStep={setStep} programmeDuration={programmeDuration} present={present} total={total} operationalReadOnly={operationalReadOnly} planningReadOnly={planningReadOnly} readOnly={readOnly} shareLoading={shareLoading} shareError={shareError??""} whatsappUrl={whatsappUrl} editorTopRef={editorTopRef} requestNavigationAction={requestNavigationAction} setEquipmentOpen={setEquipmentOpen}/>
-    <Box component="fieldset" disabled={programmeShare.busy||saving} sx={{border:0,p:0,m:0,minWidth:0}}>
+    <EditorControls onShare={()=>void programmeShare.start()} saving={saving||programmeShare.busy||hallDraftDirty} dirty={hasUnsavedChanges} error={error} selected={selected} step={step} setStep={setStep} programmeDuration={programmeDuration} present={present} total={total} operationalReadOnly={operationalReadOnly} planningReadOnly={planningReadOnly} readOnly={readOnly} shareLoading={shareLoading} shareError={shareError??""} whatsappUrl={whatsappUrl} editorTopRef={editorTopRef} requestNavigationAction={requestNavigationAction} setEquipmentOpen={setEquipmentOpen}/>
+    <Box component="fieldset" disabled={programmeShare.busy||saving||hallDraftDirty} sx={{border:0,p:0,m:0,minWidth:0}}>
     <MeetingWorkflowPanels busy={saving||programmeShare.busy} onOpenBadgework={async()=>{if(!saving&&!programmeShare.busy&&await saveForNavigation())navigate(adventureBadgeworkHref);}} redesigned={workflow.redesigned} step={step} attendance={{ entries: selected.entries, present, total, readOnly: operationalReadOnly, onEntriesChange: (entries)=>patch({entries}), leaders, leaderAttendance, onLeaderAttendanceChange: setLeaderAttendance, leaderAttendanceLoading }} programme={{ selected, selectedSectionLeaders, planningReadOnly, programmeDuration, setEquipmentOpen, patch }} details={{ step, selected, present, planningReadOnly, operationalReadOnly, adventureBadgeworkHref, ...incident.fields, patch }} />
     </Box>
+    <MeetingHallUse key={`${selected.id}:${selected.hallRevision??0}:${selected.meetingDate}`} meeting={selected} readOnly={operationalReadOnly} blocked={saving||programmeShare.busy||hasUnsavedChanges} onDirty={setHallDraftDirty} onSaved={()=>void refresh()}/>
     <ProgrammeEquipmentDialog open={equipmentOpen} sourceType="weeklyMeeting" sourceId={selected.id} sourceLabel={`${selected.section} Weekly Meeting · ${selected.meetingDate}`} section={selected.section} date={selected.meetingDate} items={equipmentItems} loans={equipmentLoans} readOnly={planningReadOnly} onClose={()=>setEquipmentOpen(false)} onChanged={async()=>{setEquipmentLoans(await loadEquipmentLoans());}} />
-    {!operationalReadOnly&&<WeeklyMeetingSaveActions confirmClose={workflow.redesigned} review={workflow.redesigned&&meetingStage(step)!=="review"?()=>setStep("badgework"):undefined} error={error} share={workflow.redesigned&&meetingStage(step)==="plan"?()=>void programmeShare.start():undefined} stateLabel={workflow.redesigned?(saving?"Saving…":error?"Save failed — your edits are retained":hasUnsavedChanges?"Unsaved changes":"Saved"):undefined} selected={selected} saving={saving||programmeShare.busy} save={()=>void save()} closeMeeting={closeMeeting}/>}
+    {!operationalReadOnly&&<WeeklyMeetingSaveActions confirmClose={workflow.redesigned} review={workflow.redesigned&&meetingStage(step)!=="review"?()=>setStep("badgework"):undefined} error={error} share={workflow.redesigned&&meetingStage(step)==="plan"?()=>void programmeShare.start():undefined} stateLabel={workflow.redesigned?(saving?"Saving…":error?"Save failed — your edits are retained":(hasUnsavedChanges||hallDraftDirty)?"Unsaved changes":"Saved"):undefined} selected={selected} saving={saving||programmeShare.busy||hallDraftDirty} save={()=>void save()} closeMeeting={closeMeeting}/>}
   </Stack>}
   {workflow.redesigned&&selected&&<MeetingIncidentLeaveGuard key={meetingId} dirty={incident.dirty} save={saveForNavigation} saving={saving||programmeShare.busy}/>}
   <MeetingProgrammeShareDialog {...programmeShare}/>

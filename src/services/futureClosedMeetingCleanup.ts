@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors";
 import { collection, doc, getDocFromServer, getDocsFromServer, query, where, writeBatch } from "firebase/firestore";
 import type { DocumentData, DocumentReference } from "firebase/firestore";
 import { db } from "../firebase";
@@ -6,7 +7,7 @@ export { groupLocalDate, isFutureClosedMeeting, sameCleanupCandidateIds } from "
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 
-export type CleanupMeeting = { id: string; section: string; meetingDate: string; status: string; entries: Array<{ memberId: string }> };
+export type CleanupMeeting = { id: string; section: string; meetingDate: string; status: string; entries: Array<{ memberId: string }>; hallReserved?: boolean };
 export type CleanupPreview = { today: string; meetings: CleanupMeeting[] };
 export type CleanupResult = { kind: "deleted"; deleted: string[]; failed: string[] } | { kind: "changed"; preview: CleanupPreview };
 
@@ -21,6 +22,7 @@ export async function previewFutureClosedMeetings(now = new Date()): Promise<Cle
       section: typeof data.section === "string" ? data.section : "",
       meetingDate: typeof data.meetingDate === "string" ? data.meetingDate : "",
       status: typeof data.status === "string" ? data.status : "",
+      hallReserved: data.hallResource === "group-hall",
       entries: Array.isArray(data.entries) ? data.entries.flatMap((entry) =>
         entry && typeof entry.memberId === "string" ? [{ memberId: entry.memberId }] : []) : []
     };
@@ -38,6 +40,8 @@ async function commitDeletes(refs: DocumentReference<DocumentData>[]): Promise<v
 }
 
 async function deleteMeetingAndChildren(meeting: CleanupMeeting): Promise<void> {
+  const current = await getDocFromServer(doc(db, "weeklyMeetings", meeting.id));
+  if (current.data()?.hallResource === "group-hall") throw new UserFacingError("Release this meeting’s hall reservation before deleting it.");
   const attendance = await getDocsFromServer(collection(db, "weeklyMeetings", meeting.id, "leaderAttendance"));
   const requirementSnapshots = await Promise.all([...new Set(meeting.entries.map((entry) => entry.memberId))].map((memberId) =>
     getDocsFromServer(query(collection(db, "memberAdventureSkillProgress", memberId, "requirements"),

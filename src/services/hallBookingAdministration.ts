@@ -44,3 +44,8 @@ export function maintenanceHallSourcePath(source: HallBookingRecord["source"]): 
   if (source?.collection !== "maintenance/group/appointments" || !/^(?:[a-zA-Z0-9-]{20,64}|task-[a-zA-Z0-9-]{20,64})$/.test(source.id)) return null;
   return source.id.startsWith("task-") ? `/maintenance/tasks/${encodeURIComponent(source.id.slice(5))}` : `/calendar/maintenance/${encodeURIComponent(source.id)}`;
 }
+
+export function hallSourcePath(source: HallBookingRecord["source"]): string | null {
+  if (source?.collection === "weeklyMeetings" && /^[A-Za-z0-9_-]{1,100}$/.test(source.id)) return `/leader/weekly?meeting=${encodeURIComponent(source.id)}`;
+  return maintenanceHallSourcePath(source);
+}
