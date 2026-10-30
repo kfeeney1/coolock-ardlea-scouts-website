@@ -38,3 +38,9 @@ export function validateHallBookingInput(value: HallBookingInput): string {
   if (value.title.length > 200 || value.hirerName.length > 200 || value.contact.length > 300 || value.notes.length > 3000) return "Shorten the booking details to the permitted lengths.";
   try {hallOccurrences(value); return "";} catch (error) {return error instanceof Error ? error.message : "Check booking dates and times.";}
 }
+
+/** Routes only: destination pages retain their own canonical permissions. */
+export function maintenanceHallSourcePath(source: HallBookingRecord["source"]): string | null {
+  if (source?.collection !== "maintenance/group/appointments" || !/^(?:[a-zA-Z0-9-]{20,64}|task-[a-zA-Z0-9-]{20,64})$/.test(source.id)) return null;
+  return source.id.startsWith("task-") ? `/maintenance/tasks/${encodeURIComponent(source.id.slice(5))}` : `/calendar/maintenance/${encodeURIComponent(source.id)}`;
+}

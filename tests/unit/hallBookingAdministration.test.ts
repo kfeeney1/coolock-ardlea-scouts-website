@@ -1,3 +1,4 @@
+import { maintenanceHallSourcePath } from "../../src/services/hallBookingAdministration.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { editHallOccurrence, hallBookingInput, hallOccurrenceInterval, hallSeriesDates, newHallBooking, rescheduleHallSeries, validateHallBookingInput } from "../../src/services/hallBookingAdministration.ts";
@@ -26,4 +27,11 @@ test("rescheduling a series moves exception identities and replacement dates tog
   assert.equal(replacement?.action === "replace" && replacement.interval.date, "2026-11-07");
   assert.throws(() => rescheduleHallSeries({...withExceptions, recurrence: undefined}, withExceptions), /unique occurrence/);
   assert.throws(() => hallSeriesDates({...initial, recurrence: {frequency: "weekly", until: "2028-01-01"}}));
+});
+
+test("maintenance source navigation resolves canonical owners without accepting unknown paths", () => {
+  assert.equal(maintenanceHallSourcePath({collection: "maintenance/group/appointments", id: "maintenance-appointment-001"}), "/calendar/maintenance/maintenance-appointment-001");
+  assert.equal(maintenanceHallSourcePath({collection: "maintenance/group/appointments", id: "task-maintenance-source-001"}), "/maintenance/tasks/maintenance-source-001");
+  assert.equal(maintenanceHallSourcePath({collection: "members", id: "maintenance-appointment-001"}), null);
+  assert.equal(maintenanceHallSourcePath({collection: "maintenance/group/appointments", id: "../../members/private"}), null);
 });
