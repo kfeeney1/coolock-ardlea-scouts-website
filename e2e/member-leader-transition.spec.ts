@@ -131,6 +131,10 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/members");
+  // Rover candidates load separately from the member list. Their action is
+  // inserted above Add Member on mobile; wait for this seeded admin control so
+  // it cannot move the click target between pointer-down and pointer-up.
+  await expect(page.getByRole("button", { name: "Manage Rovers", exact: true })).toBeVisible();
   const memberListHistoryIndex = await page.evaluate(() => window.history.state.idx as number);
   await page.getByRole("button", { name: "Add Member", exact: true }).click();
   const addDialog = page.getByRole("dialog", { name: "Add Existing Member" });
