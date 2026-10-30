@@ -39,7 +39,7 @@ test("Council event hall controls preserve programme, native Back, off-state pro
   await expect.poll(() => page.evaluate(() => window.history.state?.__eventEditBackGuard ?? null)).toBeNull();
   const title = page.getByRole("textbox", {name: "Event title", exact: true}); await title.fill("Unsaved programme"); await expect(reserve).toBeDisabled();
   await page.getByRole("link", {name: "Back to Event", exact: true}).click();
-  await page.getByRole("dialog", {name: "Unsaved event changes", exact: true}).getByRole("button", {name: "Discard", exact: true}).click();
+  await page.getByRole("alertdialog", {name: "Unsaved event changes", exact: true}).getByRole("button", {name: "Discard", exact: true}).click();
   await expect(page).toHaveURL(new RegExp(`/leader/events/${id}$`));
   await page.getByRole("link", {name: "Edit Event", exact: true}).click(); await expect(reserve).toBeEnabled();
   const start = panel.getByLabel("Hall start time", {exact: true}), end = panel.getByLabel("Hall end time", {exact: true});
