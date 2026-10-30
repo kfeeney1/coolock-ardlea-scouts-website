@@ -14,7 +14,7 @@ export async function requestHallBooking<T>(body: Record<string, unknown>): Prom
     if (result?.ok !== true) throw new ServiceFailure("Invalid hall booking response.", "backend/invalid-response");
     return result;
   } catch (error) {
-    if (error instanceof ServiceFailure && error.status === 409) throw new UserFacingError("This booking changed or overlaps an existing reservation. Your edits are retained. Review the current bookings before trying again.");
+    if (error instanceof ServiceFailure && error.status === 409) throw new UserFacingError("This change could not be saved. Check current bookings and source records for conflicts or reconciliation. Your edits are retained.");
     if (error instanceof ServiceFailure && [401, 403].includes(error.status ?? 0)) throw new UserFacingError("Current Group Council membership is required to manage hall bookings.");
     if (error instanceof ServiceFailure && error.status === 400) throw new UserFacingError("Check booking dates and details. Shorten a series that affects too many days.");
     throw error;

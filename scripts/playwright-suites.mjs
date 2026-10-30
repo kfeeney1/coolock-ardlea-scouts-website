@@ -44,7 +44,8 @@ export const suiteSpecs = {
     "maintenance-persistence.spec.ts",
     "site-settings.spec.ts",
     "hall-booking-administration.spec.ts",
-    "hall-maintenance.spec.ts"
+    "hall-maintenance.spec.ts",
+    "hall-meetings.spec.ts"
   ],
   "members-parents-consent": [
     "consent-action-stability.spec.ts",

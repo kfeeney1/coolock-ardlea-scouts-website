@@ -163,7 +163,8 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
         </DialogContentText>
         {cleanupNotice && <Alert severity={cleanupPreview?.meetings.length ? "warning" : "success"} sx={{ mt: 2 }} role="status">{cleanupNotice}</Alert>}
         {cleanupError && <Alert severity="error" sx={{ mt: 2 }} role="alert">{cleanupError}</Alert>}
-        {cleanupPreview?.meetings.length ? <Box component="ul" sx={{ pl: 2.5, mb: 0, mt: 1 }}>{cleanupPreview.meetings.map((meeting) => <li key={meeting.id}>{displayDate(meeting.meetingDate)} · {meeting.section}</li>)}</Box> : null}
+        {cleanupPreview?.meetings.some(meeting => meeting.hallReserved) && <Alert severity="warning" sx={{mt: 1}}>Release reserved hall time through the meeting before deleting it. Those meetings will be retained.</Alert>}
+        {cleanupPreview?.meetings.length ? <Box component="ul" sx={{ pl: 2.5, mb: 0, mt: 1 }}>{cleanupPreview.meetings.map((meeting) => <li key={meeting.id}>{displayDate(meeting.meetingDate)} · {meeting.section}{meeting.hallReserved ? " · Hall reserved" : ""}</li>)}</Box> : null}
       </DialogContent>
       <DialogActions>
         <Button onClick={closeCleanup} disabled={cleanupBusy}>{cleanupRefreshPending ? "Close" : "Cancel"}</Button>

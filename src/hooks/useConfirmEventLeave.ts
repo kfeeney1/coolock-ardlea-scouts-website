@@ -211,5 +211,6 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
     setRequest(null);
   }, [releaseGuard]);
 
-  return { dialogOpen, stay, continueWithoutSaving, saveAndContinue, releaseAfterSuccessfulSave };
+  const ownsBackEntry = useCallback(() => window.history.state?.[HISTORY_GUARD_KEY] === guardId, [guardId]);
+  return { dialogOpen, stay, continueWithoutSaving, saveAndContinue, releaseAfterSuccessfulSave, ownsBackEntry };
 }

@@ -46,3 +46,12 @@ test("source adapters cannot exceed the total Firestore write budget", async () 
   assert.equal(transport.begins.length, 1);
   assert.deepEqual(transport.rollbacks, ["transaction-1"]);
 });
+
+test("source patches use explicit masks, preserve unrelated fields and cannot recreate removed sources", async () => {
+  const transport = provider("ABORTED"), store = hallFirestore(env, "service", transport.fetch);
+  await store.transaction(async tx => {tx.patch("weeklyMeetings/one", {hallRevision: 2}, ["hallResource", "hallStartTime", "hallEndTime"]);});
+  const write = transport.writes.at(-1).writes[0];
+  assert.deepEqual(write.update.fields, {hallRevision: {integerValue: "2"}});
+  assert.deepEqual(write.updateMask.fieldPaths, ["hallRevision", "hallResource", "hallStartTime", "hallEndTime"]);
+  assert.deepEqual(write.currentDocument, {exists: true});
+});

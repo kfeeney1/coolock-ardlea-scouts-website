@@ -1,3 +1,4 @@
+import { saveHallMeetingSource } from "./hallMeetingSource.js";
 import { saveHallMaintenanceSource } from "./hallMaintenanceSource.js";
 import { assertHallCouncil, hallFailure, hallId, HallBookingError, saveHallBooking } from "./hallBookingModel.js";
 import { hallFirestore } from "./hallFirestore.js";
@@ -43,9 +44,10 @@ export async function handleHallBookingRoute(request, env, getServiceToken, fetc
     const raw = await boundedBody(request);
     let body;
     try { body = JSON.parse(raw); } catch { hallFailure(400, "hall/invalid", "A JSON booking request is required."); }
-    if (!body || typeof body !== "object" || Array.isArray(body) || !["save", "list", "history", "get", "maintenance-save", "maintenance-cancel"].includes(body.action)) hallFailure(400, "hall/invalid", "Choose a booking action.");
+    if (!body || typeof body !== "object" || Array.isArray(body) || !["save", "list", "history", "get", "maintenance-save", "maintenance-cancel", "meeting-hall"].includes(body.action)) hallFailure(400, "hall/invalid", "Choose a booking action.");
     const store = hallFirestore(env, await getServiceToken(env), fetcher);
     await store.verifyUser(uid, token);
+    if (body.action === "meeting-hall") return reply(200, {ok: true, ...await saveHallMeetingSource(store, uid, body.command)});
     if (["maintenance-save", "maintenance-cancel"].includes(body.action)) return reply(200, {ok: true, ...await saveHallMaintenanceSource(store, uid, body.command, {cancel: body.action === "maintenance-cancel"})});
     if (body.action === "save") return reply(200, {ok: true, ...await saveHallBooking(store, uid, body.command)});
     const result = await store.transaction(async tx => {

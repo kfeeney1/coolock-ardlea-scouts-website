@@ -84,6 +84,9 @@ export function hallFirestore(env, token, fetcher = fetch) {
             const items = rows.filter(row => row.document).map(row => ({key: row.document.name.split("/").pop(), value: decodeHallDocument(row.document)}));
             return {items: items.slice(0, 50), cursor: items.length > 50 ? items[49].key : ""};
           },
+          patch(path, data, removed = []) {
+            writes.push({update: {name: `${name}/${path}`, fields: fields(data)}, updateMask: {fieldPaths: [...Object.keys(data), ...removed]}, currentDocument: {exists: true}});
+          },
           delete(path) { writes.push({delete: `${name}/${path}`}); },
           set(path, data) { writes.push({update: {name: `${name}/${path}`, fields: fields(data)}}); },
           create(path, data) { writes.push({update: {name: `${name}/${path}`, fields: fields(data)}, currentDocument: {exists: false}}); }

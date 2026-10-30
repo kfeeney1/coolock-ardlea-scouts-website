@@ -1432,6 +1432,7 @@ service cloud.firestore {
       allow create: if _validateWrite38(request.resource.data);
       function _validateWrite39(_writeData) {
         return isActiveLeader()
+        && (resource.data.get("hallResource", "") != "group-hall" || _writeData.meetingDate == resource.data.meetingDate)
         && resource.data.section is string
         && _writeData.section is string
         && (hasSection(resource.data.section) || isGroupLeader())
@@ -1449,7 +1450,7 @@ service cloud.firestore {
         && _writeData.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);
       }
       allow update: if _validateWrite39(request.resource.data);
-      allow delete: if isAdmin() && resource.data.status == "closed";
+      allow delete: if isAdmin() && resource.data.status == "closed" && resource.data.get("hallResource", "") != "group-hall";
     }
 
     match /weeklyMeetings/{weeklyMeetingId}/leaderAttendance/{leaderUid} {
@@ -1520,8 +1521,13 @@ service cloud.firestore {
     match /parentWeeklyMeetings/{weeklyMeetingId} {
       allow get: if isAdmin() || (resource.data.section is string && isApprovedParentForSection(resource.data.section));
       allow list: if resource.data.section is string && isApprovedParentForSection(resource.data.section);
+      function hallDateUnchanged(data) {
+        let source = /databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId);
+        return !exists(source) || get(source).data.get("hallResource", "") != "group-hall" || data.meetingDate == get(source).data.meetingDate;
+      }
       function _validateWrite43(_writeData) {
         return isActiveLeader()
+        && hallDateUnchanged(_writeData)
         && _writeData.section is string
         && (hasSection(_writeData.section) || isGroupLeader())
         && _writeData.meetingDate is string
@@ -1535,6 +1541,7 @@ service cloud.firestore {
       allow create: if _validateWrite43(request.resource.data);
       function _validateWrite44(_writeData) {
         return isActiveLeader()
+        && hallDateUnchanged(_writeData)
         && resource.data.section is string
         && _writeData.section is string
         && (hasSection(resource.data.section) || isGroupLeader())
@@ -1548,7 +1555,8 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
       }
       allow update: if _validateWrite44(request.resource.data);
-      allow delete: if isAdmin() && resource.data.status == "closed";
+      allow delete: if isAdmin() && resource.data.status == "closed"
+        && (!exists(/databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId)) || get(/databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId)).data.get("hallResource", "") != "group-hall");
     }
 
     match /financeTransactions/{transactionId} {
