@@ -1,4 +1,5 @@
 import { useCalendarAccess } from "../hooks/useCalendarAccess";
+import { usePublicHallHire } from "../hooks/usePublicHallHire";
 import { applicationErrorMessage, reportApplicationError } from "../services/applicationErrors.ts";
 import {
     Alert, AppBar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography
@@ -26,6 +27,7 @@ function roleSummary(profile: ReturnType<typeof useAdminAuth>["adminProfile"]): 
 }
 
 export default function Header() {
+    const hallHire = usePublicHallHire();
     const maintenance = useMaintenanceAccess();
     const calendar = useCalendarAccess();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -37,7 +39,7 @@ export default function Header() {
     const { pathname } = useLocation();
     const navigate = useNavigate();
     const content = usePublicSiteContent();
-    const menuItems = content.navigation.filter((item) => item.path !== "/activities/consent" && !/consent/i.test(item.label)).concat(calendar.allowed && !authorised ? [calendarNavItem] : []).concat(maintenance.allowed && !authorised ? [maintenanceNavItem] : []);
+    const menuItems = content.navigation.filter((item) => item.path !== "/hall-hire" && item.path !== "/activities/consent" && !/consent/i.test(item.label)).concat(hallHire.enabled ? [{label: "Hall Hire", path: "/hall-hire"}] : []).concat(calendar.allowed && !authorised ? [calendarNavItem] : []).concat(maintenance.allowed && !authorised ? [maintenanceNavItem] : []);
     const isPublicRoute = !pathname.startsWith("/leader");
     const showDashboardReturn = isPublicRoute && authorised && Boolean(adminProfile);
     const showPublicParentLogin = shouldShowPublicParentLogin(parentLoginEnabled, Boolean(user), loading);

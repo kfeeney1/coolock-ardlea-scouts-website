@@ -33,6 +33,7 @@ const ParentPortal = lazy(() => import("./pages/ParentPortal"));
 const ParentMemberInactivation = lazy(() => import("./pages/ParentMemberInactivation"));
 const Join = lazy(() => import("./pages/Join"));
 const Contact = lazy(() => import("./pages/Contact"));
+const HallHire = lazy(() => import("./pages/HallHire"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const PolicyDocuments = lazy(() => import("./pages/PolicyDocuments"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
@@ -106,6 +107,7 @@ export default function App() {
         <Route path="/parent/member-action/:actionToken" element={<ParentMemberInactivation />} />
         <Route path="/join" element={<Join />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/hall-hire" element={<HallHire />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/policies" element={<PolicyDocuments />} />
         <Route path="/leader/login" element={<AdminLogin />} />

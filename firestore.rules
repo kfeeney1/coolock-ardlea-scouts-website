@@ -2336,6 +2336,8 @@ service cloud.firestore {
         || (settingsId == "parentConsent" && isSuperAdmin())
         || (settingsId == "hallHire" && isSuperAdmin())
         || settingsId in ["hallHirePublic", "hallHireReadiness"]
+        || (settingsId == "hallHireVenue" && (isSuperAdmin() || (resource.data.confirmed == true
+          && resource.data.keys().hasOnly(["confirmed", "name", "introduction", "facilities", "address", "accessibility", "imageUrl", "imageAlt"]))))
         || settingsId == "publicNavigation";
       allow list: if false;
       function _validateWrite75(_writeData) {

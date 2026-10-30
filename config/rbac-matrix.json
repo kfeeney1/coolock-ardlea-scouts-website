@@ -32,6 +32,7 @@
     "/parent/member-action/:actionToken": "parent-or-leader-authoritative-action",
     "/join": "public-form",
     "/contact": "public",
+    "/hall-hire": "public-hall-rollout-restricted-availability-only",
     "/privacy": "public",
     "/leader/login": "leader-entry",
     "/leader/register": "leader-entry",
