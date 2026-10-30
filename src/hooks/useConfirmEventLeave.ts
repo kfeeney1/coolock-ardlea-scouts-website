@@ -42,10 +42,12 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
     } else if (!dirtyRef.current) {
       backGuardArmedRef.current = false;
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state as Record<string, unknown> : null;
+      // Only this editor may consume or clear its reserved native Back entry.
+      // An inactive guard must leave another editor’s marker intact.
       if (waitForOverlays && currentState?.[HISTORY_GUARD_KEY] === guardId && !dialogOpenRef.current) {
         // A save that stays in this editor consumes the reserved Back entry.
         if (!bypassNextPopRef.current) { bypassNextPopRef.current = true; navigate(-1); }
-      } else if (currentState && HISTORY_GUARD_KEY in currentState) {
+      } else if (currentState?.[HISTORY_GUARD_KEY] === guardId) {
         const cleanState = { ...currentState };
         delete cleanState[HISTORY_GUARD_KEY];
         window.history.replaceState(cleanState, "", window.location.href);
@@ -151,12 +153,12 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
     dialogOpenRef.current = false;
     backGuardArmedRef.current = false;
     const state = window.history.state;
-    if (state && typeof state === "object" && HISTORY_GUARD_KEY in state) {
+    if (state && typeof state === "object" && state[HISTORY_GUARD_KEY] === guardId) {
       const nextState = { ...state };
       delete nextState[HISTORY_GUARD_KEY];
       window.history.replaceState(nextState, "", window.location.href);
     }
-  }, []);
+  }, [guardId]);
 
   const continueWithoutSaving = useCallback(() => {
     const pending = request;
