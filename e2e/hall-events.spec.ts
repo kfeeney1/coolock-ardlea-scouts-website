@@ -37,7 +37,7 @@ test("Council event hall controls preserve programme, native Back, off-state pro
   await hallDate.fill("invalid"); await panel.getByRole("button", {name: "Discard hall edits", exact: true}).click();
   await expect(hallDate).toHaveValue("05-11-2099");
   await expect.poll(() => page.evaluate(() => window.history.state?.__eventEditBackGuard ?? null)).toBeNull();
-  const title = page.getByLabel("Event title", {exact: true}); await title.fill("Unsaved programme"); await expect(reserve).toBeDisabled();
+  const title = page.getByRole("textbox", {name: "Event title", exact: true}); await title.fill("Unsaved programme"); await expect(reserve).toBeDisabled();
   await page.getByRole("link", {name: "Back to Event", exact: true}).click();
   await page.getByRole("dialog", {name: "Unsaved event changes", exact: true}).getByRole("button", {name: "Discard", exact: true}).click();
   await expect(page).toHaveURL(new RegExp(`/leader/events/${id}$`));
@@ -50,7 +50,7 @@ test("Council event hall controls preserve programme, native Back, off-state pro
   await db.doc(paths[1]).set({enabled: true}); await expect(reserve).toBeEnabled();
   await start.fill("19:00"); await end.fill("20:00"); await reserve.click();
   await expect(panel.getByText("This event reserves the Group hall.", {exact: true})).toBeVisible();
-  await expect(page.getByLabel("Start date", {exact: true})).toBeDisabled(); await expect(page.getByRole("combobox", {name: "Section", exact: true})).toBeDisabled();
+  await expect(page.getByRole("textbox", {name: "Start date", exact: true})).toBeDisabled(); await expect(page.getByRole("combobox", {name: "Section", exact: true})).toBeDisabled();
   expect((await source.get()).get("leaderNotes")).toBe("PRIVATE event retained"); expect((await source.get()).get("consent")).toEqual({TEST_member_cub_01: "received"});
   expect((await db.doc(paths[5]).get()).data()).toEqual(parentBefore);
   const available = (await db.doc(paths[7]).get()).get("occupied"); expect(available).toHaveLength(1); expect(Object.keys(available[0]).sort()).toEqual(["end", "start"]);
