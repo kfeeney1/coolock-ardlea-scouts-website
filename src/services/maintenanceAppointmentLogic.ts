@@ -1,7 +1,7 @@
 import { isCanonicalDateOnly } from "./weeklyMeetingProgrammeLogic.ts";
 import type { CalendarEntry } from "./groupCalendar.ts";
-export type AppointmentInput = {title: string; date: string; allDay: boolean; startTime: string; endTime: string; location: string; notes: string};
-export type MaintenanceAppointment = AppointmentInput & {id: string; revision: number; taskId?: string};
+export type AppointmentInput = {title: string; date: string; allDay: boolean; startTime: string; endTime: string; location: string; notes: string; hallResource?: "" | "group-hall"};
+export type MaintenanceAppointment = AppointmentInput & {id: string; revision: number; taskId?: string; cancelled?: boolean};
 export type AppointmentErrors = Partial<Record<keyof AppointmentInput, string>>;
 export const emptyAppointment = (date: string): AppointmentInput => ({title: "", date, allDay: true, startTime: "", endTime: "", location: "", notes: ""});
 export function appointmentErrors(input: AppointmentInput): AppointmentErrors {
@@ -18,7 +18,7 @@ export function appointmentErrors(input: AppointmentInput): AppointmentErrors {
   return errors;
 }
 export function cleanAppointment(input: AppointmentInput): AppointmentInput {
-  return {date: input.date, allDay: input.allDay, title: input.title.trim(), location: input.location.trim(), notes: input.notes.trim(), startTime: input.allDay ? "" : input.startTime, endTime: input.allDay ? "" : input.endTime};
+  return {date: input.date, allDay: input.allDay, title: input.title.trim(), location: input.location.trim(), notes: input.notes.trim(), startTime: input.allDay ? "" : input.startTime, endTime: input.allDay ? "" : input.endTime, ...(input.hallResource === "group-hall" ? {hallResource: "group-hall" as const} : {})};
 }
 export function appointmentCalendarEntry(record: MaintenanceAppointment): CalendarEntry {
   return {id: `maintenance:${record.id}`, type: "maintenance", title: record.title, date: record.date, time: record.allDay ? "" : record.startTime, section: "Group", path: `/calendar/maintenance/${encodeURIComponent(record.id)}`};

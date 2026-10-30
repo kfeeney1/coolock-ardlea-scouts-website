@@ -1,5 +1,8 @@
+import { useHallHireAccess } from "../hooks/useHallHireAccess";
+import { cancelHallMaintenanceAppointment } from "../services/maintenanceAppointmentStore";
+import { applicationErrorMessage } from "../services/applicationErrors";
 import { calendarCreationDate } from "../services/calendarCreation";
-import { Alert, Button, Container, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCalendarMaintenance } from "../hooks/useCalendarMaintenance";
@@ -12,7 +15,8 @@ import { calendarReturnPath } from "../services/calendarSourceLogic";
 import { formatSiteDate } from "../services/siteDateFormat";
 import { scheduleToday } from "../services/scheduleSelection";
 export default function MaintenanceAppointment() {
-  const access = useCalendarMaintenance();
+  const access = useCalendarMaintenance(), hall = useHallHireAccess();
+  const [cancelling, setCancelling] = useState(false), [cancelOpen, setCancelOpen] = useState(false), [cancelError, setCancelError] = useState("");
   const {id = ""} = useParams(); const location = useLocation();
   const back = calendarReturnPath(location.state) || "/calendar";
   const creating = id === "new", editing = creating || location.pathname.endsWith("/edit");
@@ -37,6 +41,10 @@ export default function MaintenanceAppointment() {
         {editing ? <AppointmentEditor key={creating ? newId : `${id}:${attempt}`} id={creating ? newId : id} initial={record || emptyAppointment(calendarCreationDate(location.state) || defaultDate)} revision={record?.revision || 0} back={back} preserveReturn={Boolean(calendarCreationDate(location.state))} /> : record && <Stack spacing={2}>
           <Typography component="h2" variant="h5" sx={{fontWeight: 800}}>{record.title}</Typography>
           <Typography>Maintenance · Group-wide</Typography><Typography sx={{p: 1.5, borderRadius: 1, bgcolor: "action.selected"}}>{formatSiteDate(record.date)} · {record.allDay ? "All day" : `${record.startTime} – ${record.endTime} (Europe/Dublin)`}</Typography>
+          {record.hallResource === "group-hall" && <Alert severity={record.cancelled ? "info" : "warning"}>{record.cancelled ? "Cancelled appointment. Hall time released." : "Reserves the Group hall."}</Alert>}
+          {cancelError && <Alert severity="error">{cancelError}</Alert>}
+          {record.hallResource === "group-hall" && !record.cancelled && hall.council && <Button color="error" disabled={cancelling} onClick={() => setCancelOpen(true)}>Cancel hall appointment</Button>}
+          <Dialog open={cancelOpen} onClose={() => !cancelling && setCancelOpen(false)} aria-labelledby="hall-appointment-cancel-title"><DialogTitle id="hall-appointment-cancel-title">Cancel hall appointment?</DialogTitle><DialogContent>The appointment is retained and its occupied hall time is released.</DialogContent><DialogActions><Button autoFocus disabled={cancelling} onClick={() => setCancelOpen(false)}>Keep appointment</Button><Button color="error" disabled={cancelling} onClick={() => {setCancelling(true); setCancelError(""); void cancelHallMaintenanceAppointment(record.id, record.revision).then(() => setCancelOpen(false)).catch(cause => {setCancelOpen(false); setCancelError(applicationErrorMessage(cause, "Unable to cancel. The appointment is retained.", "MaintenanceAppointment"));}).finally(() => setCancelling(false));}}>Confirm cancellation</Button></DialogActions></Dialog>
           {record.location && <Typography>{record.location}</Typography>}{record.notes && <ExpandableMeetingNotes notes={record.notes} />}
           <Button component={Link} to={`/calendar/maintenance/${id}/edit`} state={{calendarReturnTo: back}} color="secondary" sx={{alignSelf: "flex-start", minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Edit appointment</Button>
         </Stack>}
