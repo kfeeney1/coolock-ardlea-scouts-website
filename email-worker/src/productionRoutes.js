@@ -368,6 +368,12 @@ export async function handleEventAudienceSave(request, env, body) {
       && !authorisedSections.includes(canonicalAudienceSection(fieldString(currentEvent, "section")))) {
     return json(request, env, 403, { ok: false, error: "This event is outside your authorised section scope." });
   }
+  // The commit below leases currentEvent.updateTime: a concurrent hall reserve/release
+  // invalidates this decision rather than allowing a stale schedule through.
+  if (operation === "update" && fieldString(currentEvent, "hallResource") === "group-hall"
+      && ["startDate", "endDate", "section"].some(key => fieldString(currentEvent, key) !== clean(input[key], key === "section" ? 80 : 30))) {
+    return json(request, env, 409, {ok: false, error: "Release the event's hall reservation before changing its dates or section."});
+  }
   const currentAudienceVersion = currentEvent?.fields?.audience?.mapValue?.fields?.version?.integerValue;
   const keepLegacyAudience = operation === "update" && body.preserveLegacyAudience === true && currentAudienceVersion !== "3";
 
