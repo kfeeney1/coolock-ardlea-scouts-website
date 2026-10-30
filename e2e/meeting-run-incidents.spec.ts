@@ -37,7 +37,13 @@ test("Run retains attendance invariants and draft fields across stages and progr
   await page.getByRole("button", { name: "Mark all present", exact: true }).click(); await expect(attendance).toBeChecked();
   await draft(page); await page.getByRole("button", { name: "View programme", exact: true }).click();
   const reference = page.getByRole("dialog", { name: "Programme reference" }); await expect(reference).toContainText("Reference instructions"); await expect(reference).toContainText("Guest reference leader"); await expect(reference).toContainText("Cones");
-  await reference.getByRole("button", { name: "Back to attendance" }).click(); await expect(attendance).toBeChecked();
+  await reference.getByRole("button", { name: "Back to attendance" }).click();
+  await expect(reference).toBeHidden();
+  // Closing the reference also consumes its asynchronous Back-history entry.
+  // Finish that transition before changing stages or clearing the incident guard.
+  await waitForTransientOverlayHistory(page);
+  await expect(page).toHaveURL(new RegExp(`meeting=${id}$`));
+  await expect(attendance).toBeChecked();
   await page.getByRole("button", { name: "Review", exact: true }).click(); await page.getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Injury / medical concern" })).toHaveValue("Synthetic concern");
   await page.getByRole("button", { name: "Add incident to draft", exact: true }).click(); await expect(page.getByRole("status").filter({ hasText: "Incident added" })).toBeVisible();
