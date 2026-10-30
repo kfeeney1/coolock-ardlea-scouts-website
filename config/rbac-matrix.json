@@ -50,6 +50,8 @@
     "/leader/communications": "leader",
     "/leader/meetings": "leader",
     "/leader/weekly": "leader",
+    "/leader/hall": "leader-council-hall-rollout",
+    "/leader/hall/:bookingId": "leader-council-hall-rollout",
     "/leader/badgework": "leader",
     "/leader/equipment": "leader",
     "/leader/equipment/issues": "leader",

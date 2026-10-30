@@ -78,6 +78,9 @@ test("existing Worker route validates identity, Council scope, private reads and
   }
   assert.equal((await request("council", {action: "save", command: {booking: booking(), expectedRevision: 0}})).status, 200);
   const list = await request("council", {action: "list"}); assert.equal(list.status, 200);
+  const single = await request("council", {action: "get", id: "one"}); assert.equal(single.status, 200);
+  assert.equal((await single.json()).item.title, "PRIVATE TITLE");
+  assert.equal((await request("scouter", {action: "get", id: "one"})).status, 403);
   assert.equal((await list.json()).items[0].value.title, "PRIVATE TITLE");
   const history = await request("council", {action: "history", id: "one"}); assert.equal(history.status, 200);
   assert.equal((await history.json()).items[0].value.actorUid, "council");
