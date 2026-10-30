@@ -42,3 +42,9 @@ test("weekly meeting source routes preserve protected canonical scope and reject
   assert.equal(hallSourcePath({collection: "weeklyMeetings", id: "../members/private"}), null);
   assert.equal(hallSourcePath({collection: "members", id: "member"}), null);
 });
+
+test("event source navigation uses the existing protected record route and rejects path injection", () => {
+  assert.equal(hallSourcePath({collection: "events", id: "event-one"}), "/leader/events/event-one");
+  assert.equal(hallSourcePath({collection: "events", id: "../members/private"}), null);
+  assert.equal(hallSourcePath({collection: "events", id: "event?other=private"}), null);
+});

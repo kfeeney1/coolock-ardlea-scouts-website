@@ -26,6 +26,8 @@ import { createEventDirect, updateEventDirect } from "./eventDirectPersistence.t
 import { usesDirectEventPersistence } from "./eventPersistenceMode.ts";
 import { saveEventAudience } from "./eventAudienceBackend";
 import { isValidDateRange } from "./dateRangeLogic.ts";
+import {eventHallMetadata} from "./eventHallSchedule";
+import type {HallLocalInterval} from "./hallBookingTime";
 
 export type EventStatus = "draft" | "open" | "closed" | "completed";
 export type AttendanceStatus = "invited" | "attending" | "not-attending";
@@ -33,6 +35,9 @@ export type EventConsentStatus = "not-required" | "required" | "received";
 export type EventAudience = { version: 1 | 2 | 3; mode: "sections" | "members" | "mixed"; semantics: "snapshot"; sectionIds: string[]; memberIds: string[]; resolvedMemberIds: string[] };
 
 export type EventRecord = {
+    hallResource?: "group-hall";
+    hallInterval?: HallLocalInterval;
+    hallRevision?: number;
     id: string;
     title: string;
     description: string;
@@ -121,6 +126,7 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | 
 
     return {
         id: snapshot.id,
+        ...eventHallMetadata(data),
         title,
         description: stringValue(data, "description"),
         eventType,

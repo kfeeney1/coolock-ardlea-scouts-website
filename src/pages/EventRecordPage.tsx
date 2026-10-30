@@ -3,6 +3,7 @@ import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Ty
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import EventHallUse from "../components/hall/EventHallUse";
 import EventGalleryDialog from "../components/admin/EventGalleryDialog";
 import EventRosterDialog from "../components/admin/EventRosterDialog";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -34,6 +35,7 @@ function statusColor(status: EventRecord["status"]): "default" | "success" | "wa
 
 export default function EventRecordPage() {
     const { eventId = "" } = useParams();
+    const [hallDraftDirty, setHallDraftDirty] = useState(false);
     const [event, setEvent] = useState<EventRecord | null>(null);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [equipmentItems, setEquipmentItems] = useState<EquipmentItem[]>([]);
@@ -223,7 +225,7 @@ export default function EventRecordPage() {
 
                 <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }}>
                     <Typography variant="h5" color="secondary" sx={{ mb: 2 }}>Event actions</Typography>
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25 }}>
+                    <Box component="fieldset" disabled={hallDraftDirty} sx={{border: 0, p: 0, m: 0, minWidth: 0, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25 }}>
                         <Button variant="contained" color={event.status === "completed" ? "secondary" : "success"} onClick={openRoster}>{event.status === "completed" ? "View Attendance" : "Attendance"}</Button>
                         {event.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>}
                         <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>
@@ -235,6 +237,7 @@ export default function EventRecordPage() {
                     </Box>
                 </Paper>
 
+                {event.status === "completed" && <Box sx={{mt: 3}}><EventHallUse key={`${event.id}:${event.hallRevision ?? 0}`} event={event} allowNew={false} blocked={rosterOpen || galleryOpen || equipmentOpen || savingRoster} onDirty={setHallDraftDirty} onSaved={() => void load()} /></Box>}
                 <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} leaderOptions={leaderOptions} leaderAttendance={leaderAttendance} leaderAttendanceLoading={leaderAttendanceLoading} onLeaderAttendanceChange={setLeaderAttendance} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} onPrint={printRoster} onExport={exportRoster} />
                 <EventGalleryDialog event={galleryOpen ? event : null} onClose={() => setGalleryOpen(false)} />
                 {equipmentOpen && <ProgrammeEquipmentDialog open sourceType={event.eventType.toLowerCase().includes("activity") ? "activity" : "event"} sourceId={event.id} sourceLabel={event.title} section={event.section} date={event.startDate} items={equipmentItems} loans={equipmentLoans} readOnly={event.status === "completed"} onClose={() => setEquipmentOpen(false)} onChanged={load} />}

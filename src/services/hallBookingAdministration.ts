@@ -46,6 +46,7 @@ export function maintenanceHallSourcePath(source: HallBookingRecord["source"]): 
 }
 
 export function hallSourcePath(source: HallBookingRecord["source"]): string | null {
+  if (source?.collection === "events" && /^[A-Za-z0-9_-]{1,100}$/.test(source.id)) return `/leader/events/${encodeURIComponent(source.id)}`;
   if (source?.collection === "weeklyMeetings" && /^[A-Za-z0-9_-]{1,100}$/.test(source.id)) return `/leader/weekly?meeting=${encodeURIComponent(source.id)}`;
   return maintenanceHallSourcePath(source);
 }
