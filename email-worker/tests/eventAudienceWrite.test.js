@@ -311,3 +311,35 @@ test("event audience edit preserves RSVP and consent history in the atomic commi
     globalThis.fetch = originalFetch;
   }
 });
+
+test("hall-marked backend event updates reject schedule bypass and preserve marker with an updateTime lease", async () => {
+  const commits = [], input = eventInput();
+  const originalFetch = globalThis.fetch;
+  const fields = Object.fromEntries(Object.entries(input).filter(([, value]) => typeof value === "string").map(([key, value]) => [key, stringValue(value)]));
+  const existing = {name: "projects/demo/databases/(default)/documents/events/event-existing", updateTime: "2026-10-30T12:00:00.000Z", fields: {...fields, hallResource: stringValue("group-hall"), hallRevision: {integerValue: "1"}, consentRequired: booleanValue(false)}};
+  globalThis.fetch = async (url, init = {}) => {
+    url = String(url);
+    if (url === "https://oauth2.googleapis.com/token") return Response.json({access_token: "service-token", expires_in: 3600});
+    if (url.endsWith("/adminUsers/leader-1")) return Response.json(leader);
+    if (url.endsWith("/organisationLeadership/leader-1")) return new Response("", {status: 404});
+    if (url.includes("/members?pageSize=100")) return Response.json({documents: [memberDocument("member-1", "Beavers")]});
+    if (url.endsWith("/events/event-existing")) return Response.json(existing);
+    if (url.includes("/events/event-existing/audienceMembers?pageSize=100")) return Response.json({documents: []});
+    if (url.endsWith("/documents:commit")) {commits.push(JSON.parse(init.body)); return Response.json({writeResults: []});}
+    throw new Error(`Unexpected request ${url}`);
+  };
+  const env = {FIREBASE_PROJECT_ID: "demo", FIREBASE_SERVICE_ACCOUNT_EMAIL: "firebase-adminsdk@demo.iam.gserviceaccount.com", FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem};
+  try {
+    for (const change of [{startDate: "2099-05-09"}, {endDate: "2099-05-11"}, {section: "Cubs"}]) {
+      const body = {operation: "update", eventId: "event-existing", input: {...input, ...change}, audience: {sectionIds: ["Beavers"], memberIds: []}};
+      const response = await handleProductionRoute(request(body), env, body, "/event-audience-save");
+      assert.equal(response.status, 409); assert.equal(commits.length, 0);
+    }
+    const body = {operation: "update", eventId: "event-existing", input: {...input, title: "Ordinary programme change"}, audience: {sectionIds: ["Beavers"], memberIds: []}};
+    const response = await handleProductionRoute(request(body), env, body, "/event-audience-save");
+    assert.equal(response.status, 200); assert.equal(commits.length, 1);
+    const write = commits[0].writes[0]; assert.equal(write.currentDocument.updateTime, existing.updateTime);
+    assert.equal(write.updateMask.fieldPaths.includes("hallResource"), false); assert.equal(write.update.fields.hallResource, undefined);
+    assert.equal(write.updateMask.fieldPaths.includes("hallRevision"), false);
+  } finally {globalThis.fetch = originalFetch;}
+});

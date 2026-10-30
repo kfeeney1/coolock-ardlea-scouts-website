@@ -1049,6 +1049,7 @@ service cloud.firestore {
       allow list: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section));
       function _validateWrite19(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section) && _writeData.createdBy == request.auth.uid
+        && !_writeData.keys().hasAny(["hallResource", "hallInterval", "hallRevision"])
         && _writeData.title is string && _writeData.eventType is string
         && validDateRange(_writeData.startDate, _writeData.endDate)
         && _writeData.status in ["draft", "open", "closed", "completed"]
@@ -1056,6 +1057,8 @@ service cloud.firestore {
       }
       allow create: if _validateWrite19(request.resource.data);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && (resource.data.get("hallResource", "") != "group-hall"
+          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(["startDate", "endDate", "section"]))
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
         && validDateRange(request.resource.data.startDate, request.resource.data.endDate)
         && (request.resource.data.audience == resource.data.audience || validVersion3EventAudience(request.resource.data))
