@@ -42,7 +42,8 @@ export const suiteSpecs = {
     "maintenance-appointments.spec.ts",
     "scheduled-maintenance-tasks.spec.ts",
     "maintenance-persistence.spec.ts",
-    "site-settings.spec.ts"
+    "site-settings.spec.ts",
+    "hall-booking-administration.spec.ts"
   ],
   "members-parents-consent": [
     "consent-action-stability.spec.ts",
@@ -140,6 +141,7 @@ export const suiteSpecs = {
     "subs-management.spec.ts"
   ],
   "public-pages": [
+    "public-hall-hire.spec.ts",
     "leader-communications.spec.ts",
     "public-smoke.spec.ts",
     "sitewide-tile-filters.spec.ts"

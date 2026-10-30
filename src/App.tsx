@@ -33,6 +33,7 @@ const ParentPortal = lazy(() => import("./pages/ParentPortal"));
 const ParentMemberInactivation = lazy(() => import("./pages/ParentMemberInactivation"));
 const Join = lazy(() => import("./pages/Join"));
 const Contact = lazy(() => import("./pages/Contact"));
+const HallHire = lazy(() => import("./pages/HallHire"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const PolicyDocuments = lazy(() => import("./pages/PolicyDocuments"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
@@ -78,6 +79,7 @@ const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
 const SiteSettings = lazy(() => import("./pages/SiteSettings"));
 const SystemInformation = lazy(() => import("./pages/SystemInformation"));
+const HallBookings = lazy(() => import("./pages/HallBookings"));
 
 function protectedRoute(element: ReactNode) { return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>; }
 function protectedSettingsRoute(element: ReactNode) { return protectedRoute(<ProtectedSiteSettingsRoute>{element}</ProtectedSiteSettingsRoute>); }
@@ -105,6 +107,7 @@ export default function App() {
         <Route path="/parent/member-action/:actionToken" element={<ParentMemberInactivation />} />
         <Route path="/join" element={<Join />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/hall-hire" element={<HallHire />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/policies" element={<PolicyDocuments />} />
         <Route path="/leader/login" element={<AdminLogin />} />
@@ -124,6 +127,8 @@ export default function App() {
         <Route path="/leader/communications" element={protectedRoute(<LeaderCommunications />)} />
         <Route path="/leader/meetings" element={protectedRoute(<MeetingRecords />)} />
         <Route path="/leader/weekly" element={protectedRoute(<WeeklySectionTracker />)} />
+        <Route path="/leader/hall" element={protectedRoute(<HallBookings />)} />
+        <Route path="/leader/hall/:bookingId" element={protectedRoute(<HallBookings />)} />
         <Route path="/leader/weekly/create" element={protectedRoute(<CreateWeeklyMeetingPage />)} />
         <Route path="/leader/weekly/copy/:sourceId" element={protectedRoute(<CopyWeeklyMeetingPage />)} />
         <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
