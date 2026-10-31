@@ -1,0 +1,107 @@
+name: Hall Booking TEST Manual Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: firebase-test-deploy
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT_ID: coolock-ardlea-scouts-test
+
+jobs:
+  deploy_hall_test:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Resolve current reviewed main
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          TARGET_SHA="$(git rev-parse HEAD)"
+          test "$TARGET_SHA" = "$(git rev-parse origin/main)"
+          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+      - name: Require exact-head completed CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.release.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required in quality e2e rules audit; do
+            state="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100" --jq ".check_runs | map(select(.name == \"${required}\")) | sort_by(.id) | last | .conclusion // \"missing\"")"
+            test "$state" = success || { echo '::error::Exact-head CI must pass before manual TEST deployment.'; exit 1; }
+          done
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate target, account confirmation and isolated config
+        env:
+          HALL_BUILD_COMMIT: ${{ steps.release.outputs.sha }}
+          HALL_FREE_PLAN_CONFIRMED: ${{ vars.HALL_FREE_PLAN_CONFIRMED }}
+          VITE_HALL_BOOKING_API_URL: ${{ vars.VITE_HALL_BOOKING_API_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node --experimental-strip-types scripts/check-hall-test-deployment.mjs
+      - name: Validate existing TEST credential and deployed frontend
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+          SITE_URL: https://coolock-ardlea-scouts-test.web.app
+          EXPECTED_BUILD_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
+          node scripts/check-live-build-info.mjs
+      - name: Install existing Worker toolchain and test handler
+        working-directory: email-worker
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/*.test.js
+      - name: Package reviewed TEST entry without deploying
+        working-directory: email-worker
+        env:
+          WRANGLER_SEND_METRICS: "false"
+          HALL_BUILD_COMMIT: ${{ steps.release.outputs.sha }}
+        run: npx --no-install wrangler deploy --dry-run --config wrangler.hall-test.toml --var "HALL_BUILD_COMMIT:$HALL_BUILD_COMMIT"
+      - name: Deploy booking-only TEST Worker
+        working-directory: email-worker
+        env:
+          WRANGLER_SEND_METRICS: "false"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+          HALL_BUILD_COMMIT: ${{ steps.release.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          secret_file="$(mktemp)"
+          trap 'rm -f "$secret_file"' EXIT
+          export HALL_SECRET_FILE="$secret_file"
+          node --input-type=module - <<'JS'
+          import {writeFile} from 'node:fs/promises';
+          const key = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+          if (key.project_id !== 'coolock-ardlea-scouts-test' || !key.client_email?.endsWith('@coolock-ardlea-scouts-test.iam.gserviceaccount.com') || !key.private_key) throw new Error('TEST credential mismatch.');
+          await writeFile(process.env.HALL_SECRET_FILE, JSON.stringify({FIREBASE_SERVICE_ACCOUNT_EMAIL: key.client_email, FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: key.private_key}), {mode: 0o600});
+          JS
+          npx --no-install wrangler secret bulk "$secret_file" --config wrangler.hall-test.toml
+          npx --no-install wrangler deploy --config wrangler.hall-test.toml --var "HALL_BUILD_COMMIT:$HALL_BUILD_COMMIT"
+      - name: Verify public TEST identity and denied boundaries
+        env:
+          VITE_HALL_BOOKING_API_URL: ${{ vars.VITE_HALL_BOOKING_API_URL }}
+          EXPECTED_WORKER_SHA: ${{ steps.release.outputs.sha }}
+        run: node --experimental-strip-types scripts/check-test-hall-backend.mjs
+      - name: Record deployment boundary
+        if: always()
+        run: echo 'TEST booking deployment metadata/boundary checks are separate from SW-561 authenticated lifecycle and Android acceptance.' >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,15 @@
+# Isolated booking-only TEST entry. Never deploy with either email Worker config.
+# Account Free-plan/quota suitability must be verified before a manual deployment.
+name = "coolock-ardlea-scouts-hall-test"
+main = "src/testHallEntry.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[vars]
+FIREBASE_PROJECT_ID = "coolock-ardlea-scouts-test"
+# HALL_BUILD_COMMIT is supplied from the exact reviewed deployment commit.
+# TEST-scoped Firebase service-account email/private key are Worker secrets.
+# No cron, mail API key, storage/queue/paid binding or plan change is configured.
+
+[triggers]
+crons = []
