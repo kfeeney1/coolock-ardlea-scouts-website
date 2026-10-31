@@ -19,11 +19,8 @@ export function hallAuditEnvironment(argv, env) {
   validateHallAuditOptions({from: values.from, through: values.through});
   return values;
 }
-export async function runHallAudit(argv, env) {
-  const options = hallAuditEnvironment(argv, env);
-  let decisions = [];
-  if (options.decisions) {
-    const file = await open(options.decisions, "r"), chunks = [];
+export async function readHallJson(path) {
+    const file = await open(path, "r"), chunks = [];
     let length = 0;
     try {
       while (true) {
@@ -33,8 +30,14 @@ export async function runHallAudit(argv, env) {
         if (length > 1_000_000) throw new Error("Decision file is too large.");
         chunks.push(buffer.subarray(0, bytesRead));
       }
-      decisions = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      return JSON.parse(Buffer.concat(chunks).toString("utf8"));
     } finally {await file.close();}
+}
+export async function runHallAudit(argv, env) {
+  const options = hallAuditEnvironment(argv, env);
+  let decisions = [];
+  if (options.decisions) {
+    decisions = await readHallJson(options.decisions);
   }
   validateHallAuditOptions({...options, decisions});
   // Existing ADC identity is used. No credential parsing, writes, deploys or repair mode.

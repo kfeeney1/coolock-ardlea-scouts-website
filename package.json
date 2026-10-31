@@ -17,6 +17,7 @@
     "check:dropdown-implementation": "node scripts/check-dropdown-implementation.mjs",
     "check:visible-control-contract": "node scripts/check-visible-control-contract.mjs",
     "audit:production": "npm audit --omit=dev --audit-level=high",
+    "control:hall": "node --experimental-strip-types scripts/reconcile-hall-reservations.mjs",
     "audit:hall": "node --experimental-strip-types scripts/audit-hall-reservations.mjs",
     "audit:source": "node scripts/report-source-complexity.mjs",
     "audit:event-gallery-access": "node scripts/audit-event-gallery-access.mjs",
