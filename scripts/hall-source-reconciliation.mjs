@@ -16,6 +16,7 @@ export function assertOperator(operator, uid, now = Date.now(), maintenance = fa
 }
 export function assertStaging(collections) {
   const setting = collections.get("siteSettings"), lock = collections.get("hall")?.get("group");
+  if (lock?.testRehearsal && (lock.testRehearsal.state !== "stopped" || !/^[1-9][0-9]*$/.test(lock.testRehearsal.id ?? ""))) hallFailure(409, "hall/rehearsal-active", "Stop the TEST rehearsal before reconciliation or final publication.");
   if ((lock && (!Number.isSafeInteger(lock.revision ?? 0) || (lock.revision ?? 0) < 0 || (lock.baselineVersion !== undefined && !validVersion(lock.baselineVersion)))) || ["hallHire", "hallHirePublic"].some(key => setting?.get(key) && typeof setting.get(key).enabled !== "boolean") || (setting?.get("hallHireReadiness") && typeof setting.get("hallHireReadiness").ready !== "boolean")) hallFailure(409, "hall/index", "Configuration requires reconciliation.");
   if (setting?.get("hallHire")?.enabled === true || setting?.get("hallHirePublic")?.enabled === true || setting?.get("hallHireReadiness")?.ready === true || collections.get("hall")?.get("group")?.ready === true) hallFailure(409, "hall/staging", "Disable rollout/readiness before preactivation reconciliation.");
 }

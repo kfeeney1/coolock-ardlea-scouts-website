@@ -9,7 +9,7 @@ Depends on merged SW-568/#964 and the canonical source adapters. Supports SW-560
 
 Only the exact TEST project or a loopback `demo-` emulator can be mutated. Live Production writes are blocked, including when a caller supplies a misleading project argument to a mutation helper. Live TEST cannot use an Auth emulator; demo runs require both Firestore and Auth emulator configuration. No deployment, new service, email or automatic schedule is added. Production correction/readiness publication needs an explicitly authorised go-live change; this tool does not provide it.
 
-All preactivation work requires both rollout booleans and both readiness booleans off. No temporary readiness bypass is offered. Existing source adapters still enforce off-state conflicts and can move/release their existing reservations. Readiness publication does not enable the independent Superuser Hall Hire switch.
+Source reconciliation and final publication require both rollout booleans and both readiness booleans off, with no active TEST rehearsal. Neither mode offers a temporary readiness bypass. [SW-571](sw-571-hall-test-rehearsal.md) separately provides controlled TEST rehearsal setup and manual shutdown, without claiming acceptance or final publication. Existing source adapters still enforce off-state conflicts and can move/release their existing reservations. Readiness publication does not enable the independent Superuser Hall Hire switch.
 
 ## 1. Confirm facts and review a dry run
 
@@ -51,7 +51,7 @@ The auditor validates review ownership and current immutable history/audit evide
 
 ## 4. Record deployed TEST acceptance before final readiness
 
-The operator must actually execute and record SW-561 deployed Firebase TEST acceptance. CI, emulator results and a clean reconciliation report do not constitute this evidence. SW-561's synthetic TEST fixture setup/cleanup is separate from final publication; this command offers no provisional activation mode. No actual acceptance file has been created by this implementation.
+The operator must actually execute and record SW-561 deployed Firebase TEST acceptance. CI, emulator results and a clean reconciliation report do not constitute this evidence. SW-561's controlled TEST setup/cleanup uses the separate [SW-571 rehearsal modes](sw-571-hall-test-rehearsal.md); the final publisher still offers no provisional activation or evidence bypass. No actual acceptance file has been created by this implementation.
 
 A private acceptance JSON object must contain exactly:
 
