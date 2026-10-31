@@ -1,12 +1,14 @@
+import {reviewedNonHall, validVersion, equal} from "./hall-review-policy.mjs";
 import {cleanHallBooking, occupiedHallDays, hallId} from "../email-worker/src/hallBookingModel.js";
 import {hallSourceIdentity} from "../email-worker/src/hallSourceReservation.js";
 import {hallDate, hallInstant, addHallDays, DAY_MS} from "../src/services/hallBookingTime.ts";
 
 export const HALL_AUDIT_LIMIT = 1000;
 export const HALL_AUDIT_COLLECTIONS = {
-  weeklyMeetings: ["meetingDate", "status", "hallResource", "hallRevision", "hallStartTime", "hallEndTime"],
-  events: ["startDate", "endDate", "status", "hallResource", "hallRevision", "hallInterval"],
+  weeklyMeetings: ["section", "meetingDate", "status", "hallResource", "hallRevision", "hallStartTime", "hallEndTime"],
+  events: ["section", "startDate", "endDate", "status", "hallResource", "hallRevision", "hallInterval"],
   "maintenance/group/appointments": ["date", "allDay", "startTime", "endTime", "hallResource", "revision", "cancelled", "taskId"],
+  "hall/group/sourceReviews": ["path", "createdVersion", "reviewedVersion", "resource", "revision", "actorUid", "operation", "resultRevision"],
   "hall/group/bookings": ["id", "resourceId", "kind", "state", "interval", "recurrence", "exceptions", "source", "revision"],
   "hall/group/days": null,
   hallAvailability: null
@@ -46,6 +48,7 @@ export function validateHallAuditOptions({from, through, decisions = []}) {
 
 /** Pure, bounded diagnosis. Results contain static codes and references, never field values. */
 export async function auditHallReservations(snapshot, options) {
+  const allIndexedDays = options.allIndexedDays === true;
   const {from, through, decisions} = validateHallAuditOptions(options);
   const issues = [], inventory = [], expected = new Map(), sourceBookings = new Map();
   const issue = (code, path) => {if (issues.length < 4000) issues.push({code, path});};
@@ -67,7 +70,7 @@ export async function auditHallReservations(snapshot, options) {
           const owner = await hallSourceIdentity(kinds[raw.source.collection], raw.source.id);
           if (owner.bookingId !== id) issue("noncanonical-source-id", path);
           const list = sourceBookings.get(owner.path) ?? []; list.push({id, raw}); sourceBookings.set(owner.path, list);
-          if (!records(raw.source.collection).has(raw.source.id)) issue("orphaned-source", path);
+          if (raw.state !== "cancelled" && !records(raw.source.collection).has(raw.source.id)) issue("orphaned-source", path);
         } catch {issue("invalid-owner", path);}
       }
     }
@@ -80,7 +83,7 @@ export async function auditHallReservations(snapshot, options) {
       for (const [date, slots] of days) {
         expanded += slots.length;
         if (expanded > 20_000) break;
-        if (date < from || date > through) continue;
+        if (!allIndexedDays && (date < from || date > through)) continue;
         const values = expected.get(date) ?? [];
         values.push(...slots.map(slot => ({bookingId: id, ...slot}))); expected.set(date, values);
       }
@@ -91,17 +94,30 @@ export async function auditHallReservations(snapshot, options) {
     if (!evidence?.audit || evidence.audit.action !== "hall-booking-save" || evidence.audit.targetId !== id || typeof evidence.audit.actorUid !== "string" || !evidence.audit.actorUid || evidence.audit.actorUid !== evidence.history?.actorUid) issue("audit-head-mismatch", path);
     if (expanded > 20_000) {issue("expansion-limit", "hall/group/bookings"); break;}
   }
+  const reviews = [];
+  for (const [id, review] of records("hall/group/sourceReviews")) {
+    let valid = false;
+    try {
+      const offset = review.path.lastIndexOf("/"), collection = review.path.slice(0, offset), sourceId = review.path.slice(offset + 1);
+      const owner = await hallSourceIdentity(kinds[collection], sourceId);
+      valid = owner.bookingId === id && ["none", "group-hall"].includes(review.resource) && validVersion(review.createdVersion) && validVersion(review.reviewedVersion) && positive(review.revision) && Number.isSafeInteger(review.resultRevision) && review.resultRevision >= 0 && typeof review.operation === "string" && /^[a-f0-9]{64}$/.test(review.operation) && typeof review.actorUid === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(review.actorUid);
+    } catch { /* Unknown ledger ownership is never used as classification evidence. */ }
+    const evidence = snapshot.reviewEvidence?.get(id);
+    if (!valid || !equal(evidence?.history?.review, review) || evidence?.audit?.action !== "hall-source-review" || evidence.audit.targetId !== id || evidence.audit.actorUid !== review.actorUid) issue("invalid-source-review", reference("hall/group/sourceReviews", id));
+    else reviews.push(review);
+  }
   for (const [collection, kind] of Object.entries(kinds)) {
     for (const [id, data] of records(collection)) {
       const path = reference(collection, id), linked = sourceBookings.get(path) ?? [];
       if (linked.length > 1) issue("duplicate-source-reservations", path);
       let relevant = true;
-      try {const range = dateRange(collection, data); relevant = range.from <= through && range.through >= from;}
+      try {const range = dateRange(collection, data); relevant = allIndexedDays || (range.from <= through && range.through >= from);}
       catch {issue("invalid-source-dates", path);}
       if (!["open", "closed", ...(kind === "event" ? ["draft", "completed"] : [])].includes(data.status) && kind !== "maintenance") issue("invalid-source-state", path);
       if (kind === "maintenance" && (typeof data.allDay !== "boolean" || (data.cancelled !== undefined && typeof data.cancelled !== "boolean"))) issue("invalid-source-state", path);
       if (typeof id !== "string" || !(kind === "maintenance" ? /^(?:[a-zA-Z0-9-]{20,64}|task-[a-zA-Z0-9-]{20,64})$/.test(id) : /^[A-Za-z0-9_-]{1,100}$/.test(id))) issue("unsupported-source-id", path);
       const sourceRevision = kind === "maintenance" ? data.revision : data.hallRevision;
+      if (sourceRevision !== undefined && (!Number.isSafeInteger(sourceRevision) || sourceRevision < 0)) issue("invalid-source-revision", path);
       const released = linked.length === 1 && linked[0].raw.state === "cancelled" && positive(sourceRevision);
       const marked = data.hallResource === "group-hall", currentVersion = snapshot.versions?.get(path);
       const decision = decisionsByPath.get(path);
@@ -120,7 +136,7 @@ export async function auditHallReservations(snapshot, options) {
         if (decision?.resource === "none") issue("decision-source-mismatch", path);
       } else {
         if (linked.some(value => value.raw.state !== "cancelled")) issue("unreleased-source-reservation", path);
-        if (relevant && !released) {
+        if (relevant && !released && !reviewedNonHall(snapshot, path, reviews)) {
           if (!version(currentVersion)) issue("missing-source-version", path);
           inventory.push({path, version: version(currentVersion) ? currentVersion : null});
           if (!decision) issue("unconfirmed-source-use", path);
@@ -132,6 +148,12 @@ export async function auditHallReservations(snapshot, options) {
     }
   }
   for (const path of decisionsByPath.keys()) if (!used.has(path)) issue("orphaned-decision", path);
+  if (allIndexedDays) {
+    const seenDates = new Set(dates);
+    for (const date of new Set([...expected.keys(), ...records("hall/group/days").keys(), ...records("hallAvailability").keys()])) {
+      try {hallDate(date); if (!seenDates.has(date)) {dates.push(date); seenDates.add(date);}} catch { /* Invalid references are diagnosed below. */ }
+    }
+  }
   for (const date of dates) {
     const wanted = sorted(expected.get(date) ?? []), day = records("hall/group/days").get(date), publicDay = records("hallAvailability").get(date);
     if (wanted.some((value, index) => wanted.slice(0, index).some(other => other.end > value.start))) issue("overlapping-bookings", `hall/group/days/${date}`);
@@ -160,7 +182,7 @@ export async function auditHallReservations(snapshot, options) {
   }
   if ((settings.get("hallHire")?.enabled === true) !== (settings.get("hallHirePublic")?.enabled === true)) issue("rollout-projection-mismatch", "siteSettings/hallHirePublic");
   if ((lock?.ready === true) !== (settings.get("hallHireReadiness")?.ready === true)) issue("readiness-projection-mismatch", "siteSettings/hallHireReadiness");
-  return {schemaVersion: 1, scope: {from, through}, activationApproved: false, consistent: issues.length === 0,
+  return {schemaVersion: 1, scope: {from, through, ...(allIndexedDays ? {allIndexedDays: true} : {})}, activationApproved: false, consistent: issues.length === 0,
     counts: Object.fromEntries(Object.keys(HALL_AUDIT_COLLECTIONS).map(name => [name, records(name).size])),
     inventory: inventory.sort((a, b) => a.path.localeCompare(b.path)), issues: issues.sort((a, b) => a.path.localeCompare(b.path) || a.code.localeCompare(b.code))};
 }
