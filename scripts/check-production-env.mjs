@@ -1,3 +1,4 @@
+import {hallBookingEndpoint} from "../src/services/hallBookingEndpoint.ts";
 import { fileURLToPath } from "node:url";
 
 const REQUIRED_APPLICATION_VARIABLES = [
@@ -22,6 +23,10 @@ export function applicationEnvironmentErrors(environment = process.env) {
     errors.push(`VITE_FIREBASE_PROJECT_ID must equal the deployment target ${expectedProjectId}.`);
   }
 
+  if (isTest && environment.VITE_HALL_BOOKING_API_URL) {
+    try {hallBookingEndpoint({appEnv: "test", firebaseProjectId: configuredProjectId, hallApiUrl: environment.VITE_HALL_BOOKING_API_URL});}
+    catch {errors.push("VITE_HALL_BOOKING_API_URL must name the isolated TEST booking Worker origin.");}
+  }
   const emailApiUrl = String(environment.VITE_EMAIL_API_URL || "").trim();
   if (!isTest && emailApiUrl) {
     try {

@@ -83,3 +83,7 @@ SW-556/SW-560 must add rules/emulator and transaction integration coverage for c
 5. Verify updates/cancellations immediately affect public availability; an enquiry never confirms a reservation.
 6. Verify section/private read limits and denied parent/unauthorized writes. Switch off/on as Superuser; existing pages remain usable and records/conflict protection survive.
 7. Record exact deployed TEST revision, results and cleanup. Production PMT and production deployment remain separate and require their own authorisation.
+
+## TEST transport reconciliation (SW-570)
+
+After #965, deployed TEST frontend metadata matched merged main, but TEST intentionally disables the email API also previously required by the booking client. [SW-570](sw-570-test-hall-transport.md) separates TEST booking transport using an isolated booking-only Worker entry and guarded manual deployment. Firebase Functions remain blocked; Production Worker configuration stays unchanged. Account Free-plan/quota verification, actual endpoint/TEST credentials and controlled deployed acceptance remain outstanding. Missing configuration and readiness retain the existing disabled experience. No real source classification, feature activation or Production acceptance is inferred from merged implementation.

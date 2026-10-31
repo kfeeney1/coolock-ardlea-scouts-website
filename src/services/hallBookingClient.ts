@@ -1,3 +1,4 @@
+import {hallBookingEndpoint} from "./hallBookingEndpoint.ts";
 import { auth } from "../firebase";
 import { requestBackend } from "./backendRequest.ts";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
@@ -5,12 +6,12 @@ import { hallBookingInput, validateHallBookingInput, type HallBookingInput, type
 type Page<T> = {items: {key: string; value: T}[]; cursor: string};
 export type HallHistory = {actorUid: string; at: string; previous: HallBookingRecord | null; next: HallBookingRecord};
 export async function requestHallBooking<T>(body: Record<string, unknown>): Promise<T> {
-  const base = (import.meta.env.VITE_EMAIL_API_URL || "").replace(/\/$/, "");
-  if (!base) throw new UserFacingError("Hall booking service is not configured.");
+  const endpoint = hallBookingEndpoint({appEnv: import.meta.env.VITE_APP_ENV, firebaseProjectId: import.meta.env.VITE_FIREBASE_PROJECT_ID, emailApiUrl: import.meta.env.VITE_EMAIL_API_URL, hallApiUrl: import.meta.env.VITE_HALL_BOOKING_API_URL});
+  if (!endpoint) throw new UserFacingError("Hall booking service is not configured.");
   const user = auth.currentUser;
   if (!user) throw new UserFacingError("Sign in to manage hall bookings.");
   try {
-    const result = await requestBackend<T & {ok: boolean}>(`${base}/hall-bookings`, {method: "POST", headers: {"Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}`}, body: JSON.stringify(body)});
+    const result = await requestBackend<T & {ok: boolean}>(endpoint, {method: "POST", headers: {"Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}`}, body: JSON.stringify(body)});
     if (result?.ok !== true) throw new ServiceFailure("Invalid hall booking response.", "backend/invalid-response");
     return result;
   } catch (error) {
