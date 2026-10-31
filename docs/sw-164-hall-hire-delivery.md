@@ -87,3 +87,7 @@ SW-556/SW-560 must add rules/emulator and transaction integration coverage for c
 ## TEST transport reconciliation (SW-570)
 
 After #965, deployed TEST frontend metadata matched merged main, but TEST intentionally disables the email API also previously required by the booking client. [SW-570](sw-570-test-hall-transport.md) separates TEST booking transport using an isolated booking-only Worker entry and guarded manual deployment. Firebase Functions remain blocked; Production Worker configuration stays unchanged. Account Free-plan/quota verification, actual endpoint/TEST credentials and controlled deployed acceptance remain outstanding. Missing configuration and readiness retain the existing disabled experience. No real source classification, feature activation or Production acceptance is inferred from merged implementation.
+
+## Controlled TEST acceptance setup (SW-571)
+
+[SW-571](sw-571-hall-test-rehearsal.md) adds a distinct private TEST rehearsal plan/start/stop after source reconciliation and exact frontend/Worker preflight. It leaves rollout off, records no acceptance/baseline, and blocks final publication until explicitly stopped. Shutdown turns readiness/rollout off while preserving records. Account/backend configuration, actual source-owner facts, executed deployed TEST checks and Android/Production PMT remain separate outstanding work. No live activation or acceptance is inferred.
