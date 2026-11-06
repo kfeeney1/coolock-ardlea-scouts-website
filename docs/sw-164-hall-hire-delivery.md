@@ -91,3 +91,7 @@ After #965, deployed TEST frontend metadata matched merged main, but TEST intent
 ## Controlled TEST acceptance setup (SW-571)
 
 [SW-571](sw-571-hall-test-rehearsal.md) adds a distinct private TEST rehearsal plan/start/stop after source reconciliation and exact frontend/Worker preflight. It leaves rollout off, records no acceptance/baseline, and blocks final publication until explicitly stopped. Shutdown turns readiness/rollout off while preserving records. Account/backend configuration, actual source-owner facts, executed deployed TEST checks and Android/Production PMT remain separate outstanding work. No live activation or acceptance is inferred.
+
+## Keyboard and Android regression (SW-572)
+
+[Android acceptance steps](sw-572-hall-android-acceptance.md) define expected results, role/device/revision evidence and record-preserving shutdown. Public calendar navigation remains mounted while live month data loads; occupied/unreserved markers and date selection are withheld until verified data arrives. All five existing themes are covered using the established emulator Playwright fixtures. These checks do not establish deployed TEST acceptance or Production PMT.
