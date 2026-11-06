@@ -128,6 +128,9 @@ test("reopening a closed meeting loads that exact editable record, preserves dat
   await expect(page.getByLabel("Theme")).toHaveValue(`${theme} edited`);
   await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
   await expect(page.getByText(/^Meeting saved\./)).toBeVisible();
+  // The acknowledgement precedes audit/secondary refresh. Back should exercise
+  // a completed save, rather than overlap the still-disabled save lifecycle.
+  await expect(page.getByRole("button", { name: "Save Meeting", exact: true })).toBeEnabled();
   await page.goBack();
   await expect(page).toHaveURL((url) => url.pathname === "/leader/weekly");
   const openMeeting = page.getByRole("button", { name: new RegExp(`${meeting.label} · Scouts`) });
