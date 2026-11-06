@@ -45,6 +45,11 @@ for (const [role, email] of [
       await expect(page.getByText("Email service")).toBeVisible();
       await expect(page.getByText("Attachment storage")).toBeVisible();
       await expect(page.getByText("Operational data integrity")).toBeVisible();
+      for (const service of ["firestore", "email", "storage"]) {
+        const capability = page.getByTestId(`operational-health-${service}`);
+        await expect(capability.getByText("Healthy", { exact: true })).toHaveCount(0);
+      }
+      await expect(page.getByTestId("operational-health-firestore")).not.toContainText("Configured for project coolock-ardlea-scouts.");
       const runDataCheck = page.getByRole("button", { name: "Run data check" });
       await expect(runDataCheck).toBeVisible();
       await runDataCheck.click();
