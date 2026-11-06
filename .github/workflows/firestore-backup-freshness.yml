@@ -56,9 +56,21 @@ jobs:
           set -euo pipefail
 
           PREFIX="${BACKUP_BUCKET%/}/firestore-backups/"
-          LATEST="$(gcloud storage ls "${PREFIX}" 2>/dev/null | sed 's:/*$::' | sort | tail -n 1)"
+          # Retain the existing single prefix listing. Capture its error locally;
+          # never turn authentication/permission/provider errors into absence.
+          if ! BACKUPS="$(gcloud storage ls "${PREFIX}" 2>listing-error.txt)"; then
+            if grep -Fq "One or more URLs matched no objects" listing-error.txt; then
+              echo "state=Missing" >> "${GITHUB_OUTPUT}"
+            else
+              echo "state=Unavailable" >> "${GITHUB_OUTPUT}"
+            fi
+            rm -f listing-error.txt
+            exit 1
+          fi
+          rm -f listing-error.txt
+          LATEST="$(printf '%s\n' "$BACKUPS" | sed 's:/*$::' | sort | tail -n 1)"
           if [[ -z "${LATEST}" ]]; then
-            echo "No Firestore backup exports were found under ${PREFIX}." >&2
+            echo "state=Missing" >> "${GITHUB_OUTPUT}"
             exit 1
           fi
 
@@ -106,14 +118,9 @@ jobs:
           set -euo pipefail
           TOKEN="$(gcloud auth print-access-token)"
           OBSERVED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          SAFE_STATE="${STATE:-Unknown}"
-          SAFE_AGE="${AGE_HOURS:-}"
-          REASON="Independent scheduled backup freshness assurance"
-          if [[ -z "${LATEST:-}" ]]; then
-            SAFE_STATE="Missing"
-            REASON="No verifiable backup reference was produced by the freshness check"
-          fi
-          FIELDS=$(jq -n --arg service "Firestore Backup" --arg env "PRODUCTION" --arg metric "backup freshness" --arg state "$SAFE_STATE" --arg observed "$OBSERVED_AT" --arg source "Firestore Backup Freshness GitHub Actions workflow" --arg sourceType "authoritative-live" --arg reason "$REASON" --arg recovery "Inspect Firestore Backup and Firestore Backup Freshness workflows; run a protected manual backup if required." --arg management "https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions" --arg age "$SAFE_AGE" '{fields:{service:{stringValue:$service},environment:{stringValue:$env},metric:{stringValue:$metric},state:{stringValue:$state},observedAt:{stringValue:$observed},source:{stringValue:$source},sourceType:{stringValue:$sourceType},reason:{stringValue:$reason},recovery:{stringValue:$recovery},managementUrl:{stringValue:$management},current:{integerValue:(if $age=="" then "0" else $age end)},unit:{stringValue:"hours old"},warningThreshold:{integerValue:"168"},criticalThreshold:{integerValue:"192"}}}')
+          export OBSERVATION_KIND="freshness" OBSERVED_AT
+          FIELDS="$(node scripts/backup-monitoring-payload.mjs)"
+          SAFE_STATE="$(jq -r '.fields.state.stringValue' <<< "$FIELDS")"
           DOCUMENT_URL="https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/operationalMonitoring/firestore-backup-production"
           # PATCH may create the document; verify the persisted observation via a
           # separate authenticated GET so a green job cannot hide a failed write.
