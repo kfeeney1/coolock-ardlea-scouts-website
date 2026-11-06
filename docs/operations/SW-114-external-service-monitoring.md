@@ -1,5 +1,7 @@
 # SW-114 — External service limits and operational monitoring
 
+Current investigation and verified access gaps: [SW-242 service assurance](SW-242-service-assurance.md). SW-114 acceptance remains preserved.
+
 ## Evidence model
 
 Every service metric must be labelled as one of: **authoritative live usage**, **provider-console alert**, **locally measured**, **configured reference**, or **unknown/unavailable**. Never infer provider usage from configuration alone, and never expose provider credentials or billing identifiers to the browser.

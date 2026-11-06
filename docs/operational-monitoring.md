@@ -1,5 +1,7 @@
 # Operational monitoring inventory
 
+Current investigation and verified access gaps: [SW-242 service assurance](operations/SW-242-service-assurance.md). SW-114 acceptance remains preserved.
+
 Last reviewed: 2026-09-23. This file is version-controlled operational metadata; live provider consoles, GitHub Actions and authenticated monitoring observations are authoritative.
 
 ## Status model
