@@ -9,7 +9,7 @@ import {
   PERMISSION_REGISTRY,
   SYSTEM_ACCESS_ROLES
 } from "../security/permissionRegistry";
-import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
+import { hasGroupLeadershipAppointment } from "../security/scoutingAppointments";
 
 const areaOrder = [...new Set(PERMISSION_REGISTRY.map((permission) => permission.area))];
 
@@ -30,11 +30,11 @@ export default function RolesAndPermissions() {
   const { adminProfile } = useAdminAuth();
   if (!adminProfile) return null;
 
-  const effective = effectivePermissionsFor(adminProfile.role, adminProfile.scoutingRole);
+  const effective = effectivePermissionsFor(adminProfile.role, adminProfile.scoutingRole, adminProfile.appointments);
   const effectiveIds = new Set(effective.map((permission) => permission.id));
   const canManageSystemRoles = adminProfile.role === "super-admin";
   const canManageAdminAccess = adminProfile.role === "admin";
-  const canDelegateOperationalAccess = isGroupLeadershipAppointment(adminProfile.scoutingRole);
+  const canDelegateOperationalAccess = hasGroupLeadershipAppointment(adminProfile.appointments, adminProfile.scoutingRole);
   const canManageOrdinaryAccess = canManageSystemRoles || canManageAdminAccess || canDelegateOperationalAccess;
 
   const administrationGuidance = canManageSystemRoles
