@@ -88,3 +88,11 @@ test("normalisation drops invalid numbers and arbitrary management destinations"
   assert.equal(aggregateOperationalState(["Notice", "Unavailable"]), "Unknown");
   assert.equal(aggregateOperationalState(["Exhausted", "Healthy"]), "Exhausted");
 });
+
+
+test("allowance consumption cannot claim a hard service stop or expose another environment usage", () => {
+  assert.equal(evaluateObservation({ ...sample, current: 100, limitKind: "allowance" }, "TEST", now).state, "Critical");
+  assert.equal(evaluateObservation({ ...sample, current: 100, limitKind: "hard-cap" }, "TEST", now).state, "Exhausted");
+  assert.equal(evaluateObservation(sample, "PRODUCTION", now).current, null);
+  assert.equal(evaluateObservation({ ...sample, sourceType: "manual" }, "TEST", now).state, "Unavailable");
+});

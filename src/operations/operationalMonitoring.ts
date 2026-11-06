@@ -18,6 +18,7 @@ export type OperationalObservation = {
   recovery?: string;
   managementUrl?: string;
   maxAgeHours?: number | null;
+  limitKind?: "hard-cap" | "allowance" | "reference";
   limitSource?: "provider-retrieved" | "configured-reference" | "unknown";
   evidence?: "available" | "unconfigured" | "unsupported" | "failed" | "stale" | "unknown";
 };
@@ -68,7 +69,7 @@ export function aggregateOperationalState(states: MonitorState[]): MonitorState 
 export function evaluateObservation(row: OperationalObservation, environment: "TEST" | "PRODUCTION", now = Date.now()): OperationalObservation {
   const result = { ...row, limitSource: row.limitSource ?? "unknown" as const };
   const fail = (evidence: OperationalObservation["evidence"], reason: string): OperationalObservation => ({ ...result, state: "Unavailable", evidence, reason });
-  if (row.environment !== environment && row.environment !== "BOTH") return fail("unknown", "Observation environment does not match this application.");
+  if (row.environment !== environment && row.environment !== "BOTH") return { ...fail("unknown", "Observation environment does not match this application."), current: null, limit: null };
   if (row.evidence && row.evidence !== "available") return fail(row.evidence, row.reason || "Monitoring data is not available.");
   const observed = row.observedAt ? Date.parse(row.observedAt) : NaN;
   if (!Number.isFinite(observed) || observed > now + 300_000) return fail("unknown", "Observation time is missing, invalid or in the future.");
@@ -77,6 +78,7 @@ export function evaluateObservation(row: OperationalObservation, environment: "T
     : row.id === "firestore-backup-execution-production" ? 192 : row.maxAgeHours;
   if (maxAge == null || !Number.isFinite(maxAge) || maxAge <= 0) return fail("unknown", "Monitoring freshness policy is not configured.");
   if (now - observed > maxAge * 3_600_000) return fail("stale", "Monitoring evidence is stale; check its publisher.");
+  if (row.sourceType === "manual") return fail("unknown", "Configured reference evidence is not a live health observation.");
   if (row.sourceType === "unavailable") return fail("unsupported", row.reason || "No supported usage source is configured.");
   if (row.current != null && (!Number.isFinite(row.current) || row.current < 0)) return fail("failed", "Usage is invalid.");
   if (row.id === "firestore-backup-production" && ["Healthy", "Warning", "Critical"].includes(row.state)) {
@@ -85,6 +87,10 @@ export function evaluateObservation(row: OperationalObservation, environment: "T
     result.state = row.state === "Critical" ? "Critical" : age > BACKUP_POLICY.criticalAgeHours ? "Critical" : age > BACKUP_POLICY.warningAgeHours ? "Warning" : "Healthy";
   } else if (row.limit != null) {
     result.state = result.limitSource === "unknown" ? "Unknown" : classifyQuota(row.current, row.limit, row.warningThreshold ?? 0.85, row.criticalThreshold ?? 0.95);
+    if (result.state === "Exhausted" && row.limitKind !== "hard-cap") {
+      result.state = "Critical";
+      result.reason = "Reported allowance/reference reached; service exhaustion is not established.";
+    }
     // A collector's explicit failure must not be erased by numerical usage.
     if (["Unknown", "Unavailable", "Missing", "Critical"].includes(row.state)) result.state = row.state;
   }
@@ -104,6 +110,7 @@ export function normaliseObservation(id: string, data: Partial<OperationalObserv
     sourceType: ["authoritative-live", "provider-alert", "local", "manual"].includes(String(data.sourceType)) ? data.sourceType! : "unavailable",
     current: number(data.current), limit: number(data.limit), maxAgeHours: number(data.maxAgeHours),
     warningThreshold: number(data.warningThreshold), criticalThreshold: number(data.criticalThreshold),
+    limitKind: data.limitKind === "hard-cap" || data.limitKind === "allowance" ? data.limitKind : "reference",
     limitSource: ["provider-retrieved", "configured-reference"].includes(String(data.limitSource)) ? data.limitSource! : "unknown",
     evidence: ["available", "unconfigured", "unsupported", "failed", "stale", "unknown"].includes(String(data.evidence)) ? data.evidence : undefined,
     unit: typeof data.unit === "string" ? data.unit : undefined,
