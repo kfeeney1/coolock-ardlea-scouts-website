@@ -1,6 +1,7 @@
 export const suiteSpecs = {
   "smoke-navigation": [
     "leader-info.spec.ts",
+    "operational-monitoring.spec.ts",
     "leader-journey.spec.ts",
     "leader-navigation-info.spec.ts",
     "leader-navigation.spec.ts",
