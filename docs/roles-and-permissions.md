@@ -20,7 +20,7 @@ Scouting appointments are assignments on each leader's own `organisationLeadersh
 
 ## Current appointment catalogue and normalization
 
-The canonical appointment catalogue is Group Leader, Deputy Group Leader, Group Secretary, Group Treasurer, Group Quartermaster / Bo'sun, Group Chairperson, Group Youth Champion, Section Leader, Assistant Section Leader, Programme Scouter and Scouter.
+The canonical appointment catalogue is Group Leader, Deputy Group Leader, Group Secretary, Group Treasurer, Group Quartermaster / Bo'sun, Group Chairperson, Group Youth Champion, Group Trainer, Section Leader, Assistant Section Leader, Programme Scouter and Scouter.
 
 `src/security/scoutingAppointments.ts` is the application-side normalization contract. Legacy Deputy spellings `Deputy-Group-Leader`, `Deputy GroupLead` and `DGL` are recognized for compatibility, and existing Quartermaster/Bo'sun variants remain recognized. New application writes must use canonical values, particularly `Deputy Group Leader` and `Group Quartermaster / Bo'sun`; compatibility aliases exist to avoid silently removing access from historical records, not as new write formats.
 
@@ -65,3 +65,7 @@ Authoritative enforcement is split across:
 The Roles page remains intentionally read-only. All entries state a stable permission ID, area, description, scope, default grants, enforcement location and protected status. The page calculates the signed-in Leader's effective entries from the same registry. Editable permission toggles are not exposed because current client-configured state could not safely become authoritative in Firebase Rules.
 
 SW-49 implements Deputy Group Leader through inheritance of the existing Group Leader operational permission bundle rather than duplicated feature checks. SW-50 may expose safe appointment and section delegation, but it must preserve the system-role boundary: Group Leadership may not grant Admin/Super Admin, alter protected Super Admin accounts, bypass account approval or self-assign authority beyond its delegation ceiling.
+
+## SW-275 approved Settings policy
+
+The owner approved P1 on 6 November 2026 after review of SW-580 and the Settings designs. See [inventory and matrix](settings/sw-275-inventory-and-policy.md). `settingsAccessFor` derives independent management view/edit/create decisions from the canonical registry, without granting delete/reset from edit or converting runtime consumer reads into management access. Monitoring is view-only; only Admin/Super Admin may repair the maintenance directory, and rollout switches remain Super Admin-only. Group-wide Settings grants require valid Group-scoped appointments. Route/panel integration and authoritative Rules alignment are tracked separately in SW-582–SW-588; these new capabilities do not by themselves replace Firebase enforcement.
