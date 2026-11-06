@@ -226,3 +226,7 @@ Periodically review:
 - `docs/stage-16-event-gallery.md` — event-gallery authorization, lifecycle and rollout
 - `docs/email-branding.md` — email presentation details
 - `docs/event-consent-email-testing.md` — event-consent email testing
+
+## External-service quotas and stale monitoring
+
+See [SW-242 service assurance and recovery](operations/SW-242-service-assurance.md) for dated account evidence, remaining access/alert gaps, environment separation, quota versus allowance semantics, and email/backup/deployment/stale-monitoring recovery. Existing protected production approval and Hall Hire pause remain in effect.
