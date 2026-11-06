@@ -19,10 +19,14 @@ test("Super Admin distinguishes zero, stale and mismatched monitoring evidence",
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/system");
     await expect(page.getByRole("heading", { name: "Synthetic quota: Healthy", exact: true })).toBeVisible();
-    await expect(page.getByText("Usage: 0 / 100", { exact: true })).toBeVisible();
+    const freshCard = page.getByRole("heading", { name: "Synthetic quota: Healthy", exact: true }).locator("..");
+    await expect(freshCard.getByText("Usage: 0 / 100", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Stale fixture: Unavailable", exact: true })).toBeVisible();
-    await expect(page.getByText("Data availability: stale", { exact: true })).toBeVisible();
+    const staleCard = page.getByRole("heading", { name: "Stale fixture: Unavailable", exact: true }).locator("..");
+    await expect(staleCard.getByText("Data availability: stale", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Wrong environment fixture: Unavailable", exact: true })).toBeVisible();
+    const otherEnvironmentCard = page.getByRole("heading", { name: "Wrong environment fixture: Unavailable", exact: true }).locator("..");
+    await expect(otherEnvironmentCard.getByText(/^Usage:/)).toHaveCount(0);
     await expect(page.getByText(/Coverage is partial/)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   } finally {
