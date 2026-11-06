@@ -1,5 +1,6 @@
-import { activeScoutingAppointments, isGroupLeadershipAppointment, normalizeScoutingAppointmentAssignments } from "./scoutingAppointments.ts";
+import { activeScoutingAppointments, CANONICAL_SCOUTING_APPOINTMENTS, isGroupLeadershipAppointment, normalizeScoutingAppointmentAssignments } from "./scoutingAppointments.ts";
 import type { CanonicalScoutingAppointment } from "./scoutingAppointments.ts";
+import { SETTINGS_PERMISSIONS } from "./settingsPermissions.ts";
 
 export type PermissionScope = "own" | "linked-members" | "assigned-section" | "group-wide" | "system";
 export type PermissionArea =
@@ -44,21 +45,10 @@ export type PermissionDefinition = {
 
 export const SYSTEM_ACCESS_ROLES = ["Parent / Guardian", "Leader", "Admin", "Super Admin"] as const;
 
-export const CURRENT_SCOUTING_APPOINTMENTS = [
-  "Group Leader",
-  "Deputy Group Leader",
-  "Group Secretary",
-  "Group Treasurer",
-  "Group Quartermaster / Bo'sun",
-  "Group Chairperson",
-  "Group Youth Champion",
-  "Section Leader",
-  "Assistant Section Leader",
-  "Programme Scouter",
-  "Scouter"
-] as const;
+export const CURRENT_SCOUTING_APPOINTMENTS = CANONICAL_SCOUTING_APPOINTMENTS;
 
 export const PERMISSION_REGISTRY: PermissionDefinition[] = [
+  ...SETTINGS_PERMISSIONS,
   { id: "hall.bookings.manage", name: "Manage hall bookings", description: "Group Council members manage hall bookings group-wide through the authoritative Worker. Includes active Section Leaders, Assistant Section Leaders and Group appointments; excludes Scouters and Programme Scouters. Does not grant programme or member access.", area: "Facilities & Hall Hire", scope: "group-wide", grantedBy: ["Group Leader", "Deputy Group Leader", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Group Chairperson", "Group Youth Champion", "Group Trainer", "Section Leader", "Assistant Section Leader"], enforcement: ["Worker /hall-bookings current authoritative Council appointments", "Firestore hall client deny", "transactional hall resource lock"], protected: true },
   { id: "leader.portal.access", name: "Use the Leader portal", description: "Use the authenticated Leader dashboard, account pages and shared Leader information. Requires an active leader profile at the route boundary.", area: "Role Management", scope: "own", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["ProtectedAdminRoute", "AdminAuthProvider active adminUsers profile"], protected: true },
   { id: "navigation.appointment-views.all", name: "View all appointment navigation contexts", description: "Show the existing administrator shortcuts for Treasurer, Secretary and Quartermaster views. Does not grant page or data access.", area: "Role Management", scope: "system", grantedBy: ["admin", "super-admin"], enforcement: ["Leader navigation filter", "independent route and Firestore guards"], protected: true },
