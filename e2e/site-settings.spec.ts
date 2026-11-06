@@ -243,6 +243,8 @@ test("Scout-year date range anchors a future end to its start and blocks reverse
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Scout-year date range runs on desktop and mobile Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
+  const policies = scheduleFixtureDb().collection("subsRatePolicies");
+  const before = await policies.get();
   await login(page, "test.webadmin@example.com");
   await page.goto("/leader/settings?view=treasurer");
   const panel = page.getByTestId("subs-settings-panel");
@@ -273,7 +275,11 @@ test("Scout-year date range anchors a future end to its start and blocks reverse
   await expect(end).toHaveAttribute("aria-invalid", "true");
   await expect(panel.getByText("End date cannot be before the start date.", { exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
-  await expect(panel.getByRole("alert").filter({ hasText: /end date must be valid and on or after/i })).toBeVisible();
+  await expect(panel.getByRole("alert").filter({ hasText: "Correct the highlighted policy fields before saving." })).toBeVisible();
+  await expect(end).toHaveAttribute("aria-invalid", "true");
+  const after = await policies.get();
+  expect(after.docs.map(record => ({ id: record.id, data: record.data() }))).toEqual(before.docs.map(record => ({ id: record.id, data: record.data() })));
+  await expect(panel.getByRole("alert").filter({ hasText: /Subs policy .* saved/ })).toHaveCount(0);
 
   await page.reload();
   const reloadedPanel = page.getByTestId("subs-settings-panel");

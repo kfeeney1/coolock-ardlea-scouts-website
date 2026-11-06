@@ -21,6 +21,7 @@ export default function SubsSettingsPanel() {
   const [drafting, setDrafting] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const loadGeneration = useRef(0);
+  const policyForm = useRef<HTMLFormElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -81,6 +82,10 @@ export default function SubsSettingsPanel() {
   };
   const savePolicy = async () => {
     if (!canManage || !loaded || (currentPolicy && !drafting) || saving) return;
+    if (!policyForm.current?.reportValidity()) {
+      setError("Correct the highlighted policy fields before saving.");
+      return;
+    }
     setSaving(true); setMessage(""); setError("");
     try {
       const standardFamilyRatesCents = standardRates.map(parseEuroToCents);
@@ -108,7 +113,7 @@ export default function SubsSettingsPanel() {
   const currentPolicy = resolveCurrentSubsPolicy(policies);
 
   if (!canManage) return null;
-  return <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mt: 3 }} data-testid="subs-settings-panel">
+  return <Paper component="form" ref={policyForm} noValidate onSubmit={(event) => { event.preventDefault(); void savePolicy(); }} variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mt: 3 }} data-testid="subs-settings-panel">
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Subs rate policy</Typography>
 
     {message && <Alert severity="success" sx={{ mt: 2 }}>{message}</Alert>}
@@ -151,7 +156,7 @@ export default function SubsSettingsPanel() {
         <Button type="button" variant="outlined" disabled={leaderRates.length <= 1} onClick={() => removeLastRate("leader")}>Remove last leader rate</Button>
       </Stack>
       <Alert severity="warning" sx={{ mt: 2 }}>If a family has more active members than this policy defines, no amount is inferred. Add the exact approved family-size rate before classification.</Alert>
-      <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving} onClick={() => void savePolicy()}>{saving ? "Saving…" : "Save immutable rate policy"}</Button>
+      <Button type="submit" variant="contained" sx={{ mt: 2.5 }} disabled={saving}>{saving ? "Saving…" : "Save immutable rate policy"}</Button>
     </Box>
     {loading && <Typography role="status" color="text.secondary" sx={{ mt: 2 }}>Loading subs settings…</Typography>}
     {!loading && !loaded && <Button onClick={() => void load().catch(() => undefined)}>Retry Subs policy</Button>}
