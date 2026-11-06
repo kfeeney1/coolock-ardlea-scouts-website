@@ -35,7 +35,7 @@ test("existing backup workflows publish shared payloads without fabricating age 
     assert.match(workflow, /PROJECT_ID: coolock-ardlea-scouts/);
   }
   assert.match(freshness, /cron: "47 5 \* \* \*"/);
-  assert.match(freshness, /if ! LISTING=/);
+  assert.match(freshness, /if ! BACKUPS=/);
   assert.match(freshness, /state=Unavailable/);
   assert.match(freshness, /state=Missing/);
   assert.doesNotMatch(freshness, /then "0"/);

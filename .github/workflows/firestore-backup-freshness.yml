@@ -56,24 +56,24 @@ jobs:
           set -euo pipefail
 
           PREFIX="${BACKUP_BUCKET%/}/firestore-backups/"
-          # List the accessible bucket first: a permission/list failure is not
-          # evidence of an empty backup prefix. Keep failure visible to Actions.
-          if ! LISTING="$(gcloud storage ls "${BACKUP_BUCKET%/}/")"; then
-            echo "state=Unavailable" >> "${GITHUB_OUTPUT}"
+          # Retain the existing single prefix listing. Capture its error locally;
+          # never turn authentication/permission/provider errors into absence.
+          if ! BACKUPS="$(gcloud storage ls "${PREFIX}" 2>listing-error.txt)"; then
+            if grep -Fq "One or more URLs matched no objects" listing-error.txt; then
+              echo "state=Missing" >> "${GITHUB_OUTPUT}"
+            else
+              echo "state=Unavailable" >> "${GITHUB_OUTPUT}"
+            fi
+            rm -f listing-error.txt
             exit 1
           fi
-          LATEST="$(printf '%s\n' "$LISTING" | sed 's:/*$::' | awk -v prefix="${PREFIX%/}" '$0==prefix' | sort | tail -n 1)"
+          rm -f listing-error.txt
+          LATEST="$(printf '%s\n' "$BACKUPS" | sed 's:/*$::' | sort | tail -n 1)"
           if [[ -z "${LATEST}" ]]; then
             echo "state=Missing" >> "${GITHUB_OUTPUT}"
-            echo "No Firestore backup exports were found under ${PREFIX}." >&2
             exit 1
           fi
 
-          if ! BACKUPS="$(gcloud storage ls "${PREFIX}")"; then
-            echo "state=Unavailable" >> "${GITHUB_OUTPUT}"
-            exit 1
-          fi
-          LATEST="$(printf '%s\n' "$BACKUPS" | sed 's:/*$::' | sort | tail -n 1)"
           NAME="${LATEST##*/}"
           if [[ ! "${NAME}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z$ ]]; then
             echo "Latest backup path does not use the expected timestamp format: ${LATEST}" >&2
