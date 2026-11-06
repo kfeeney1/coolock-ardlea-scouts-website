@@ -18,6 +18,7 @@ export type OperationalObservation = {
   recovery?: string;
   managementUrl?: string;
   maxAgeHours?: number | null;
+  resetsAt?: string | null;
   limitKind?: "hard-cap" | "allowance" | "reference";
   limitSource?: "provider-retrieved" | "configured-reference" | "unknown";
   evidence?: "available" | "unconfigured" | "unsupported" | "failed" | "stale" | "unknown";
@@ -78,6 +79,7 @@ export function evaluateObservation(row: OperationalObservation, environment: "T
     : row.id === "firestore-backup-execution-production" ? 192 : row.maxAgeHours;
   if (maxAge == null || !Number.isFinite(maxAge) || maxAge <= 0) return fail("unknown", "Monitoring freshness policy is not configured.");
   if (now - observed > maxAge * 3_600_000) return fail("stale", "Monitoring evidence is stale; check its publisher.");
+  if (row.resetsAt != null && (!Number.isFinite(Date.parse(row.resetsAt)) || Date.parse(row.resetsAt) <= now || Date.parse(row.resetsAt) <= observed)) return fail("stale", "Quota period has reset or its reset time is invalid; refresh provider evidence.");
   if (row.sourceType === "manual") return fail("unknown", "Configured reference evidence is not a live health observation.");
   if (row.sourceType === "unavailable") return fail("unsupported", row.reason || "No supported usage source is configured.");
   if (row.current != null && (!Number.isFinite(row.current) || row.current < 0)) return fail("failed", "Usage is invalid.");
@@ -110,6 +112,7 @@ export function normaliseObservation(id: string, data: Partial<OperationalObserv
     sourceType: ["authoritative-live", "provider-alert", "local", "manual"].includes(String(data.sourceType)) ? data.sourceType! : "unavailable",
     current: number(data.current), limit: number(data.limit), maxAgeHours: number(data.maxAgeHours),
     warningThreshold: number(data.warningThreshold), criticalThreshold: number(data.criticalThreshold),
+    resetsAt: typeof data.resetsAt === "string" ? data.resetsAt : null,
     limitKind: data.limitKind === "hard-cap" || data.limitKind === "allowance" ? data.limitKind : "reference",
     limitSource: ["provider-retrieved", "configured-reference"].includes(String(data.limitSource)) ? data.limitSource! : "unknown",
     evidence: ["available", "unconfigured", "unsupported", "failed", "stale", "unknown"].includes(String(data.evidence)) ? data.evidence : undefined,

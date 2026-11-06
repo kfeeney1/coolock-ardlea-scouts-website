@@ -96,3 +96,9 @@ test("allowance consumption cannot claim a hard service stop or expose another e
   assert.equal(evaluateObservation(sample, "PRODUCTION", now).current, null);
   assert.equal(evaluateObservation({ ...sample, sourceType: "manual" }, "TEST", now).state, "Unavailable");
 });
+
+test("quota window expiry invalidates otherwise fresh usage", () => {
+  assert.equal(evaluateObservation({ ...sample, resetsAt: iso(0) }, "TEST", now).evidence, "stale");
+  assert.equal(evaluateObservation({ ...sample, resetsAt: "invalid" }, "TEST", now).state, "Unavailable");
+  assert.equal(evaluateObservation({ ...sample, resetsAt: iso(-2) }, "TEST", now).state, "Healthy");
+});
