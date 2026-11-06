@@ -24,13 +24,15 @@ test("release health warns for malformed or local build evidence", () => {
 test("capability health reports only non-sensitive configuration state", () => {
     const configured = configuredCapabilityHealth({
         emailApiUrl: "https://email.example.test",
-        storageBucket: "bucket.example.test"
+        storageBucket: "bucket.example.test",
+        projectId: "synthetic-test"
     });
-    assert.deepEqual(configured.map((item) => item.status), ["healthy", "healthy", "warning"]);
+    assert.deepEqual(configured.map((item) => item.status), ["warning", "warning", "warning"]);
+    assert.match(configured[0].detail, /synthetic-test/);
     assert.ok(configured.every((item) => !item.detail.includes("secret")));
 
     const missing = configuredCapabilityHealth({ emailApiUrl: "", storageBucket: "" });
-    assert.deepEqual(missing.map((item) => item.status), ["healthy", "unavailable", "unavailable"]);
+    assert.deepEqual(missing.map((item) => item.status), ["unavailable", "unavailable", "unavailable"]);
 });
 
 test("data health summarises findings without exposing record contents", () => {

@@ -39,8 +39,6 @@ export function summariseOperationalDataHealth(findings: readonly string[], chec
     };
 }
 
-const FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
-
 export function buildReleaseHealth(payload: BuildInfoPayload | null): OperationalHealthItem {
     const commit = typeof payload?.commit === "string" ? payload.commit.trim() : "";
     const buildTime = typeof payload?.buildTime === "string" ? payload.buildTime.trim() : "";
@@ -61,23 +59,25 @@ export function buildReleaseHealth(payload: BuildInfoPayload | null): Operationa
 
 export function configuredCapabilityHealth({
     emailApiUrl,
-    storageBucket
+    storageBucket,
+    projectId = ""
 }: {
     emailApiUrl: string;
     storageBucket: string;
+    projectId?: string;
 }): OperationalHealthItem[] {
     return [
         {
             id: "firestore",
             label: "Firestore",
-            status: "healthy",
-            detail: `Configured for project ${FIREBASE_PROJECT_ID}.`
+            status: projectId ? "warning" : "unavailable",
+            detail: projectId ? `Configured for project ${projectId}; live availability has not been checked.` : "No Firebase project is configured."
         },
         {
             id: "email",
             label: "Email service",
-            status: emailApiUrl.startsWith("https://") ? "healthy" : "unavailable",
-            detail: emailApiUrl.startsWith("https://") ? "HTTPS endpoint configured." : "No valid HTTPS email endpoint is configured."
+            status: emailApiUrl.startsWith("https://") ? "warning" : "unavailable",
+            detail: emailApiUrl.startsWith("https://") ? "HTTPS endpoint configured; delivery and quota availability have not been checked." : "No valid HTTPS email endpoint is configured."
         },
         {
             id: "storage",
@@ -102,7 +102,8 @@ export async function loadOperationalHealth(): Promise<OperationalHealthItem[]> 
         release,
         ...configuredCapabilityHealth({
             emailApiUrl: String(import.meta.env.VITE_EMAIL_API_URL || "").trim(),
-            storageBucket: String(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "").trim()
+            storageBucket: String(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "").trim(),
+            projectId: String(import.meta.env.VITE_FIREBASE_PROJECT_ID || "").trim()
         }),
         {
             id: "provider-limits",
