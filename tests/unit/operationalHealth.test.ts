@@ -24,11 +24,9 @@ test("release health warns for malformed or local build evidence", () => {
 test("capability health reports only non-sensitive configuration state", () => {
     const configured = configuredCapabilityHealth({
         emailApiUrl: "https://email.example.test",
-        storageBucket: "bucket.example.test",
-        projectId: "synthetic-test"
+        storageBucket: "bucket.example.test"
     });
-    assert.deepEqual(configured.map((item) => item.status), ["warning", "warning", "warning"]);
-    assert.match(configured[0].detail, /synthetic-test/);
+    assert.deepEqual(configured.map((item) => item.status), ["unavailable", "unavailable", "warning"]);
     assert.ok(configured.every((item) => !item.detail.includes("secret")));
 
     const missing = configuredCapabilityHealth({ emailApiUrl: "", storageBucket: "" });
@@ -49,4 +47,13 @@ test("data health summarises findings without exposing record contents", () => {
     assert.equal(warning.findingCount, 3);
     assert.deepEqual(warning.affectedCollections, ["members", "parentAccounts"]);
     assert.doesNotMatch(warning.item.detail, /member-secret|parent-secret|second-secret/);
+});
+
+
+test("capability evidence uses the actual TEST project without a production fallback", () => {
+    const rows = configuredCapabilityHealth({ emailApiUrl: "https://example.test", storageBucket: "test-bucket", projectId: "coolock-ardlea-scouts-test" });
+    assert.match(rows[0].detail, /scouts-test/);
+    assert.notEqual(rows[0].status, "healthy");
+    assert.notEqual(rows[1].status, "healthy");
+    assert.doesNotMatch(configuredCapabilityHealth({ emailApiUrl: "", storageBucket: "" })[0].detail, /coolock-ardlea-scouts/);
 });

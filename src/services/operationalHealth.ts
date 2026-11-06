@@ -39,6 +39,7 @@ export function summariseOperationalDataHealth(findings: readonly string[], chec
     };
 }
 
+
 export function buildReleaseHealth(payload: BuildInfoPayload | null): OperationalHealthItem {
     const commit = typeof payload?.commit === "string" ? payload.commit.trim() : "";
     const buildTime = typeof payload?.buildTime === "string" ? payload.buildTime.trim() : "";
@@ -60,7 +61,7 @@ export function buildReleaseHealth(payload: BuildInfoPayload | null): Operationa
 export function configuredCapabilityHealth({
     emailApiUrl,
     storageBucket,
-    projectId = ""
+    projectId = "Unknown"
 }: {
     emailApiUrl: string;
     storageBucket: string;
@@ -70,14 +71,14 @@ export function configuredCapabilityHealth({
         {
             id: "firestore",
             label: "Firestore",
-            status: projectId ? "warning" : "unavailable",
-            detail: projectId ? `Configured for project ${projectId}; live availability has not been checked.` : "No Firebase project is configured."
+            status: "unavailable",
+            detail: `Configured for project ${projectId}; live health and quota usage have not been checked.`
         },
         {
             id: "email",
             label: "Email service",
-            status: emailApiUrl.startsWith("https://") ? "warning" : "unavailable",
-            detail: emailApiUrl.startsWith("https://") ? "HTTPS endpoint configured; delivery and quota availability have not been checked." : "No valid HTTPS email endpoint is configured."
+            status: "unavailable",
+            detail: emailApiUrl.startsWith("https://") ? "HTTPS endpoint configured; delivery, provider usage and domain health have not been checked." : "No valid HTTPS email endpoint is configured."
         },
         {
             id: "storage",
@@ -103,7 +104,7 @@ export async function loadOperationalHealth(): Promise<OperationalHealthItem[]> 
         ...configuredCapabilityHealth({
             emailApiUrl: String(import.meta.env.VITE_EMAIL_API_URL || "").trim(),
             storageBucket: String(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "").trim(),
-            projectId: String(import.meta.env.VITE_FIREBASE_PROJECT_ID || "").trim()
+            projectId: String(import.meta.env.VITE_FIREBASE_PROJECT_ID || "Unknown").trim()
         }),
         {
             id: "provider-limits",
