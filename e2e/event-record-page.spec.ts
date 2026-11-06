@@ -108,6 +108,19 @@ test("event editor saves valid edits before app and browser back navigation", as
   await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
+
+});
+
+test("event leader attendance persists independently across reload", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAsLeader(page, { email: adminEmail, password: password! });
+  await page.goto("/leader/events/create");
+  const title = `TEST leader attendance persistence ${Date.now()}`;
+  await page.getByLabel("Event title").fill(title);
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-12");
+  await page.getByRole("button", { name: "Create Event", exact: true }).click();
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   const leaderPanel = page.getByTestId("leader-attendance-section");
   await expect(leaderPanel.getByRole("heading", { name: "Leader Attendance" })).toBeVisible();
