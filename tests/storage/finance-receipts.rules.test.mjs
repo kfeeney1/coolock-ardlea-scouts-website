@@ -117,3 +117,24 @@ test("parents and unauthenticated users cannot access finance receipts", async (
   await assertFails(listAll(ref(parentStorage, "attachments/finance-receipts/Cubs")));
   await assertFails(getMetadata(ref(publicStorage, path)));
 });
+
+test("Storage accepts a current Treasurer in slot twelve and rejects a stale scalar after expiry", async () => {
+  const uid = "union-treasurer";
+  const appointments = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]
+    .flatMap(scope => ["Scouter", "Programme Scouter"].map(appointment => ({ appointment, scope })));
+  appointments.push({ appointment: "Group Secretary", scope: "Group" });
+  const treasurer = { appointment: "Group Treasurer", scope: "Group" };
+  const organisation = { active: true, scoutingRole: "Group Treasurer" };
+  await seedDocuments([
+    [`adminUsers/${uid}`, { active: true, role: "leader", sections: ["Cubs"] }],
+    [`organisationLeadership/${uid}`, { ...organisation, appointments: [...appointments, treasurer] }]
+  ]);
+  const storage = testEnv.authenticatedContext(uid).storage();
+  await assertSucceeds(uploadBytes(receiptRef(storage, "Scouts", "union"), new Uint8Array([1]), receiptMetadata(uid, "Scouts")));
+  await seedDocuments([[`organisationLeadership/${uid}`, {
+    ...organisation, appointments: [...appointments, { ...treasurer, endDate: "2000-01-01" }]
+  }]]);
+  await assertFails(uploadBytes(receiptRef(storage, "Scouts", "expired"), new Uint8Array([1]), receiptMetadata(uid, "Scouts")));
+  await assertFails(listAll(ref(storage, "attachments/finance-receipts/Scouts")));
+  await assertSucceeds(uploadBytes(receiptRef(storage, "Cubs", "scoped"), new Uint8Array([1]), receiptMetadata(uid)));
+});

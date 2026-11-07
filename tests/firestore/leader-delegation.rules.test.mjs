@@ -78,3 +78,31 @@ test("Group Leadership can keep an existing public projection appointment aligne
   await assertSucceeds(updateDoc(doc(db, "publicLeadership/ordinary"), { scoutingRole: "Section Leader", updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(db, "publicLeadership/ordinary"), { showPublicly: false, updatedAt: serverTimestamp() }));
 });
+
+test("delegated writes cannot add, remove or alter a privileged canonical appointment", async () => {
+  const db = testEnv.authenticatedContext("gl", { email: "gl@example.com" }).firestore();
+  const target = doc(db, "organisationLeadership/ordinary");
+  const ordinary = { appointment: "Section Leader", scope: "Cubs", active: true };
+  const privileged = { appointment: "Group Treasurer", scope: "Group", active: false };
+  const update = appointments => updateDoc(target, { scoutingRole: "Section Leader", appointments, updatedAt: serverTimestamp() });
+
+  await assertFails(update([ordinary, { ...privileged, active: true }]));
+  await assertSucceeds(update([ordinary]));
+  await seed([["organisationLeadership/ordinary", {
+    ...organisation("Section Leader", "Cubs"), appointments: [ordinary, privileged]
+  }]]);
+  await assertFails(update([ordinary]));
+  await assertFails(update([ordinary, { ...privileged, active: true }]));
+  await assertSucceeds(update([{ ...ordinary, appointment: "Scouter" }, privileged]));
+});
+
+test("delegation rejects expired group leadership even with a stale scalar label", async () => {
+  await seed([["organisationLeadership/gl", {
+    ...organisation("Group Leader"),
+    appointments: [{ appointment: "Group Leader", scope: "Group", endDate: "2000-01-01" }]
+  }]]);
+  const db = testEnv.authenticatedContext("gl", { email: "gl@example.com" }).firestore();
+  await assertFails(updateDoc(doc(db, "adminUsers/ordinary"), {
+    sections: ["Cubs", "Scouts"], updatedAt: serverTimestamp(), updatedBy: "gl"
+  }));
+});

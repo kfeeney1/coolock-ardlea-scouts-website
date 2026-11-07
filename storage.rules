@@ -53,21 +53,64 @@ service firebase.storage {
     }
     function isAdmin() { return isActiveLeader() ? profile().get("role", "") in ["admin", "super-admin"] : false; }
     function leadershipPath() { return /databases/(default)/documents/organisationLeadership/$(request.auth.uid); }
-    function hasLeadershipRole(role) {
-      return isActiveLeader() && (firestore.exists(leadershipPath())
-        ? firestore.get(leadershipPath()).data.get("active", false) == true
-          && firestore.get(leadershipPath()).data.get("scoutingRole", "") == role
-        : false);
+    function groupAppointmentDateAllows(value, endDate) {
+      return value == "" || (value is string
+        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+        && groupAppointmentDateIncludesToday(value, endDate));
     }
-    function hasGroupLeadershipRole() {
-      return isActiveLeader() && (firestore.exists(leadershipPath())
-        ? firestore.get(leadershipPath()).data.get("active", false) == true
-          && firestore.get(leadershipPath()).data.get("scoutingRole", "") in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"]
-        : false);
+    function groupAppointmentDateIncludesToday(value, endDate) {
+      let parts = value.split('-');
+      let year = int(parts[0]);
+      let month = int(parts[1]);
+      let day = int(parts[2]);
+      let date = timestamp.date(year, month, day);
+      return date.year() == year && date.month() == month && date.day() == day
+        && (endDate ? request.time < date + duration.value(1, 'd') : date <= request.time);
     }
-    function canViewAllFinance() { return isAdmin() || hasGroupLeadershipRole() || hasLeadershipRole("Group Treasurer"); }
-    function canAccessFinanceSection(section) { return isActiveLeader() ? canViewAllFinance() || section in profile().get("sections", []) : false; }
-    function canAccessGallerySection(section) { return isActiveLeader() ? isAdmin() || hasGroupLeadershipRole() || section in profile().get("sections", []) : false; }
+    function groupAppointmentAt(items, index, roles) {
+      return items.size() > index && matchesGroupAppointment(items[index], roles);
+    }
+    function matchesGroupAppointment(item, roles) {
+      return item is map
+        && item.get("scope", "Group") == "Group"
+        && item.get("active", true) == true
+        && item.get("appointment", "") is string
+        && item.get("appointment", "").lower() in roles
+        && groupAppointmentDateAllows(item.get("startDate", ""), false)
+        && groupAppointmentDateAllows(item.get("endDate", ""), true);
+    }
+    // The canonical writer supports twelve slots. A populated list supersedes
+    // the scalar label, including when all its appointments are ineffective.
+    function hasGroupAppointment(data, roles) {
+      let items = data.get("appointments", []);
+      return data.get("active", false) == true && items is list && items.size() <= 12
+        && (items.size() == 0
+          ? data.get("scoutingRole", "") is string && data.get("scoutingRole", "").lower() in roles
+          : groupAppointmentAt(items, 0, roles) || groupAppointmentAt(items, 1, roles)
+            || groupAppointmentAt(items, 2, roles) || groupAppointmentAt(items, 3, roles)
+            || groupAppointmentAt(items, 4, roles) || groupAppointmentAt(items, 5, roles)
+            || groupAppointmentAt(items, 6, roles) || groupAppointmentAt(items, 7, roles)
+            || groupAppointmentAt(items, 8, roles) || groupAppointmentAt(items, 9, roles)
+            || groupAppointmentAt(items, 10, roles) || groupAppointmentAt(items, 11, roles));
+    }
+    function groupLeadershipRoles() {
+      return ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl"];
+    }
+    // Call only after verifying the caller is an active leader.
+    function currentGroupAppointment(roles) {
+      return firestore.exists(leadershipPath()) && hasGroupAppointment(firestore.get(leadershipPath()).data, roles);
+    }
+    function canAccessLeaderSection(section, groupRoles) {
+      return isActiveLeader() && (section in profile().get("sections", [])
+        || profile().get("role", "") in ["admin", "super-admin"]
+        || currentGroupAppointment(groupRoles));
+    }
+    function canAccessFinanceSection(section) {
+      return canAccessLeaderSection(section, groupLeadershipRoles().concat(["group treasurer"]));
+    }
+    function canAccessGallerySection(section) {
+      return canAccessLeaderSection(section, groupLeadershipRoles());
+    }
     function galleryAccessPath(eventId) { return /databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid); }
     function galleryAccess(eventId) { return firestore.get(galleryAccessPath(eventId)).data; }
     function galleryConsentId(eventId) { return galleryAccess(eventId).get("consentApplicationId", "__missing__"); }
@@ -111,6 +154,9 @@ service firebase.storage {
         && request.resource.metadata.section == section
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
+    function hasGroupLeadershipRole() {
+      return isActiveLeader() && currentGroupAppointment(groupLeadershipRoles());
+    }
     function canManagePolicies() { return isAdmin() || hasGroupLeadershipRole(); }
     function canReadPolicyAudience(audience) {
       return audience == "public"
@@ -140,9 +186,11 @@ service firebase.storage {
         && request.resource.metadata.state == "current"
         && request.resource.metadata.publishedBy == request.auth.uid;
     }
-    function canAccessMeetingSection(section) { return isAdmin() || hasGroupLeadershipRole() || hasLeadershipRole("Group Secretary") || section in profile().get("sections", []); }
+    function canAccessMeetingSection(section) {
+      return canAccessLeaderSection(section, groupLeadershipRoles().concat(["group secretary"]));
+    }
     function validMeetingDocumentWrite(section, meetingId) {
-      return isActiveLeader() && canAccessMeetingSection(section) && resource == null && request.resource != null
+      return canAccessMeetingSection(section) && resource == null && request.resource != null
         && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType in ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.oasis.opendocument.text", "text/plain", "text/markdown", "text/html"]
         && request.resource.metadata.ownerType == "meeting-document"
@@ -182,10 +230,10 @@ service firebase.storage {
       allow delete: if canManagePolicies() && resource.metadata.ownerType == "policy-document";
     }
     match /attachments/meeting-documents/{section}/{meetingId}/{attachmentId}/{fileName} {
-      allow get: if isActiveLeader() && canAccessMeetingSection(section) && resource.metadata.ownerType == "meeting-document" && resource.metadata.ownerId == meetingId && resource.metadata.section == section;
+      allow get: if canAccessMeetingSection(section) && resource.metadata.ownerType == "meeting-document" && resource.metadata.ownerId == meetingId && resource.metadata.section == section;
       allow create: if validMeetingDocumentWrite(section, meetingId);
       allow update: if false;
-      allow delete: if isActiveLeader() && canAccessMeetingSection(section) && resource.metadata.ownerType == "meeting-document" && resource.metadata.ownerId == meetingId && resource.metadata.section == section;
+      allow delete: if canAccessMeetingSection(section) && resource.metadata.ownerType == "meeting-document" && resource.metadata.ownerId == meetingId && resource.metadata.section == section;
     }
 
     match /{allPaths=**} { allow read, write: if false; }
