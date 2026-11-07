@@ -78,7 +78,7 @@ test("Treasurer settings keep finance controls and hide session inactivity setti
 
   await expect(page.getByRole("heading", { name: "Treasurer Settings", exact: true })).toBeVisible();
   await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Subs rates & classification" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Subs rate policy" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Session inactivity" })).toHaveCount(0);
   await expect(page.getByLabel("Parent account inactivity timeout")).toHaveCount(0);
   await expect(page.getByLabel("Leader desktop inactivity timeout")).toHaveCount(0);
@@ -164,6 +164,9 @@ test("subs policy waits for initial records before allowing edits", async ({ pag
     await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeDisabled();
     release();
     await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
+    await expect(panel.getByRole("group", { name: "Subs rate policy" })).toHaveAttribute("disabled", "");
+    await expect(panel.getByLabel("Scout year", { exact: true })).toBeDisabled();
+    await panel.getByRole("button", { name: "Create next version" }).click();
     await expect(panel.getByRole("group", { name: "Subs rate policy" })).not.toHaveAttribute("disabled");
     await expect(panel.getByLabel("Scout year", { exact: true })).toBeEnabled();
     await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeEnabled();
@@ -187,6 +190,7 @@ test("admin can extend standard and leader family rate tables", async ({ page },
   await page.goto("/leader/settings");
 
   await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
+  await page.getByRole("button", { name: "Create next version" }).click();
   await page.getByTestId("subs-add-standard-rate").click();
   const standardFive = page.getByTestId("subs-standard-rate-5");
   await expect(standardFive).toBeVisible();
@@ -203,30 +207,49 @@ test("admin can extend standard and leader family rate tables", async ({ page },
   await expect(page.getByRole("alert").filter({ hasText: /valid euro amount/i })).toBeVisible();
 });
 
-test("saving the already-active immutable subs policy is idempotent", async ({ page }, testInfo) => {
+test("saved Subs policy is read-only and a correction persists as a new version", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-
-  await login(page, "test.webadmin@example.com");
-  await page.goto("/leader/settings?view=treasurer");
-  const panel = page.getByTestId("subs-settings-panel");
-  await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
-  await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
-  await expect(panel.getByRole("alert").filter({ hasText: /Subs policy .* saved/ })).toBeVisible();
-  await expect(panel.getByRole("alert").filter({ hasText: /Unable to save subs policy|PERMISSION_DENIED/i })).toHaveCount(0);
-
-  await page.reload();
-  await expect(page.getByTestId("subs-settings-panel").getByTestId("subs-saved-policy-status")).toContainText("version 1");
+  const db = scheduleFixtureDb();
+  const policies = db.collection("subsRatePolicies");
+  const before = await policies.get();
+  const existingIds = new Set(before.docs.map(item => item.id));
+  try {
+    await login(page, "test.webadmin@example.com");
+    await page.goto("/leader/settings?view=treasurer");
+    const panel = page.getByTestId("subs-settings-panel");
+    await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
+    await expect(panel.getByLabel("Scout year", { exact: true })).toBeDisabled();
+    await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeDisabled();
+    await expect(panel.getByTestId("subs-family-account-panel")).toHaveCount(0);
+    await panel.getByRole("button", { name: "Create next version" }).click();
+    const nextVersion = await panel.getByLabel("Policy version", { exact: true }).inputValue();
+    expect(Number(nextVersion)).toBeGreaterThan(1);
+    await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
+    await expect(panel.getByRole("alert").filter({ hasText: /Subs policy .* saved/ })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeDisabled();
+    for (const record of before.docs) expect((await record.ref.get()).data()).toEqual(record.data());
+    const after = await policies.get();
+    expect(after.docs.filter(record => !existingIds.has(record.id))).toHaveLength(1);
+    await page.reload();
+    await expect(panel.getByTestId("subs-saved-policy-status")).toContainText(`version ${nextVersion}`);
+    await expect(panel.getByLabel("Policy version", { exact: true })).toBeDisabled();
+  } finally {
+    for (const record of (await policies.get()).docs) if (!existingIds.has(record.id)) await record.ref.delete();
+  }
 });
 
 test("Scout-year date range anchors a future end to its start and blocks reversed saves on desktop and mobile", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Scout-year date range runs on desktop and mobile Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
+  const policies = scheduleFixtureDb().collection("subsRatePolicies");
+  const before = await policies.get();
   await login(page, "test.webadmin@example.com");
   await page.goto("/leader/settings?view=treasurer");
   const panel = page.getByTestId("subs-settings-panel");
   await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
+  await panel.getByRole("button", { name: "Create next version" }).click();
   const start = panel.getByRole("textbox", { name: /^Starts/ });
   const end = panel.getByRole("textbox", { name: "Ends", exact: true });
   const savedStart = await start.inputValue();
@@ -252,10 +275,47 @@ test("Scout-year date range anchors a future end to its start and blocks reverse
   await expect(end).toHaveAttribute("aria-invalid", "true");
   await expect(panel.getByText("End date cannot be before the start date.", { exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
-  await expect(panel.getByText(/already saved and cannot be changed/)).toBeVisible();
+  await expect(panel.getByRole("alert").filter({ hasText: "Correct the highlighted policy fields before saving." })).toBeVisible();
+  await expect(end).toHaveAttribute("aria-invalid", "true");
+  const after = await policies.get();
+  expect(after.docs.map(record => ({ id: record.id, data: record.data() }))).toEqual(before.docs.map(record => ({ id: record.id, data: record.data() })));
+  await expect(panel.getByRole("alert").filter({ hasText: /Subs policy .* saved/ })).toHaveCount(0);
 
   await page.reload();
   const reloadedPanel = page.getByTestId("subs-settings-panel");
   await expect(reloadedPanel.getByRole("textbox", { name: /^Starts/ })).toHaveValue(savedStart);
   await expect(reloadedPanel.getByRole("textbox", { name: "Ends", exact: true })).toHaveValue(savedEnd);
+});
+
+
+test("family account creation lives under People & Parents and is hidden from section-only leaders", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Billing placement runs on desktop and Android-sized Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await login(page, "test.group.treasurer@example.com");
+  await page.goto("/leader/settings?view=treasurer");
+  await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
+  await expect(page.getByTestId("subs-family-account-panel")).toHaveCount(0);
+  await page.getByRole("link", { name: "Open Family Billing Accounts" }).click();
+  await expect(page).toHaveURL(/\/leader\/subs#family-billing$/);
+  await expect(page.getByRole("tab", { name: "Family Billing Accounts" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("subs-family-account-panel")).toBeVisible();
+  await expect(page.getByTestId("subs-create-family-account")).toBeDisabled();
+  await page.reload();
+  await expect(page.getByTestId("subs-family-account-panel")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.context().clearCookies();
+  // A new isolated browser context prevents reusing the Treasurer session.
+  const context = await page.context().browser()!.newContext();
+  try {
+    const ordinary = await context.newPage();
+    await ordinary.goto(new URL("/leader/login", page.url()).href);
+    await ordinary.getByLabel("Email address").fill("test.scout.section.leader@example.com");
+    await ordinary.getByLabel("Password").fill(password!);
+    await ordinary.getByRole("button", { name: "Sign In" }).click();
+    await expect(ordinary).toHaveURL(/\/leader$/);
+    await ordinary.goto(new URL("/leader/subs#family-billing", page.url()).href);
+    await expect(ordinary.getByTestId("page-subs")).toBeVisible();
+    await expect(ordinary.getByRole("tab", { name: "Family Billing Accounts" })).toHaveCount(0);
+    await expect(ordinary.getByTestId("subs-family-account-panel")).toHaveCount(0);
+  } finally { await context.close(); }
 });

@@ -1,9 +1,10 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import SubsFamilyAccountPanel from "../components/admin/SubsFamilyAccountPanel";
 import SubsPaymentPanel from "../components/admin/SubsPaymentPanel";
 import SubsBalancesReport from "../components/admin/SubsBalancesReport";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -29,11 +30,14 @@ const uniquePayments = (rows: SubsPayment[]) => [...new Map(rows.map((row) => [r
 export default function SubsManagement() {
   const { user, adminProfile } = useAdminAuth();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigationView = searchParams.get("view");
   const pageIdentity = navigationView === "treasurer" ? "treasurer-subs" : navigationView === "group-operations" ? "group-subs" : "subs";
   const canGroupReport = Boolean(adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole));
   const authorisedSections = useMemo(() => authorisedSubsSections(adminProfile?.sections ?? [], canGroupReport), [adminProfile?.sections, canGroupReport]);
   const [tab, setTab] = useState(0);
+  const activeTab = tab === 2 && !canGroupReport ? 0 : tab;
+  useEffect(() => { if (location.hash === "#family-billing" && canGroupReport) setTab(2); else if (!canGroupReport) setTab(current => current === 2 ? 0 : current); }, [location.hash, canGroupReport]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [policies, setPolicies] = useState<SubsRatePolicy[]>([]);
   const [assignments, setAssignments] = useState<SubsAssignment[]>([]);
@@ -247,12 +251,13 @@ export default function SubsManagement() {
           </Typography>
         </Paper>
         <Paper sx={{ mb: 3 }}>
-          <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" aria-label="Subs management sections">
+          <Tabs value={activeTab} onChange={(_, v) => setTab(v)} variant="scrollable" aria-label="Subs management sections">
             <Tab label="Record payment" />
             <Tab label="Balances & reports" />
+            {canGroupReport && <Tab label="Family Billing Accounts" />}
           </Tabs>
         </Paper>
-        {tab === 0 && <SubsPaymentPanel
+        {activeTab === 0 && <SubsPaymentPanel
           visibleMembers={visibleMembers}
           policies={policies}
           memberId={memberId}
@@ -278,7 +283,8 @@ export default function SubsManagement() {
           onReviewPayment={reviewPayment}
           onExportMember={exportMember}
         />}
-        {tab === 1 && <SubsBalancesReport assignments={visibleAssignments} payments={visiblePayments} policies={policies} period={period} setPeriod={setPeriod} section={effectiveSection} sections={authorisedSections} canGroupReport={canGroupReport} />}
+        {activeTab === 1 && <SubsBalancesReport assignments={visibleAssignments} payments={visiblePayments} policies={policies} period={period} setPeriod={setPeriod} section={effectiveSection} sections={authorisedSections} canGroupReport={canGroupReport} />}
+        {activeTab === 2 && canGroupReport && <Paper id="family-billing" variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><SubsFamilyAccountPanel members={members} policies={policies} assignments={assignments} defaultPolicyId={currentPolicy?.id ?? ""} saving={saving} onSaving={setSaving} onMessage={setMessage} onError={setError} onReload={load} /></Paper>}
         <Dialog open={confirmOpen} onClose={() => !saving && setConfirmOpen(false)}>
           <DialogTitle>Confirm subs payment</DialogTitle>
           <DialogContent dividers>

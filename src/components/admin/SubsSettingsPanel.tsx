@@ -1,14 +1,14 @@
 import { applicationErrorMessage, reportApplicationError } from "../../services/applicationErrors.ts";
 import DateRangeFields from "../DateRangeFields";
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
-import type { MemberRecord } from "../../services/memberAdmin";
-import { loadSubsAssignments, loadSubsMembers, loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
-import { AGREED_SUBS_2026_27, parseEuroToCents, resolveCurrentSubsPolicy, type SubsAssignment, type SubsRatePolicy } from "../../services/subsLogic";
+import { loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
+import { AGREED_SUBS_2026_27, parseEuroToCents, resolveCurrentSubsPolicy, type SubsRatePolicy } from "../../services/subsLogic";
 import { persistThenRefresh } from "../../services/persistThenRefresh";
 import { useAdminAuth } from "./AdminAuthProvider";
-import SubsFamilyAccountPanel from "./SubsFamilyAccountPanel";
+import { Link } from "react-router-dom";
+import { nextSubsPolicyVersion } from "../../services/subsPolicyVersion";
 
 const euroValue = (cents: number) => (cents / 100).toFixed(2);
 
@@ -17,9 +17,11 @@ export default function SubsSettingsPanel() {
   const canManage = adminProfile?.role === "admin"
     || adminProfile?.role === "super-admin"
     || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
-  const [members, setMembers] = useState<MemberRecord[]>([]);
   const [policies, setPolicies] = useState<SubsRatePolicy[]>([]);
-  const [assignments, setAssignments] = useState<SubsAssignment[]>([]);
+  const [drafting, setDrafting] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const loadGeneration = useRef(0);
+  const policyForm = useRef<HTMLFormElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -33,33 +35,37 @@ export default function SubsSettingsPanel() {
   const [leaderRates, setLeaderRates] = useState(AGREED_SUBS_2026_27.leaderFamilyRatesCents.map(euroValue));
 
   const load = useCallback(async () => {
-    if (!canManage) return;
+    const generation = ++loadGeneration.current;
+    if (!canManage) { setPolicies([]); setLoaded(false); return; }
+    setLoaded(false);
     setLoading(true);
     setError("");
     setRefreshWarning("");
     try {
-      const [memberRows, policyRows, assignmentRows] = await Promise.all([loadSubsMembers(), loadSubsPolicies(), loadSubsAssignments()]);
-      setMembers(memberRows.filter((member) => member.status === "active"));
+      const policyRows = await loadSubsPolicies();
+      if (generation !== loadGeneration.current) return;
       setPolicies(policyRows);
-      setAssignments(assignmentRows);
+      setLoaded(true);
+      setDrafting(false);
       const activePolicy = resolveCurrentSubsPolicy(policyRows);
       if (activePolicy) {
         setPeriod(activePolicy.period);
         setPeriodStart(activePolicy.periodStart || activePolicy.effectiveFrom);
         setPeriodEnd(activePolicy.periodEnd || "");
         setVersion(String(activePolicy.version));
-        if (activePolicy.standardFamilyRatesCents?.length) setStandardRates(activePolicy.standardFamilyRatesCents.map(euroValue));
-        if (activePolicy.leaderFamilyRatesCents?.length) setLeaderRates(activePolicy.leaderFamilyRatesCents.map(euroValue));
-      }
+        setStandardRates((activePolicy.standardFamilyRatesCents ?? []).map(euroValue));
+        setLeaderRates((activePolicy.leaderFamilyRatesCents ?? []).map(euroValue));
+      } else { setVersion(String(nextSubsPolicyVersion(policyRows, AGREED_SUBS_2026_27.period))); }
     } catch (loadError) {
+      if (generation !== loadGeneration.current) return;
       setError(applicationErrorMessage(loadError, "Unable to load subs rates and classifications.", "SubsSettingsPanel"));
       throw loadError;
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }, [canManage]);
 
-  useEffect(() => { void load().catch(() => undefined); }, [load]);
+  useEffect(() => { void load().catch(() => undefined); return () => { ++loadGeneration.current; }; }, [load]);
 
   const setRate = (type: "standard" | "leader", index: number, value: string) => {
     const setter = type === "standard" ? setStandardRates : setLeaderRates;
@@ -75,6 +81,11 @@ export default function SubsSettingsPanel() {
     setter((current) => current.length > 1 ? current.slice(0, -1) : current); setMessage(""); setError("");
   };
   const savePolicy = async () => {
+    if (!canManage || !loaded || (currentPolicy && !drafting) || saving) return;
+    if (!policyForm.current?.reportValidity()) {
+      setError("Correct the highlighted policy fields before saving.");
+      return;
+    }
     setSaving(true); setMessage(""); setError("");
     try {
       const standardFamilyRatesCents = standardRates.map(parseEuroToCents);
@@ -102,29 +113,32 @@ export default function SubsSettingsPanel() {
   const currentPolicy = resolveCurrentSubsPolicy(policies);
 
   if (!canManage) return null;
-  return <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mt: 3 }} data-testid="subs-settings-panel">
-    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Subs rates &amp; classification</Typography>
-    <Typography color="text.secondary" sx={{ mt: 0.75 }}>Configure Scout-year family rates and create one billing account for each family. Access is restricted to the Treasurer, Group Leader, Deputy Group Leader and admins.</Typography>
+  return <Paper component="form" ref={policyForm} noValidate onSubmit={(event) => { event.preventDefault(); void savePolicy(); }} variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mt: 3 }} data-testid="subs-settings-panel">
+    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Subs rate policy</Typography>
+
     {message && <Alert severity="success" sx={{ mt: 2 }}>{message}</Alert>}
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
     {refreshWarning && <Alert severity="warning" sx={{ mt: 2 }} data-testid="subs-refresh-warning">{refreshWarning}</Alert>}
-    <Box component="fieldset" aria-label="Subs rate policy" aria-busy={loading} disabled={loading || saving} sx={{ mt: 3, mx: 0, p: 0, border: 0, minWidth: 0 }}>
+    {loaded && currentPolicy && <Button variant="contained" sx={{ mt: 2 }} onClick={() => { setVersion(String(nextSubsPolicyVersion(policies, period))); setDrafting(true); setMessage(""); setError(""); }} disabled={saving || drafting}>Create next version</Button>}
+    {drafting && <Button variant="contained" sx={{ mt: 2, ml: 1 }} disabled={saving} onClick={() => void load().catch(() => undefined)}>Cancel new version</Button>}
+    <Box component="fieldset" aria-label="Subs rate policy" aria-busy={loading} disabled={loading || saving || !loaded || Boolean(currentPolicy && !drafting)} sx={{ mt: 3, mx: 0, p: 0, border: 0, minWidth: 0 }}>
       <Typography variant="h6" sx={{ fontWeight: 800 }}>Rate policy</Typography>
-      <Alert severity="info" sx={{ mt: 1.5, mb: 2 }}>2026/27 is prefilled with the agreed rates. The Scout subs year runs from September through June. Policies are immutable once saved; a correction is made by creating a later version.</Alert>
-      {!loading && currentPolicy ? (
+      <Typography color="text.secondary" sx={{ my: 2 }}>{currentPolicy && !drafting ? "Saved policy · read-only" : "New immutable policy · draft"}</Typography>
+      {!loading && loaded && currentPolicy ? (
         <Alert severity="success" sx={{ mb: 2 }} data-testid="subs-saved-policy-status">
           Saved active policy: {currentPolicy.period}, version {currentPolicy.version}. Record Payment will use this persisted policy.
         </Alert>
-      ) : !loading ? (
+      ) : !loading && loaded ? (
         <Alert severity="warning" sx={{ mb: 2 }} data-testid="subs-unsaved-policy-status">
           No saved active Subs policy was found. The values below are a draft only and are not available to Record Payment until you save an immutable rate policy.
         </Alert>
       ) : null}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
-        <TextField label="Scout year" value={period} onChange={(event) => setPeriod(event.target.value)} />
+        <TextField label="Scout year" value={period} onChange={(event) => { setPeriod(event.target.value); setVersion(String(nextSubsPolicyVersion(policies, event.target.value))); }} />
         <DateRangeFields startDate={periodStart} endDate={periodEnd} startLabel="Starts" endLabel="Ends" startRequired endRequired onStartDateChange={setPeriodStart} onEndDateChange={setPeriodEnd} />
         <TextField type="number" label="Policy version" value={version} onChange={(event) => setVersion(event.target.value)} slotProps={{ htmlInput: { min: 1, step: 1 } }} />
       </Box>
+      {loaded && currentPolicy && (!currentPolicy.standardFamilyRatesCents?.length || !currentPolicy.leaderFamilyRatesCents?.length) && <Alert severity="warning">This saved legacy policy has no family-rate tables. Enter explicit approved rates in a new version before creating family accounts.</Alert>}
       <Typography sx={{ mt: 3, mb: 1, fontWeight: 800 }}>Standard family total</Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
         {standardRates.map((value, index) => <TextField key={`standard-${index}`} data-testid={`subs-standard-rate-${index + 1}`} label={`${index + 1} member${index ? "s" : ""} (EUR)`} value={value} onChange={(event) => setRate("standard", index, event.target.value)} />)}
@@ -142,8 +156,10 @@ export default function SubsSettingsPanel() {
         <Button type="button" variant="outlined" disabled={leaderRates.length <= 1} onClick={() => removeLastRate("leader")}>Remove last leader rate</Button>
       </Stack>
       <Alert severity="warning" sx={{ mt: 2 }}>If a family has more active members than this policy defines, no amount is inferred. Add the exact approved family-size rate before classification.</Alert>
-      <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving} onClick={() => void savePolicy()}>{saving ? "Saving…" : "Save immutable rate policy"}</Button>
+      <Button type="submit" variant="contained" sx={{ mt: 2.5 }} disabled={saving}>{saving ? "Saving…" : "Save immutable rate policy"}</Button>
     </Box>
-    {loading ? <Typography color="text.secondary" sx={{ mt: 5 }}>Loading subs settings…</Typography> : <SubsFamilyAccountPanel members={members} policies={policies} assignments={assignments} defaultPolicyId={currentPolicy?.id ?? ""} saving={saving} onSaving={setSaving} onMessage={setMessage} onError={setError} onReload={load} />}
+    {loading && <Typography role="status" color="text.secondary" sx={{ mt: 2 }}>Loading subs settings…</Typography>}
+    {!loading && !loaded && <Button onClick={() => void load().catch(() => undefined)}>Retry Subs policy</Button>}
+    <Button component={Link} to="/leader/subs#family-billing" variant="contained" sx={{ mt: 3 }}>Open Family Billing Accounts</Button>
   </Paper>;
 }
