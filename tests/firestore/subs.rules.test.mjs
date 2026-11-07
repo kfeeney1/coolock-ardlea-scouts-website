@@ -104,3 +104,38 @@ test("corrections are exact linked reversals and parents remain denied",async()=
  await assertFails(getDoc(doc(parent,"subsPayments/original")));
  await assertFails(setDoc(doc(parent,"subsPayments/no"),payment("parent")));
 });
+
+test("canonical appointment union reaches slots five and twelve for finance and equipment", async () => {
+  const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
+  const appointments = sections.flatMap(scope => ["Scouter", "Programme Scouter"].map(appointment => ({ appointment, scope })));
+  appointments.splice(4, 0, { appointment: "Group Treasurer", scope: "Group" });
+  appointments.push({ appointment: "Group Quartermaster / Bo'sun", scope: "Group" });
+  await seed([
+    ["adminUsers/manager", { active: true, role: "leader", sections }],
+    ["organisationLeadership/manager", { active: true, scoutingRole: "Scouter", appointments }],
+    ["members/m1", member()]
+  ]);
+  const db = env.authenticatedContext("manager").firestore();
+  await assertSucceeds(getDocs(collection(db, "members")));
+  await assertSucceeds(setDoc(doc(db, "subsRatePolicies/union"), policy("manager")));
+  await assertSucceeds(setDoc(doc(db, "equipmentCategories/union"), {
+    name: "Union category", createdBy: "manager", createdAt: serverTimestamp()
+  }));
+});
+
+test("ineffective canonical appointments suppress stale scalar finance grants", async () => {
+  await seed([["adminUsers/stale", { active: true, role: "leader", sections: ["Cubs"] }]]);
+  const db = env.authenticatedContext("stale").firestore();
+  for (const appointment of [
+    { appointment: "Scouter", scope: "Cubs" },
+    { appointment: "Group Treasurer", scope: "Group", active: false },
+    { appointment: "Group Treasurer", scope: "Group", startDate: "2999-01-01" },
+    { appointment: "Group Treasurer", scope: "Group", endDate: "2000-01-01" },
+    { appointment: "Group Treasurer", scope: "Group", startDate: "2020-02-30" },
+    { appointment: "Group Treasurer", scope: "Cubs" }
+  ]) {
+    await seed([["organisationLeadership/stale", { active: true, scoutingRole: "Group Treasurer", appointments: [appointment] }]]);
+    await assertFails(setDoc(doc(db, "subsRatePolicies/stale"), policy("stale")));
+    await assertFails(getDocs(collection(db, "members")));
+  }
+});

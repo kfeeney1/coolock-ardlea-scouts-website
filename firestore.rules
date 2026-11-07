@@ -37,9 +37,42 @@ service cloud.firestore {
     }
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
+    function groupAppointmentDateAllows(value, endDate) {
+      return value == "" || (validIsoDate(value) && groupAppointmentDateIncludesToday(value, endDate));
+    }
+    function groupAppointmentDateIncludesToday(value, endDate) {
+      let parts = value.split('-');
+      let date = timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
+      return endDate ? request.time < date + duration.value(1, 'd') : date <= request.time;
+    }
+    function groupAppointmentAt(items, index, roles) {
+      return items.size() > index && items[index] is map
+        && items[index].get("appointment", "") is string
+        && items[index].appointment.lower() in roles
+        && items[index].get("scope", "Group") == "Group"
+        && items[index].get("active", true) == true
+        && groupAppointmentDateAllows(items[index].get("startDate", ""), false)
+        && groupAppointmentDateAllows(items[index].get("endDate", ""), true);
+    }
+    // The canonical writer supports twelve slots. A populated list supersedes
+    // the scalar label, including when all its appointments are ineffective.
+    function hasGroupAppointment(data, roles) {
+      let items = data.get("appointments", []);
+      return data.get("active", false) == true && items is list && items.size() <= 12
+        && (items.size() == 0
+          ? data.get("scoutingRole", "") is string && data.get("scoutingRole", "").lower() in roles
+          : groupAppointmentAt(items, 0, roles) || groupAppointmentAt(items, 1, roles)
+            || groupAppointmentAt(items, 2, roles) || groupAppointmentAt(items, 3, roles)
+            || groupAppointmentAt(items, 4, roles) || groupAppointmentAt(items, 5, roles)
+            || groupAppointmentAt(items, 6, roles) || groupAppointmentAt(items, 7, roles)
+            || groupAppointmentAt(items, 8, roles) || groupAppointmentAt(items, 9, roles)
+            || groupAppointmentAt(items, 10, roles) || groupAppointmentAt(items, 11, roles));
+    }
+    function groupLeadershipRoles() {
+      return ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl"];
+    }
     function activeGroupLeadership(data) {
-      return data.active == true
-        && data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
+      return hasGroupAppointment(data, groupLeadershipRoles());
     }
     function isGroupLeader() {
       return isActiveLeader()
@@ -93,41 +126,22 @@ service cloud.firestore {
         && parentProfile().status == "approved";
     }
 
+    function currentGroupAppointment(roles) {
+      let path = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      return exists(path) && hasGroupAppointment(get(path).data, roles);
+    }
     function isGroupSecretary() {
-      return isActiveLeader()
-        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
+      return isActiveLeader() && currentGroupAppointment(["group secretary"]);
     }
-
-    function isQuartermaster() {
-      return isActiveLeader()
-        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+    function canManageEquipment() {
+      return isActiveLeader() && (profile().role in ["admin", "super-admin"]
+        || currentGroupAppointment(groupLeadershipRoles().concat([
+          "group quartermaster", "group quartermaster/bo'sun", "group quartermaster / bo'sun", "group bo'sun"
+        ])));
     }
-    function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
     function canViewAllFinance() {
-      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      return isActiveLeader()
-        && (profile().role in ["super-admin", "admin"]
-          || (exists(organisationPath)
-            && get(organisationPath).data.active == true
-            && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
-              || hasFinanceAppointment(get(organisationPath).data))));
-    }
-    // The same existing group-wide member readers, evaluated once rather than
-    // repeating leader-profile validation across several independent role paths.
-    function financeAppointmentAt(data, index) {
-      return data.keys().hasAny(["appointments"])
-        && data.appointments is list && data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
-    }
-    function hasFinanceAppointment(data) {
-      return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
-        || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      return isActiveLeader() && (profile().role in ["admin", "super-admin"]
+        || currentGroupAppointment(groupLeadershipRoles().concat(["group treasurer"])));
     }
     function canManageSubsPolicy() { return canViewAllFinance(); }
     function isOrdinaryLeaderTarget(userId) {
@@ -539,13 +553,8 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/adminUsers/$(uid)).data.role == "leader";
       }
       function canReadAllMembers() {
-        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-        let organisation = get(organisationPath).data;
-        return isActiveLeader()
-          && (profile().role in ["super-admin", "admin"]
-            || (exists(organisationPath) && organisation.active == true
-              && (organisation.scoutingRole in ["Group Secretary", "Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
-                || hasFinanceAppointment(organisation))));
+        return isActiveLeader() && (profile().role in ["admin", "super-admin"]
+          || currentGroupAppointment(groupLeadershipRoles().concat(["group secretary", "group treasurer"])));
       }
       function isSelfManagedRoverMember() {
         return isActiveLeader()
@@ -2064,12 +2073,35 @@ service cloud.firestore {
 
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
+      function delegableSlot(items, index) {
+        return items.size() <= index || (items[index] is map
+          && isGroupLeadershipDelegableAppointment(items[index].get("appointment", "")));
+      }
+      function allDelegableSlots(items) {
+        return delegableSlot(items, 0) && delegableSlot(items, 1) && delegableSlot(items, 2)
+          && delegableSlot(items, 3) && delegableSlot(items, 4) && delegableSlot(items, 5)
+          && delegableSlot(items, 6) && delegableSlot(items, 7) && delegableSlot(items, 8)
+          && delegableSlot(items, 9) && delegableSlot(items, 10) && delegableSlot(items, 11);
+      }
+      function canChangeDelegatedAppointments(before, after) {
+        let previous = before.get("appointments", []);
+        let next = after.get("appointments", []);
+        return previous is list && next is list && previous.size() <= 12 && next.size() <= 12
+          && allDelegableSlots(next.removeAll(previous))
+          && allDelegableSlots(previous.removeAll(next))
+          && (next.size() > 0 || isGroupLeadershipDelegableAppointment(after.scoutingRole) || after.scoutingRole == ""
+            || (previous.size() == 0 && after.scoutingRole == before.scoutingRole))
+          && (previous.size() > 0 || before.scoutingRole == "" || isGroupLeadershipDelegableAppointment(before.scoutingRole)
+            || (next.size() == 0 && after.scoutingRole == before.scoutingRole
+              && after.organisationSection == before.organisationSection));
+      }
       function _validateWrite62(_writeData) {
         return maintenanceDirectoryInvalidated() && (isAdmin() || (canDelegateLeaderTarget(leaderId)
           && _writeData.scoutingRole is string
           && (!("appointments" in _writeData) || (_writeData.appointments is list && _writeData.appointments.size() <= 12))
-          && ((_writeData.scoutingRole == "" && isGroupLeadershipDelegableAppointment(resource.data.scoutingRole))
-            || isGroupLeadershipDelegableAppointment(_writeData.scoutingRole))
+          && canChangeDelegatedAppointments(resource.data, _writeData)
+          && (_writeData.scoutingRole == resource.data.scoutingRole || isGroupLeadershipDelegableAppointment(_writeData.scoutingRole)
+            || (_writeData.scoutingRole == "" && isGroupLeadershipDelegableAppointment(resource.data.scoutingRole)))
           && _writeData.updatedAt == request.time
           && _writeData.diff(resource.data).affectedKeys().hasOnly(["scoutingRole", "appointments", "organisationSection", "primarySection", "updatedAt"])))
         && _writeData.displayName is string
