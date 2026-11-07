@@ -110,7 +110,7 @@ test("QM-only users see a clear QM empty state without finance settings", async 
   await expect(page.getByTestId("subs-settings-panel")).toHaveCount(0);
 
   const navigation = await exposeQuartermaster(page, testInfo);
-  await navigation.getByTestId("leader-nav-qm-settings").click();
+  await expect(navigation.getByTestId("leader-nav-qm-settings")).toHaveCount(0);
   await expect(page).toHaveURL(/\/leader\/settings\?view=quartermaster$/);
   await expect(page.getByTestId("qm-settings-empty-state").getByRole("status")).toHaveText("No current settings.");
 

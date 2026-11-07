@@ -28,9 +28,9 @@ const appRoutes = new Set([...app.matchAll(/<Route\s+path="([^"]+)"/g)].map((mat
 compare("Route matrix", new Set(Object.keys(matrix.routes || {})), appRoutes);
 const expectedRouteVariants = new Set(["/leader/settings?view=quartermaster"]);
 compare("Query-specific route matrix", new Set(Object.keys(matrix.routeVariants || {})), expectedRouteVariants);
-if (matrix.routeVariants?.["/leader/settings?view=quartermaster"] !== "leader-qm-appointment") fail("QM Settings must remain restricted to a Quartermaster / Bo'sun appointment.");
-if (!settingsGuard.includes('get("view") === "quartermaster"') || !settingsGuard.includes("hasGroupQuartermasterAppointment")) fail("QM Settings route variant must use its appointment-specific route guard.");
-else pass("QM Settings remains restricted to the Quartermaster / Bo'sun appointment.");
+if (matrix.routeVariants?.["/leader/settings?view=quartermaster"] !== "leader-equipment-settings-view-legacy") fail("Legacy QM Settings must require approved equipment-settings view access.");
+if (!settingsGuard.includes("settingsRouteAllowed(adminProfile, location.search)")) fail("Settings route must use the canonical query-specific view policy.");
+else pass("Settings route uses the canonical query-specific view policy.");
 for (const route of appRoutes) {
   const gate = matrix.routes[route];
   const routeSource = app.match(new RegExp(`<Route\\s+path="${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]+`))?.[0] || "";
@@ -38,9 +38,10 @@ for (const route of appRoutes) {
   const usesLeaderGuard = routeSource.includes("protectedRoute") || routeSource.includes("protectedSettingsRoute") || routeSource.includes("protectedSuperAdminRoute");
   if (["leader", "admin", "super-admin", "group-audit-role"].includes(gate) && !usesLeaderGuard) fail(`${route} must use a leader authentication guard.`);
 }
-for (const route of ["/leader/requests", "/leader/access", "/leader/parent-access", "/leader/settings"]) {
+for (const route of ["/leader/requests", "/leader/access", "/leader/parent-access"]) {
   if (matrix.routes[route] !== "admin") fail(`${route} must remain admin-gated in the RBAC matrix.`);
 }
+if (matrix.routes["/leader/settings"] !== "leader-settings-view-policy") fail("Settings must use the approved independent management view policy.");
 if (!app.includes('path="/leader/settings" element={protectedSettingsRoute(')) fail("Site Settings must retain its dedicated admin route guard.");
 else pass("Site Settings retains its dedicated admin route guard.");
 if (matrix.routes["/leader/system"] !== "super-admin") fail("/leader/system must remain Super Admin-gated in the RBAC matrix.");

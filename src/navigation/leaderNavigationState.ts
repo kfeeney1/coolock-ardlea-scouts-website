@@ -10,6 +10,18 @@ export function resolveLeaderNavigation(locationPath: string, groups: LeaderNavG
     ...standalone.map((item) => ({ item, groupId: null as string | null })),
     ...groups.flatMap((group) => group.items.map((item) => ({ item, groupId: group.id })))
   ];
+  // Saved finance links retain their page identity, but highlight the user's
+  // single authorised Settings destination. Empty legacy QM pages select none.
+  if (current.pathname === "/leader/settings" && [null, "treasurer"].includes(current.searchParams.get("view"))) {
+    const settings = candidates.find(candidate => ["settings", "treasurer-settings"].includes(candidate.item.id));
+    const exactView = candidates.some(candidate => ["settings", "treasurer-settings"].includes(candidate.item.id)
+      && new URL(candidate.item.path, base).searchParams.get("view") === current.searchParams.get("view"));
+    if (settings && !exactView) {
+      const view = new URL(settings.item.path, base).searchParams.get("view");
+      if (view) current.searchParams.set("view", view);
+      else current.searchParams.delete("view");
+    }
+  }
   const matches = candidates.flatMap((candidate) => {
     const target = new URL(candidate.item.path, base);
     if (current.pathname !== target.pathname && (candidate.item.exactPath || target.pathname === "/leader" || !current.pathname.startsWith(`${target.pathname}/`))) return [];

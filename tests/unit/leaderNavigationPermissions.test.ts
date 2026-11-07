@@ -24,7 +24,8 @@ test("system navigation follows canonical effective permission grants", () => {
   assert.ok(!visible("admin", "").includes("system-information"));
   assert.ok(!visible("leader", "Section Leader").includes("leader-access"));
   assert.ok(visible("leader", "Deputy Group Leader").includes("leader-access"));
-  assert.ok(visible("leader", "Group Treasurer").includes("settings"));
+  assert.ok(visible("leader", "Group Treasurer").includes("treasurer-settings"));
+  assert.ok(!visible("leader", "Group Treasurer").includes("settings"));
   assert.ok(!visible("leader", "Group Quartermaster / Bo'sun").includes("settings"));
 });
 

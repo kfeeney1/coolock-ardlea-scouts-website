@@ -1,4 +1,5 @@
 import { effectivePermissionsFor } from "../security/permissionRegistry.ts";
+import { settingsMenuDestination } from "../security/settingsNavigationPolicy.ts";
 import { activeScoutingAppointments, normalizeScoutingAppointment, normalizeScoutingAppointmentAssignments } from "../security/scoutingAppointments.ts";
 import type { LeaderNavItem } from "./leaderNavigation.ts";
 
@@ -15,7 +16,8 @@ export function leaderNavigationFilter(profile: Profile | null) {
   const appointments = new Set(assignments.map((item) => item.appointment));
   const admin = has("navigation.appointment-views.all");
   return (item: LeaderNavItem) => {
-    if (!profile || !has("leader.portal.access")) return false;
+    if (!profile || !has("leader.portal.access") || item.legacyOnly) return false;
+    if (["settings", "treasurer-settings"].includes(item.id) && settingsMenuDestination(profile) !== item.id) return false;
     const required = Object.hasOwn(NAVIGATION_PERMISSIONS, item.id) ? NAVIGATION_PERMISSIONS[item.id] : [];
     if (required.length === 0 || !has(...required)) return false;
     if (item.appointments && !admin && !item.appointments.some((appointment) => { const canonical = normalizeScoutingAppointment(appointment); return canonical !== "" && appointments.has(canonical); })) return false;
@@ -23,7 +25,7 @@ export function leaderNavigationFilter(profile: Profile | null) {
     if (item.superAdminOnly && !has("system.superadmin.protect")) return false;
     if (item.leaderAccessOnly && !has("roles.manage.operational", "roles.delegate.operational")) return false;
     if (item.activityLogOnly && !has("audit.read")) return false;
-    if (item.settingsOnly && !has("settings.session.manage", "settings.subs.manage")) return false;
+    if (item.settingsOnly && !has("settings.session.view", "settings.subs.view", "settings.maintenance-directory.view")) return false;
     if (item.joinManagementOnly && !has("join.manage")) return false;
     return true;
   };

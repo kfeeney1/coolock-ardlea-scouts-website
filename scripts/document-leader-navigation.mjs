@@ -18,7 +18,7 @@ const lines = [
 ];
 for(const group of sections)for(const item of group.items){
  const newGroup=redesigned.find(g=>g.items.some(x=>x.id===item.id))?.label ?? group.label;
- const constraints=[...(item.appointments??[]),...['adminOnly','superAdminOnly','leaderAccessOnly','activityLogOnly','settingsOnly','joinManagementOnly'].filter(k=>item[k])];
+ const constraints=[...(item.appointments??[]),...['adminOnly','superAdminOnly','leaderAccessOnly','activityLogOnly','settingsOnly','joinManagementOnly','legacyOnly'].filter(k=>item[k])];
  const identity='testId' in item.identity?item.identity.testId:`heading: ${item.identity.heading}${item.identity.level?` (h${item.identity.level})`:''}`;
  lines.push('| '+[`${group.label} / ${newGroup}`,item.id,item.pageId,item.path,item.permissions.join(', '),constraints.join(', ')||'None',identity,item.parentPath,item.inAppBack?`${item.inAppBack.label} → ${item.inAppBack.path}`:'None; Dashboard navigation remains available'].map(cell).join(' | ')+' |');
 }
@@ -27,6 +27,7 @@ lines.push('', '## History, deep links and explicit controls', '',
  '`inAppBack` describes the landing-route control; inline member/detail views, form steps and modal Back controls retain their own workflow state. `parentPath` is the logical parent, not a new automatic redirect. Pages without an explicit Back control keep that behavior. QM Reports, Detailed Inventory and QM Issues retain their existing fixed in-app returns to the Quartermaster Equipment & Stores context. Parent Portal is a separate account boundary, not a Leader subpage.', '',
  'Active state is resolved once from the permission-filtered menu using stable destination and category IDs. Query order and additional filters do not change the active destination; the view parameter still distinguishes role workspaces. Specific fragment destinations take precedence, saved redirects resolve to canonical items, and unavailable items cannot supply an active parent. Both navigation versions use the same resolver.', '',
  'Menu and category control targets remain mounted while closed but hidden and inert. Unauthorized destinations remain omitted. A menu destination requests focus on the destination header’s menu trigger; Escape restores that trigger. See leader-navigation-accessibility.md for automated checks and separate manual acceptance.', '',
+ 'SW-275: legacyOnly destinations retain saved-link metadata but are omitted from both menus. Settings appears once per user: Treasurer-only access uses the Treasurer destination, administrators use general Settings, and authorised finance saved links highlight that single destination. Legacy empty QM Settings pages select no menu item.', '',
  'Family Billing keeps its supported Subs fragment URL and renders `page-subs`; no distinct family-billing page marker or automatic fragment scrolling is claimed.', '',
  'The existing record Back bridge consumes the following safe-parent map. With a previous route observed by the current app instance and valid in-app history, ordinary same-origin parent Back/Return links pop the observed history; modified clicks and page-owned buttons retain their existing handlers. Direct entry/reload retains the explicit parent link. Record edit/save confirmation guards remain authoritative; this map does not bypass them.', '',
  '| Record prefix | Safe explicit parent |', '| --- | --- |',
