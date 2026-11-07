@@ -6,14 +6,14 @@ let env;
 before(async () => {
   env = await initializeTestEnvironment({ projectId: "demo-coolock-ardlea-scouts", firestore: { host: "127.0.0.1", port: 8080, rules: await readFile("firestore.rules", "utf8") } });
   await env.withSecurityRulesDisabled(async ctx => {
-    for (const [uid, role] of [["maintenance-super", "super-admin"], ["maintenance-leader", "leader"]]) await setDoc(doc(ctx.firestore(), "adminUsers", uid), { active: true, role, sections: ["Group"] });
+    for (const [uid, role] of [["maintenance-super", "super-admin"], ["maintenance-admin", "admin"], ["maintenance-leader", "leader"]]) await setDoc(doc(ctx.firestore(), "adminUsers", uid), { active: true, role, sections: ["Group"] });
     await setDoc(doc(ctx.firestore(), "parentAccounts/maintenance-parent"), { status: "approved", memberIds: [], linkedSections: [] });
   });
 });
 after(async () => env?.cleanup());
 test("only active Superusers can save Maintenance rollout; signed-in members can read its independent setting", async () => {
   const target = db => doc(db, "siteSettings/maintenanceExperience");
-  for (const uid of ["maintenance-parent", "maintenance-leader", "maintenance-outsider"]) {
+  for (const uid of ["maintenance-admin", "maintenance-parent", "maintenance-leader", "maintenance-outsider"]) {
     const db = env.authenticatedContext(uid).firestore();
     await assertFails(setDoc(target(db), { version: "redesigned", sdkRevision: 1, updatedBy: uid, updatedAt: serverTimestamp() }));
   }

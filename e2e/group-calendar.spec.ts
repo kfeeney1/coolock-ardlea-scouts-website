@@ -18,9 +18,15 @@ for (const version of ["existing", "redesigned"]) test(`Calendar default-off rol
     await page.goto("/calendar");
     await expect(page.getByText("Calendar is currently disabled.", {exact: true})).toBeVisible();
     await page.goto("/leader/settings");
-    await expect(page.getByRole("button", {name: "Calendar disabled", exact: true})).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", {name: "Calendar enabled", exact: true}).click();
-    await expect(page.getByRole("button", {name: "Calendar enabled", exact: true})).toHaveAttribute("aria-pressed", "true");
+    const calendarSwitch = page.getByRole("switch", { name: "Group Calendar", exact: true });
+    await expect(calendarSwitch).toBeEnabled();
+    await expect(calendarSwitch).not.toBeChecked();
+    await calendarSwitch.focus();
+    await page.keyboard.press("Space");
+    await expect(calendarSwitch).toBeChecked();
+    await expect(page.getByRole("status").filter({ hasText: "Calendar setting saved." })).toBeVisible();
+    await page.reload();
+    await expect(calendarSwitch).toBeChecked();
     await page.goto("/leader");
     const dashboardCalendar = page.getByTestId("dashboard-calendar");
     await expect(dashboardCalendar).toBeVisible();

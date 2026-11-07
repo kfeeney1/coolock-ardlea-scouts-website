@@ -23,7 +23,6 @@ export default function ScheduleExperienceSettings() {
   };
   return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Weekly Meetings and Events experience</Typography>
-    <Typography sx={{ my: 2 }}>Choose one experience for both Weekly Meetings and Events. Existing is the default. Changes apply live across sessions; no refresh is required. This is independent of leader navigation.</Typography>
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Schedule experience saved. This setting does not change meeting or event records.</Alert>}
     {!version && !error && <Typography>Loading schedules setting…</Typography>}

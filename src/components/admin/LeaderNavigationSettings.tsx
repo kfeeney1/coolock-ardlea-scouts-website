@@ -23,7 +23,6 @@ export default function LeaderNavigationSettings() {
   };
   return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Leader navigation version</Typography>
-    <Typography sx={{ my: 2 }}>Choose the navigation used by everyone in this group. Existing navigation is the default.</Typography>
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Navigation saved. The selected version applies across sessions.</Alert>}
     {!version && !error && <Typography>Loading navigation setting…</Typography>}

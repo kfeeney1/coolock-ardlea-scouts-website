@@ -9,8 +9,9 @@ test("Superuser toggles leader training with keyboard and persists independently
   const toggle = page.getByRole("switch", { name: "Leader training & vetting", exact: true });
   await expect(toggle).toBeEnabled();
   const original = await toggle.isChecked();
-  const calendar = page.getByRole("button", { name: "Calendar enabled", exact: true });
-  const calendarState = await calendar.getAttribute("aria-pressed");
+  const calendar = page.getByRole("switch", { name: "Group Calendar", exact: true });
+  await expect(calendar).toBeEnabled();
+  const calendarState = await calendar.isChecked();
   try {
     await toggle.focus();
     await page.keyboard.press("Space");
@@ -18,7 +19,7 @@ test("Superuser toggles leader training with keyboard and persists independently
     await expect(page.getByRole("status").filter({ hasText: "Leader training setting saved." })).toBeVisible();
     await page.reload();
     await expect(toggle).toBeChecked({ checked: !original });
-    await expect(calendar).toHaveAttribute("aria-pressed", calendarState!);
+    await expect(calendar).toBeChecked({ checked: calendarState });
   } finally {
     await expect(toggle).toBeEnabled();
     if (await toggle.isChecked() !== original) {

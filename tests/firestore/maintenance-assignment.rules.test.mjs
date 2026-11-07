@@ -18,6 +18,7 @@ test("canonical directory, defaulting, explicit assignment, completion, revocati
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore();
     await setDoc(doc(db, "siteSettings/maintenanceExperience"), {version: "redesigned", sdkRevision: 1});
+    await setDoc(doc(db, "adminUsers/admin"), {...profile, role: "admin"});
     await setDoc(doc(db, "adminUsers/super"), {...profile, role: "super-admin"});
     await setDoc(doc(db, "adminUsers/gl"), profile);
     await setDoc(doc(db, "organisationLeadership/gl"), {...org, appointments: [...Array.from({length: 11}, () => ({appointment: "Scouter", scope: "Scouts", active: false})), {appointment: "Group Leader", scope: "Group", active: true}]});
@@ -33,7 +34,13 @@ test("canonical directory, defaulting, explicit assignment, completion, revocati
   const adult = env.authenticatedContext("adult").firestore();
   const tasks = maintenanceTaskStore(parent, () => "parent");
   await assert.rejects(tasks({action: "create", id, description: "Repair door", documentIds: []}), /directory needs refreshing/);
-  await rebuildMaintenanceDirectory(admin, "super");
+  const siteAdmin = env.authenticatedContext("admin").firestore();
+  assert.equal(await rebuildMaintenanceDirectory(siteAdmin, "admin"), 2);
+  const leader = env.authenticatedContext("sl").firestore();
+  const readyDirectory = (await getDoc(doc(siteAdmin, "maintenance/group/config/leaders"))).data();
+  await assertFails(setDoc(doc(leader, "maintenance/group/config/leaders"), {
+    ...readyDirectory, updatedBy: "sl", updatedAt: serverTimestamp(),
+  }));
   // Even an authorised publisher cannot manufacture an eligible account projection.
   const suspended = writeBatch(admin); invalidateMaintenanceDirectory(suspended, admin, "super"); await suspended.commit();
   const generation = (await getDoc(doc(admin, "maintenance/group/config/leaders"))).data().generation;

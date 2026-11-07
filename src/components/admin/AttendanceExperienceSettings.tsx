@@ -23,7 +23,6 @@ export default function AttendanceExperienceSettings() {
   };
   return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Attendance Insights experience</Typography>
-    <Typography sx={{ my: 2 }}>Choose the existing Attendance Insights or add the read-only attendance matrix alongside summaries. Existing is the default. Changes apply live across sessions and are independent of navigation and schedules.</Typography>
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Attendance experience saved. This setting does not change attendance records.</Alert>}
     {!version && !error && <Typography>Loading attendance setting…</Typography>}
