@@ -1,3 +1,4 @@
+import MaintenanceDirectorySettings from "../components/admin/MaintenanceDirectorySettings";
 import BadgeworkExperienceSettings from "../components/admin/BadgeworkExperienceSettings";
 import HallHireSettings from "../components/admin/HallHireSettings";
 import MeetingExperienceSettings from "../components/admin/MeetingExperienceSettings";
@@ -50,27 +51,27 @@ export default function SiteSettings() {
     const pageIdentity = navigationView === "quartermaster" ? "qm-settings" : navigationView === "treasurer" ? "treasurer-settings" : "settings";
     const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "treasurer" ? "Treasurer Settings" : "Settings";
     const canManageSiteSettings = settingsAccessFor(adminProfile, "session").edit;
-    const canManageNavigation = settingsAccessFor(adminProfile, "features").edit;
+    const showFeatures = settingsAccessFor(adminProfile, "features").edit && pageIdentity === "settings";
+    const directoryAccess = settingsAccessFor(adminProfile, "maintenance-directory");
     const showSessionSettings = canManageSiteSettings && pageIdentity === "settings";
-    const showParentLoginSettings = settingsAccessFor(adminProfile, "features").edit && pageIdentity === "settings";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
     const [loading, setLoading] = useState(showSessionSettings);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [parentLoginEnabled, setParentLoginEnabled] = useState<boolean | null>(null);
-    const [parentLoginLoading, setParentLoginLoading] = useState(showParentLoginSettings);
+    const [parentLoginLoading, setParentLoginLoading] = useState(showFeatures);
     const [parentLoginSaving, setParentLoginSaving] = useState(false);
     const [parentLoginMessage, setParentLoginMessage] = useState("");
     const [parentLoginError, setParentLoginError] = useState("");
     const parentLoginSaveInFlight = useRef(false);
     const [parentConsentEnabled, setParentConsentEnabled] = useState<boolean | null>(null);
-    const [parentConsentLoading, setParentConsentLoading] = useState(showParentLoginSettings);
+    const [parentConsentLoading, setParentConsentLoading] = useState(showFeatures);
     const [parentConsentSaving, setParentConsentSaving] = useState(false);
     const [parentConsentMessage, setParentConsentMessage] = useState("");
     const [parentConsentError, setParentConsentError] = useState("");
     const parentConsentSaveInFlight = useRef(false);
-    const parentLoginSettingsLoading = showParentLoginSettings
+    const parentLoginSettingsLoading = showFeatures
         && (parentLoginLoading || (parentLoginEnabled === null && !parentLoginError));
 
     useEffect(() => {
@@ -98,7 +99,7 @@ export default function SiteSettings() {
     }, [showSessionSettings]);
 
     useEffect(() => {
-        if (!showParentLoginSettings) {
+        if (!showFeatures) {
             setParentLoginLoading(false);
             return;
         }
@@ -115,10 +116,10 @@ export default function SiteSettings() {
             if (!cancelled) setParentLoginLoading(false);
         });
         return () => { cancelled = true; };
-    }, [showParentLoginSettings]);
+    }, [showFeatures]);
 
     useEffect(() => {
-        if (!showParentLoginSettings) {
+        if (!showFeatures) {
             setParentConsentLoading(false);
             return;
         }
@@ -136,7 +137,7 @@ export default function SiteSettings() {
             if (!cancelled) setParentConsentLoading(false);
         });
         return () => { cancelled = true; };
-    }, [showParentLoginSettings]);
+    }, [showFeatures]);
 
     const changeMinutes = (key: keyof SessionSettings, value: string) => {
         setSettings((current) => current ? { ...current, [key]: minutesValue(value) } : current);
@@ -216,9 +217,9 @@ export default function SiteSettings() {
                             Signed-in users are automatically logged out when they have not interacted with the site for the configured period. Parent-only accounts use one limit on every device; leader accounts can use different desktop and phone limits.
                         </Typography>
 
-                        {loading || !settings ? (
+                        {loading ? (
                             <Typography color="text.secondary">Loading settings…</Typography>
-                        ) : (
+                        ) : settings && (
                             <Stack spacing={2.25}>
                                 <TextField
                                     label="Parent account inactivity timeout"
@@ -254,14 +255,28 @@ export default function SiteSettings() {
                     </Paper>
                 )}
 
-                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><MeetingExperienceSettings /><AttendanceExperienceSettings /><MaintenanceExperienceSettings /><CalendarExperienceSettings /><LeaderTrainingExperienceSettings />{adminProfile?.role === "super-admin" && <><BadgeworkExperienceSettings /><HallHireSettings /></>}</>}
+                {showFeatures && (
+                    <Box component="section" aria-labelledby="feature-settings-heading" sx={{ mt: 3 }}>
+                        <Typography id="feature-settings-heading" component="h2" variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Feature rollout</Typography>
+                        <LeaderNavigationSettings />
+                        <ScheduleExperienceSettings />
+                        <MeetingExperienceSettings />
+                        <AttendanceExperienceSettings />
+                        <MaintenanceExperienceSettings />
+                        <CalendarExperienceSettings />
+                        <LeaderTrainingExperienceSettings />
+                        <BadgeworkExperienceSettings />
+                        <HallHireSettings />
+                    </Box>
+                )}
 
-                {showParentLoginSettings && (
+                {showFeatures && (
+                    <Typography component="h2" variant="h5" color="secondary" sx={{ mt: 3, fontWeight: 800 }}>Public and parent access</Typography>
+                )}
+
+                {showFeatures && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
                         <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Public Parent Login</Typography>
-                        <Typography color="text.secondary" sx={{ mt: 0.75, mb: 2 }}>
-                            Control whether signed-out visitors see Parent Login in the public desktop and mobile navigation. This setting does not change Parent Portal access, parent relationships, invitation or recovery links, or existing authenticated sessions.
-                        </Typography>
                         {parentLoginMessage && <Alert severity="success" role="status" sx={{ mb: 2 }}>{parentLoginMessage}</Alert>}
                         {parentLoginError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{parentLoginError}</Alert>}
                         {parentLoginSettingsLoading ? (
@@ -288,12 +303,9 @@ export default function SiteSettings() {
                     </Paper>
                 )}
 
-                {showParentLoginSettings && (
+                {showFeatures && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
                         <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Parent Portal consent forms</Typography>
-                        <Typography color="text.secondary" sx={{ mt: 0.75, mb: 2 }}>
-                            Control whether parents see the Consent and Medical Consent links and forms in Parent Portal. Disabling these entry points keeps existing forms, records, validation and parent-child permissions intact. Unset settings are disabled.
-                        </Typography>
                         {parentConsentMessage && <Alert severity="success" role="status" sx={{ mb: 2 }}>{parentConsentMessage}</Alert>}
                         {parentConsentError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{parentConsentError}</Alert>}
                         {parentConsentLoading ? (
@@ -316,6 +328,10 @@ export default function SiteSettings() {
                             </Box>
                         )}
                     </Paper>
+                )}
+
+                {pageIdentity === "settings" && directoryAccess.view && (
+                    <MaintenanceDirectorySettings canRefresh={directoryAccess.edit} />
                 )}
 
                 {pageIdentity === "qm-settings" ? (

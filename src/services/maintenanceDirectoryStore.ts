@@ -10,7 +10,7 @@ export function invalidateMaintenanceDirectory(writer: {set: (reference: Documen
   writer.set(doc(db, maintenanceEpochPath), {generation: increment(1), ready: false, updatedAt: serverTimestamp(), updatedBy: uid}, {merge: true});
 }
 export function requireFreshMaintenanceDirectory(directory: MaintenanceDirectory | undefined) {
-  if (!directory?.ready || directory.validUntil.toMillis() <= Date.now()) throw new UserFacingError("The leader directory needs refreshing by a Superuser in Maintenance settings. Your task details are retained.");
+  if (!directory?.ready || directory.validUntil.toMillis() <= Date.now()) throw new UserFacingError("The leader directory needs refreshing by an administrator in Settings. Your task details are retained.");
   return directory;
 }
 export async function loadMaintenanceLeaders(db: Firestore) {

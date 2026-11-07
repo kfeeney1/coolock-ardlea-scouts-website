@@ -33,6 +33,10 @@ test("admin can open and save site inactivity settings", async ({ page }, testIn
   await expect(page.getByRole("switch", { name: "Enable Parent Login" })).toHaveCount(0);
   await expect(page.getByRole("switch", { name: "Hall Hire", exact: true })).toHaveCount(0);
 
+  await expect(page.getByRole("region", { name: "Feature rollout" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Maintenance directory" })
+    .getByRole("button", { name: "Refresh responsible leaders" })).toBeEnabled();
+
   await page.getByRole("button", { name: "Save Settings" }).click();
   await expect(page.getByText(/Site settings saved/)).toBeVisible();
 });
