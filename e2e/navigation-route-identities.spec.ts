@@ -49,7 +49,9 @@ test.describe("SW-178 canonical role navigation — direct route identities", ()
       for (const siblingId of siblingIds) {
         if (siblingId === selectedId) continue;
         navigation = await exposeGroup(page, testInfo, groupByItem[siblingId]);
-        await expect(navigation.getByTestId("leader-nav-" + siblingId)).not.toHaveAttribute("aria-current", "page");
+        const sibling = navigation.getByTestId("leader-nav-" + siblingId);
+        if (["treasurer-settings", "qm-settings"].includes(siblingId)) await expect(sibling).toHaveCount(0);
+        else await expect(sibling).not.toHaveAttribute("aria-current", "page");
       }
     }
   });

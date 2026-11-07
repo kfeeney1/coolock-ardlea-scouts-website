@@ -209,8 +209,10 @@ test.describe("SW-178 canonical role navigation", () => {
 
     navigation = await exposeGroup(page, testInfo, "Administration");
     await expect(navigation.getByTestId("leader-nav-settings")).toHaveAttribute("aria-current", "page");
-    await assertSiblingNotCurrent(page, testInfo, "Treasurer", "treasurer-settings");
-    await assertSiblingNotCurrent(page, testInfo, "Quartermaster / Bo’sun", "qm-settings");
+    navigation = await exposeGroup(page, testInfo, "Treasurer");
+    await expect(navigation.getByTestId("leader-nav-treasurer-settings")).toHaveCount(0);
+    navigation = await exposeQuartermaster(page, testInfo);
+    await expect(navigation.getByTestId("leader-nav-qm-settings")).toHaveCount(0);
   });
 
 
