@@ -22,7 +22,7 @@ for (const redesigned of [false, true]) {
     const root = page.getByTestId(redesigned ? "leader-navigation-redesigned" : mobile ? "leader-navigation-mobile" : "leader-navigation-desktop");
     const cases = [
       { path: "/leader/reports?section=Cubs&view=treasurer", id: "treasurer-reports", category: "treasurer", label: "Treasurer", testId: "page-treasurer-reports" },
-      { path: "/leader/settings?section=Cubs&view=quartermaster", id: "qm-settings", category: "quartermaster", label: "Quartermaster / Bo’sun", testId: "page-qm-settings" },
+      { path: "/leader/settings?section=Cubs&view=treasurer", id: "settings", category: "administration", label: "Administration", testId: "page-treasurer-settings" },
       { path: "/leader/subs?section=Cubs#family-billing", id: "family-billing", category: "people-parents", label: "People & Parents", testId: "page-subs" },
       { path: "/leader/member-history", id: "member-management", category: "people-parents", label: "People & Parents", testId: "page-member-management" }
     ];

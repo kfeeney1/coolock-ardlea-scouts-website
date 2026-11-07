@@ -80,7 +80,11 @@ for (const redesigned of [false, true]) {
         if (reload) await page.reload();
         await expect(page).toHaveURL(new URL(allowed, baseURL).href);
         await expect(page.getByTestId("page-qm-settings")).toBeVisible();
-        await activeDestination(page, redesigned, testInfo.project.name === "mobile-chromium", "qm-settings", "quartermaster", "Quartermaster / Bo’sun");
+        const menu = page.locator('button[aria-controls="leader-navigation"]');
+        await menu.click();
+        await expect(page.getByTestId("leader-nav-qm-settings")).toHaveCount(0);
+        await expect(page.getByRole("navigation", { name: "Leader navigation", exact: true }).locator('[aria-current="page"]')).toHaveCount(0);
+        await page.keyboard.press("Escape");
         await expect(page.getByTestId("page-treasurer-settings")).toHaveCount(0);
         await expect(page.getByRole("button", { name: "Redesigned navigation", exact: true, includeHidden: true })).toHaveCount(0);
       }

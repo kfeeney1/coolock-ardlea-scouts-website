@@ -73,7 +73,7 @@
     "/leader/event-consent": "leader",
     "/leader/policies": "leader",
     "/leader/parent-access": "admin",
-    "/leader/settings": "admin",
+    "/leader/settings": "leader-settings-view-policy",
     "/leader/access/:leaderUid": "admin",
     "/leader/equipment/:equipmentId": "leader",
     "/leader/equipment/:equipmentId/move-store": "leader",
@@ -92,7 +92,7 @@
     "/maintenance/*": "approved-group-member-maintenance-enabled"
   },
   "routeVariants": {
-    "/leader/settings?view=quartermaster": "leader-qm-appointment"
+    "/leader/settings?view=quartermaster": "leader-equipment-settings-view-legacy"
   },
   "firestore": {
     "adminUsers": "system-role",

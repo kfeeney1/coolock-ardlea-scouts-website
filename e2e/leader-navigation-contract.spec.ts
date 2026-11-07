@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { accountNavItems, dashboardNavItem, leaderNavGroups, redesignedNavigationGroups, leaderLegacyRedirects, leaderContextlessRoutes, type LeaderNavItem } from '../src/navigation/leaderNavigation';
+import { leaderNavigationFilter } from '../src/navigation/leaderNavigationPermissions';
 import { loginAsLeader } from './support/authentication-helpers';
 
 const password=process.env.E2E_TEST_USER_PASSWORD;
@@ -35,7 +36,8 @@ async function target(page: Page,group: {id:string;label:string}|null,item: Lead
 }
 
 for(const redesigned of [false,true]){
-  const groups=redesigned?redesignedNavigationGroups(leaderNavGroups):leaderNavGroups;
+  const allowed=leaderNavGroups.map(group=>({...group,items:group.items.filter(leaderNavigationFilter({role:"super-admin",scoutingRole:""}))})).filter(group=>group.items.length>0);
+  const groups=redesigned?redesignedNavigationGroups(allowed):allowed;
   const cases=[{label:'Dashboard',group:null,items:[dashboardNavItem]},...groups.map(group=>({label:group.label,group:{id:group.id,label:group.label},items:group.items})),{label:'Account & Help',group:null,items:accountNavItems}];
   for(const entry of cases)test(`${redesigned?'Redesigned':'Existing'} contract: ${entry.label}`,async({page},testInfo)=>{
     test.skip(!password,'Configure canonical E2E credentials.');

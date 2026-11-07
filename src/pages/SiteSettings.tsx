@@ -18,7 +18,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { effectivePermissionsFor } from "../security/permissionRegistry";
+import { settingsAccessFor } from "../security/settingsAccess";
 import CalendarExperienceSettings from "../components/admin/CalendarExperienceSettings";
 import MaintenanceExperienceSettings from "../components/admin/MaintenanceExperienceSettings";
 import AttendanceExperienceSettings from "../components/admin/AttendanceExperienceSettings";
@@ -49,10 +49,10 @@ export default function SiteSettings() {
     const navigationView = searchParams.get("view");
     const pageIdentity = navigationView === "quartermaster" ? "qm-settings" : navigationView === "treasurer" ? "treasurer-settings" : "settings";
     const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "treasurer" ? "Treasurer Settings" : "Settings";
-    const canManageSiteSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-    const canManageNavigation = Boolean(adminProfile && effectivePermissionsFor(adminProfile.role, adminProfile.scoutingRole, adminProfile.appointments).some((permission) => permission.id === "settings.leader-navigation.manage"));
+    const canManageSiteSettings = settingsAccessFor(adminProfile, "session").edit;
+    const canManageNavigation = settingsAccessFor(adminProfile, "features").edit;
     const showSessionSettings = canManageSiteSettings && pageIdentity === "settings";
-    const showParentLoginSettings = adminProfile?.role === "super-admin" && pageIdentity === "settings";
+    const showParentLoginSettings = settingsAccessFor(adminProfile, "features").edit && pageIdentity === "settings";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
     const [loading, setLoading] = useState(showSessionSettings);
     const [saving, setSaving] = useState(false);

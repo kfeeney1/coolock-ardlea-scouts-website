@@ -36,9 +36,18 @@ test.describe("SW-178 canonical role navigation — direct route identities", ()
         "treasurer-floats": "Treasurer", "group-section-floats": "Group Operations",
         "treasurer-subs": "Treasurer", "group-subs": "Group Operations", "family-billing": "People & Parents",
       };
-      let navigation = await exposeGroup(page, testInfo, groupByItem[currentId]);
-      await expect(navigation.getByTestId("leader-nav-" + currentId)).toHaveAttribute("aria-current", "page");
+      const selectedId = currentId === "treasurer-settings" ? "settings" : currentId;
+      if (currentId === "qm-settings") {
+        await openMenu(page, testInfo);
+        const legacyMenu = projectNavigation(page, testInfo);
+        await expect(legacyMenu.getByTestId("leader-nav-qm-settings")).toHaveCount(0);
+        await expect(legacyMenu.locator('[aria-current="page"]')).toHaveCount(0);
+        continue;
+      }
+      let navigation = await exposeGroup(page, testInfo, groupByItem[selectedId]);
+      await expect(navigation.getByTestId("leader-nav-" + selectedId)).toHaveAttribute("aria-current", "page");
       for (const siblingId of siblingIds) {
+        if (siblingId === selectedId) continue;
         navigation = await exposeGroup(page, testInfo, groupByItem[siblingId]);
         await expect(navigation.getByTestId("leader-nav-" + siblingId)).not.toHaveAttribute("aria-current", "page");
       }

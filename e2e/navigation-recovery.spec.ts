@@ -43,8 +43,7 @@ test.describe("SW-178 canonical role navigation", () => {
     const destinations = [
       ["/leader/equipment?view=quartermaster", "qm-equipment-stores", "qm-equipment-stores"],
       ["/leader/equipment/issues?view=quartermaster", "qm-equipment-issues", "qm-equipment-issues"],
-      ["/leader/qm-reports", "qm-reports", "qm-reports"],
-      ["/leader/settings?view=quartermaster", "qm-settings", "qm-settings"]
+      ["/leader/qm-reports", "qm-reports", "qm-reports"]
     ] as const;
 
     for (const [route, pageIdentity, currentItemId] of destinations) {
@@ -99,8 +98,8 @@ test.describe("SW-178 canonical role navigation", () => {
 
     let navigation = await exposeQuartermaster(page, testInfo);
     const qmSettings = navigation.getByTestId("leader-nav-qm-settings");
-    await expect(qmSettings).toBeVisible();
-    await qmSettings.click();
+    await expect(qmSettings).toHaveCount(0);
+    await page.goto("/leader/settings?view=quartermaster");
     await expect(page).toHaveURL(/\/leader\/settings\?view=quartermaster$/);
     await expect(page.getByTestId("page-qm-settings")).toBeVisible();
     await expect(page.getByTestId("page-treasurer-settings")).toHaveCount(0);
@@ -111,7 +110,8 @@ test.describe("SW-178 canonical role navigation", () => {
     if ((await navigation.getByRole("button", { name: "Treasurer" }).count()) > 0) {
       await navigation.getByRole("button", { name: "Treasurer" }).click();
     }
-    await navigation.getByTestId("leader-nav-treasurer-settings").click();
+    await expect(navigation.getByTestId("leader-nav-treasurer-settings")).toHaveCount(0);
+    await page.goto("/leader/settings?view=treasurer");
     await expect(page).toHaveURL(/\/leader\/settings\?view=treasurer$/);
     await expect(page.getByTestId("page-treasurer-settings")).toBeVisible();
     await expect(page.getByTestId("page-qm-settings")).toHaveCount(0);

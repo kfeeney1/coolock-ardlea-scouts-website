@@ -14,6 +14,7 @@ export type LeaderNavItem = {
   leaderAccessOnly?: boolean;
   activityLogOnly?: boolean;
   settingsOnly?: boolean;
+  legacyOnly?: boolean;
   joinManagementOnly?: boolean;
   appointments?: string[];
 };
@@ -55,7 +56,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
     destination({ id: "treasurer-subs", label: "Subs", path: "/leader/subs?view=treasurer", pageId: "treasurer-subs", appointments: ["Group Treasurer"], permissions: ["finance.manage.group"], identity: {testId: "page-treasurer-subs"} }),
     destination({ id: "treasurer-floats", label: "Floats", path: "/leader/finance?view=treasurer", pageId: "treasurer-floats", appointments: ["Group Treasurer"], permissions: ["finance.manage.group"], identity: {testId: "page-treasurer-floats"} }),
     destination({ id: "treasurer-reports", label: "Reports", path: "/leader/reports?view=treasurer", pageId: "treasurer-reports", appointments: ["Group Treasurer"], permissions: ["reports.section"], identity: {testId: "page-treasurer-reports"} }),
-    destination({ id: "treasurer-settings", label: "Settings", path: "/leader/settings?view=treasurer", pageId: "treasurer-settings", appointments: ["Group Treasurer"], permissions: ["settings.subs.manage"], identity: {testId: "page-treasurer-settings"} })
+    destination({ id: "treasurer-settings", label: "Settings", path: "/leader/settings?view=treasurer", pageId: "treasurer-settings", appointments: ["Group Treasurer"], permissions: ["settings.subs.view"], identity: {testId: "page-treasurer-settings"} })
   ]},
   { id: "secretary", label: "Secretary", items: [
     destination({ id: "secretary-meeting-records", label: "Meeting Records", path: "/leader/meetings?view=secretary", pageId: "secretary-meeting-records", appointments: ["Group Secretary", "Group Chairperson"], permissions: ["meetings.manage.section", "meeting-records.read.group"], identity: {testId: "page-secretary-meeting-records"} })
@@ -65,7 +66,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
     destination({ id: "qm-detailed-inventory", label: "Detailed Inventory", path: "/leader/equipment/inventory?view=quartermaster", pageId: "qm-detailed-inventory", exactPath: true, appointments: quartermasterAppointments, permissions: ["equipment.manage"], identity: {testId: "page-qm-detailed-inventory"}, parentPath: "/leader/equipment?view=quartermaster", inAppBack: { label: "Back to Equipment & Stores", path: "/leader/equipment?view=quartermaster" } }),
     destination({ id: "qm-equipment-issues", label: "Broken, lost & missing", path: "/leader/equipment/issues?view=quartermaster", pageId: "qm-equipment-issues", exactPath: true, appointments: quartermasterAppointments, permissions: ["equipment.manage"], identity: {testId: "page-qm-equipment-issues"}, parentPath: "/leader/equipment?view=quartermaster", inAppBack: { label: "Back to Equipment & Stores", path: "/leader/equipment?view=quartermaster" } }),
     destination({ id: "qm-reports", label: "QM Reports", path: "/leader/qm-reports", pageId: "qm-reports", exactPath: true, appointments: quartermasterAppointments, permissions: ["equipment.manage"], identity: {testId: "page-qm-reports"}, parentPath: "/leader/equipment?view=quartermaster", inAppBack: { label: "Back to Equipment & Stores", path: "/leader/equipment?view=quartermaster" } }),
-    destination({ id: "qm-settings", label: "QM Settings", path: "/leader/settings?view=quartermaster", pageId: "qm-settings", exactPath: true, appointments: quartermasterAppointments, permissions: ["equipment.manage"], identity: {testId: "page-qm-settings"} })
+    destination({ id: "qm-settings", label: "QM Settings", path: "/leader/settings?view=quartermaster", pageId: "qm-settings", legacyOnly: true, exactPath: true, appointments: quartermasterAppointments, permissions: ["settings.equipment.view"], identity: {testId: "page-qm-settings"} })
   ]},
   { id: "group-operations", label: "Group Operations", items: [
     destination({ id: "group-equipment-stores", label: "Equipment & Stores", path: "/leader/equipment?view=group-operations", pageId: "group-equipment-stores", permissions: ["equipment.read.group"], identity: {testId: "page-group-equipment-stores"} }),
@@ -83,7 +84,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
     destination({ id: "leader-requests", label: "Leader Requests", path: "/leader/requests", pageId: "leader-requests", adminOnly: true, permissions: ["accounts.approve.leader"], identity: {heading: "Leader Requests", level: 1} }),
     destination({ id: "parent-access", label: "Parent Access", path: "/leader/parent-access", pageId: "parent-access", adminOnly: true, permissions: ["parents.manage"], identity: {heading: "Parent Management", level: 1} }),
     destination({ id: "leader-access", label: "Leader Access", path: "/leader/access", pageId: "leader-access", leaderAccessOnly: true, permissions: ["roles.manage.operational", "roles.delegate.operational"], identity: {heading: "Leader Access & Organisation", level: 1} }),
-    destination({ id: "settings", label: "Settings", path: "/leader/settings", pageId: "settings", settingsOnly: true, permissions: ["settings.session.manage", "settings.subs.manage"], identity: {testId: "page-settings"} }),
+    destination({ id: "settings", label: "Settings", path: "/leader/settings", pageId: "settings", settingsOnly: true, permissions: ["settings.session.view", "settings.subs.view", "settings.maintenance-directory.view"], identity: {testId: "page-settings"} }),
     destination({ id: "system-information", label: "System Information", path: "/leader/system", pageId: "system-information", superAdminOnly: true, permissions: ["system.superadmin.protect"], identity: {heading: "System Information", level: 1} })
   ]}
 ];

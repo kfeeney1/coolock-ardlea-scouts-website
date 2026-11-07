@@ -2,7 +2,7 @@ import { applicationErrorMessage, reportApplicationError } from "../../services/
 import DateRangeFields from "../DateRangeFields";
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
+import { settingsAccessFor } from "../../security/settingsAccess";
 import { loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
 import { AGREED_SUBS_2026_27, parseEuroToCents, resolveCurrentSubsPolicy, type SubsRatePolicy } from "../../services/subsLogic";
 import { persistThenRefresh } from "../../services/persistThenRefresh";
@@ -14,9 +14,7 @@ const euroValue = (cents: number) => (cents / 100).toFixed(2);
 
 export default function SubsSettingsPanel() {
   const { adminProfile } = useAdminAuth();
-  const canManage = adminProfile?.role === "admin"
-    || adminProfile?.role === "super-admin"
-    || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
+  const canManage = settingsAccessFor(adminProfile, "subs").edit;
   const [policies, setPolicies] = useState<SubsRatePolicy[]>([]);
   const [drafting, setDrafting] = useState(false);
   const [loaded, setLoaded] = useState(false);

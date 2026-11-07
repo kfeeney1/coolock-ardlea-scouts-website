@@ -9,7 +9,7 @@ const common = {
   administration: ["roles-permissions"]
 };
 const secretary = ["secretary-meeting-records"];
-const quartermaster = ["qm-equipment-stores", "qm-detailed-inventory", "qm-equipment-issues", "qm-reports", "qm-settings"];
+const quartermaster = ["qm-equipment-stores", "qm-detailed-inventory", "qm-equipment-issues", "qm-reports"];
 export const personaAccountDestinations = ["my-profile", "info-faq", "parent-portal"];
 export type NavigationPersona = { name: string; email: string; groups: Record<string, string[]>; primary: string };
 export const navigationPersonas: NavigationPersona[] = [
@@ -19,7 +19,7 @@ export const navigationPersonas: NavigationPersona[] = [
   { name: "People and Parents", email: "test.group.leader@example.com", groups: { ...common, "people-parents": [...common["people-parents"], "join-management"], "insights-records": [...common["insights-records"], "activity-log"], administration: ["roles-permissions", "leader-access", "settings"] }, primary: "member-management" },
   { name: "Group Operations", email: "test.group.chairperson@example.com", groups: { ...common, secretary }, primary: "group-meeting-records" },
   { name: "Secretary and Bosun with inactive Treasurer", email: "test.navigation.multi.appointment@example.com", groups: { ...common, secretary, quartermaster, "insights-records": [...common["insights-records"], "activity-log"] }, primary: "qm-reports" },
-  { name: "Superuser", email: "superadmin@example.com", groups: { ...common, "people-parents": [...common["people-parents"], "join-management"], secretary, quartermaster, treasurer: ["treasurer-subs", "treasurer-floats", "treasurer-reports", "treasurer-settings"], "insights-records": [...common["insights-records"], "activity-log"], administration: ["roles-permissions", "leader-requests", "parent-access", "leader-access", "settings", "system-information"] }, primary: "system-information" }
+  { name: "Superuser", email: "superadmin@example.com", groups: { ...common, "people-parents": [...common["people-parents"], "join-management"], secretary, quartermaster, treasurer: ["treasurer-subs", "treasurer-floats", "treasurer-reports"], "insights-records": [...common["insights-records"], "activity-log"], administration: ["roles-permissions", "leader-requests", "parent-access", "leader-access", "settings", "system-information"] }, primary: "system-information" }
 ];
 
 export const categoryRouteSamples: Record<string, string> = {
