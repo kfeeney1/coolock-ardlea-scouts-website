@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, collection, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -367,6 +367,18 @@ test("Badgework experience version is private to signed-in readers and writable 
   await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: new Date(0) }));
   await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: serverTimestamp(), extra: "private" }));
   await assertFails(getDocs(collection(db, "siteSettings")));
+});
+test("a Badgework rollout transaction started by a Super Admin cannot commit after demotion", async () => {
+  const account = { active: true, role: "super-admin", sections: ["Group"] };
+  await seed([["adminUsers/revoked-super", account]]);
+  const db = testEnv.authenticatedContext("revoked-super").firestore();
+  const ref = doc(db, "siteSettings/badgeworkExperience");
+  await assertFails(runTransaction(db, async transaction => {
+    assert.equal((await transaction.get(ref)).exists(), false);
+    await seed([["adminUsers/revoked-super", { ...account, role: "admin" }]]);
+    transaction.set(ref, { version: "redesigned", updatedBy: "revoked-super", updatedAt: serverTimestamp() });
+  }, { maxAttempts: 1 }));
+  assert.equal((await getDoc(ref)).exists(), false);
 });
 test("Attendance experience version is private to signed-in readers and writable only by active Super Admin", async () => {
   await seed([

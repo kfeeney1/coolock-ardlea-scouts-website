@@ -50,7 +50,7 @@ for (const email of ["test.webadmin@example.com", "test.scout.programme.scouter@
 });
 
 
-test("Backend revalidates a revoked Superuser; failed save stays off and can be retried", async ({ page }) => {
+test("Badgework switch disappears on Superuser demotion and returns when restored", async ({ page }) => {
   const db = scheduleFixtureDb();
   const profile = db.doc("adminUsers/TEST_uid_super_admin_01");
   await loginAsLeader(page, { email: "superadmin@example.com", password: password! });
@@ -59,12 +59,13 @@ test("Backend revalidates a revoked Superuser; failed save stays off and can be 
   await expect(toggle).toBeEnabled(); await expect(toggle).not.toBeChecked();
   try {
     await profile.update({ role: "admin" });
-    await toggle.click();
-    await expect(page.getByRole("alert").filter({ hasText: "Unable to save badgework settings." })).toBeVisible();
-    await expect(toggle).toBeEnabled(); await expect(toggle).not.toBeChecked();
+    await expect(toggle).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "Badgework setting saved." })).toHaveCount(0);
     expect((await db.doc("siteSettings/badgeworkExperience").get()).exists).toBe(false);
   } finally { await profile.update({ role: "super-admin" }); }
+  await expect(toggle).toBeEnabled();
+  await expect(toggle).not.toBeChecked();
   await toggle.click();
   await expect(page.getByRole("status").filter({ hasText: "Badgework setting saved." })).toBeVisible();
   await expect(toggle).toBeChecked();

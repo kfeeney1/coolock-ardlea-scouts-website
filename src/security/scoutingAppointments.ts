@@ -112,6 +112,19 @@ export function normalizeScoutingAppointmentAssignments(
   return normalized;
 }
 
+/** Next UTC day boundary that can change a current appointment grant. */
+export function nextAppointmentBoundary(assignments: readonly ScoutingAppointmentAssignment[], now: number): number | undefined {
+  let next = Infinity;
+  for (const assignment of assignments) {
+    if (!assignment.active) continue;
+    const starts = Date.parse(assignment.startDate ?? "");
+    const expires = Date.parse(assignment.endDate ?? "") + 86_400_000;
+    if (starts > now) next = Math.min(next, starts);
+    if (expires > now) next = Math.min(next, expires);
+  }
+  return Number.isFinite(next) ? next : undefined;
+}
+
 export function activeScoutingAppointments(assignments: readonly ScoutingAppointmentAssignment[]): ScoutingAppointmentAssignment[] {
   const today = new Date().toISOString().slice(0, 10);
   return assignments.filter((item) => item.active && (!item.startDate || item.startDate <= today) && (!item.endDate || item.endDate >= today));

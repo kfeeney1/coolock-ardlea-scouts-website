@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { getApps } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { exposeQuartermaster } from "./support/navigation-recovery-helpers";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
@@ -322,4 +325,45 @@ test("family account creation lives under People & Parents and is hidden from se
     await expect(ordinary.getByRole("tab", { name: "Family Billing Accounts" })).toHaveCount(0);
     await expect(ordinary.getByTestId("subs-family-account-panel")).toHaveCount(0);
   } finally { await context.close(); }
+});
+
+test("open Settings retains overlapping finance grants and revokes stale leader access", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  const db = scheduleFixtureDb();
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Settings fixtures require the local Auth emulator.");
+  const auth = getAuth(getApps().find(app => app.name === "schedule-fixtures")!);
+  const email = `sw587-${randomUUID()}@example.com`;
+  const { uid } = await auth.createUser({ email, password: password! });
+  const account = db.doc(`adminUsers/${uid}`);
+  const organisation = db.doc(`organisationLeadership/${uid}`);
+  const parent = db.doc(`parentAccounts/${uid}`);
+  const groupLeader = { appointment: "Group Leader", scope: "Group", active: true };
+  const treasurer = { appointment: "Group Treasurer", scope: "Group", active: true };
+  try {
+    await account.set({ active: true, role: "leader", displayName: "Settings Fixture", email, sections: ["Scouts"] });
+    await organisation.set({ active: true, displayName: "Settings Fixture", scoutingRole: "Group Leader", organisationSection: "Scouts", appointments: [groupLeader, treasurer] });
+    await parent.set({ uid, email, displayName: "Settings Fixture", mobileNumber: "0871234567", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
+    await login(page, email);
+    await page.goto("/leader/settings?view=treasurer");
+    const panel = page.getByTestId("subs-settings-panel");
+    await expect(panel).toBeVisible();
+    await organisation.update({ appointments: [treasurer] });
+    await expect(panel).toBeVisible();
+    await organisation.update({ appointments: [{ ...treasurer, endDate: "2000-01-01" }] });
+    await expect(page).toHaveURL(/\/leader$/);
+    await expect(panel).toHaveCount(0);
+    await organisation.update({ appointments: [treasurer] });
+    await page.goto("/leader/settings?view=treasurer");
+    await expect(panel).toBeVisible();
+    await account.update({ active: false });
+    await expect(panel).toHaveCount(0);
+    await page.goto("/parent");
+    await expect(page.getByText("Your account is approved and linked to 1 member record.")).toBeVisible();
+  } finally {
+    const cleanup = db.batch();
+    [account, organisation, parent].forEach(record => cleanup.delete(record));
+    await cleanup.commit();
+    await auth.deleteUser(uid);
+  }
 });
