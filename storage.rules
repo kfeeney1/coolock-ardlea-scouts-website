@@ -51,6 +51,7 @@ service firebase.storage {
           && parentProfile().get("linkedSections", []) is list
         : false);
     }
+    function isAdmin() { return isActiveLeader() ? profile().get("role", "") in ["admin", "super-admin"] : false; }
     function leadershipPath() { return /databases/(default)/documents/organisationLeadership/$(request.auth.uid); }
     function groupAppointmentDateAllows(value, endDate) {
       return value == "" || (value is string
@@ -153,10 +154,10 @@ service firebase.storage {
         && request.resource.metadata.section == section
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
-    function canManagePolicies() {
-      return isActiveLeader() && (profile().get("role", "") in ["admin", "super-admin"]
-        || currentGroupAppointment(groupLeadershipRoles()));
+    function hasGroupLeadershipRole() {
+      return isActiveLeader() && currentGroupAppointment(groupLeadershipRoles());
     }
+    function canManagePolicies() { return isAdmin() || hasGroupLeadershipRole(); }
     function canReadPolicyAudience(audience) {
       return audience == "public"
         || (audience == "authenticated" && (isActiveLeader() || isApprovedParent()))
