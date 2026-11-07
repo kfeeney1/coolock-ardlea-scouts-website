@@ -4,6 +4,8 @@ import { effectivePermissionsFor } from "../../src/security/permissionRegistry.t
 import {
   hasGroupQuartermasterAppointment,
   isGroupLeadershipAppointment,
+  nextAppointmentBoundary,
+  normalizeScoutingAppointmentAssignments,
   normalizeScoutingAppointment
 } from "../../src/security/scoutingAppointments.ts";
 
@@ -34,4 +36,15 @@ test("QM appointment access recognises active canonical and legacy appointments 
     { appointment: "Group Quartermaster", scope: "Group", active: false }
   ]), false);
   assert.equal(hasGroupQuartermasterAppointment([], "Group Treasurer"), false);
+});
+
+test("appointment refresh wakes at the next UTC start or inclusive end boundary", () => {
+  const assignments = normalizeScoutingAppointmentAssignments([
+    { appointment: "Group Leader", scope: "Group", endDate: "2026-11-07" },
+    { appointment: "Group Treasurer", scope: "Group", startDate: "2026-11-09" },
+    { appointment: "Group Secretary", scope: "Group", startDate: "2026-11-08", active: false },
+  ]);
+  assert.equal(nextAppointmentBoundary(assignments, Date.parse("2026-11-07T23:59:59Z")), Date.parse("2026-11-08"));
+  assert.equal(nextAppointmentBoundary(assignments, Date.parse("2026-11-08")), Date.parse("2026-11-09"));
+  assert.equal(nextAppointmentBoundary(assignments, Date.parse("2026-11-09")), undefined);
 });

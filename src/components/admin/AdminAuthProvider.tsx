@@ -15,11 +15,11 @@ import {
     signOut
 } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, type DocumentData } from "firebase/firestore";
 
 import { auth, db } from "../../firebase";
 import { isDeniedLeaderProfileProbe, normalizeLeaderRole, normalizeLeaderSections } from "../../services/leaderAccessLogic";
-import { normalizeScoutingAppointmentAssignments, type ScoutingAppointmentAssignment } from "../../security/scoutingAppointments";
+import { nextAppointmentBoundary, normalizeScoutingAppointmentAssignments, type ScoutingAppointmentAssignment } from "../../security/scoutingAppointments";
 import {
     remainingInactivityMs,
     SESSION_LAST_ACTIVITY_KEY,
@@ -67,9 +67,11 @@ async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
         getDoc(doc(db, "adminUsers", user.uid)),
         getDoc(doc(db, "organisationLeadership", user.uid))
     ]);
-    if (!snapshot.exists()) return null;
-    const data = snapshot.data();
-    if (data.active !== true) return null;
+    return resolveAdminProfile(user, snapshot.data(), organisationSnapshot.data());
+}
+
+function resolveAdminProfile(user: User, data?: DocumentData, organisation?: DocumentData): AdminProfile | null {
+    if (data?.active !== true) return null;
 
     const sections = normalizeLeaderSections(data);
     let role: SystemRole;
@@ -80,7 +82,14 @@ async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
     }
 
     if (sections.length === 0) return null;
-    const organisationData = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
+    const organisationData = organisation?.active === true ? organisation : undefined;
+    const hasAssignments = Array.isArray(organisationData?.appointments) && organisationData.appointments.length > 0;
+    const label = typeof organisationData?.scoutingRole === "string" ? organisationData.scoutingRole : "";
+    const appointments = normalizeScoutingAppointmentAssignments(
+        organisationData?.appointments,
+        hasAssignments ? "" : label,
+        organisationData?.organisationSection
+    );
 
     return {
         uid: user.uid,
@@ -88,8 +97,8 @@ async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
         displayName: typeof data.displayName === "string" ? data.displayName : user.email ?? "Leader",
         role,
         sections,
-        scoutingRole: typeof organisationData?.scoutingRole === "string" ? organisationData.scoutingRole : "",
-        appointments: normalizeScoutingAppointmentAssignments(organisationData?.appointments, organisationData?.scoutingRole, organisationData?.organisationSection),
+        scoutingRole: hasAssignments && appointments.length === 0 ? "" : label,
+        appointments,
         uiTheme: normalizeThemePreference(data.uiTheme)
     };
 }
@@ -170,11 +179,75 @@ export function AdminAuthProvider({ children }: Props) {
         return unsubscribe;
     }, []);
 
+    const leaderUid = adminProfile?.uid;
+    useEffect(() => {
+        if (!user || user.uid !== leaderUid) return;
+        let cancelled = false;
+        let account: DocumentData | undefined;
+        let organisation: DocumentData | undefined;
+        let accountReady = false;
+        let organisationReady = false;
+        const currentSession = () => !cancelled && auth.currentUser?.uid === user.uid;
+        const publish = () => {
+            if (!currentSession() || !accountReady || !organisationReady) return;
+            setAdminProfile(resolveAdminProfile(user, account, organisation));
+        };
+        const failed = (error: unknown) => {
+            if (!currentSession()) return;
+            setAdminProfile(null);
+            if (!isDeniedLeaderProfileProbe(error)) {
+                setAccessError(applicationErrorMessage(error, "Leader access could not be checked.", "Authentication"));
+            }
+        };
+        const options = { includeMetadataChanges: true };
+        const stopAccount = onSnapshot(doc(db, "adminUsers", user.uid), options, snapshot => {
+            if (!currentSession() || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+            account = snapshot.data();
+            accountReady = true;
+            if (account?.active !== true) setAdminProfile(null);
+            else publish();
+        }, failed);
+        const stopOrganisation = onSnapshot(doc(db, "organisationLeadership", user.uid), options, snapshot => {
+            if (!currentSession() || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+            organisation = snapshot.data();
+            organisationReady = true;
+            publish();
+        }, failed);
+        return () => {
+            cancelled = true;
+            stopAccount();
+            stopOrganisation();
+        };
+    }, [user, leaderUid]);
+
+    useEffect(() => {
+        if (!adminProfile) return;
+        const boundary = nextAppointmentBoundary(adminProfile.appointments, Date.now());
+        if (boundary === undefined) return;
+        let timer: number | undefined;
+        const refresh = () => {
+            if (timer !== undefined) window.clearTimeout(timer);
+            const remaining = boundary - Date.now();
+            if (remaining <= 0) {
+                // Capability selectors resolve effective dates from the current UTC day.
+                setAdminProfile(current => current === adminProfile ? { ...current } : current);
+            } else {
+                timer = window.setTimeout(refresh, Math.min(remaining, 2_147_483_647));
+            }
+        };
+        refresh();
+        window.addEventListener("focus", refresh);
+        return () => {
+            if (timer !== undefined) window.clearTimeout(timer);
+            window.removeEventListener("focus", refresh);
+        };
+    }, [adminProfile]);
+
+    const accountType = adminProfile ? "leader" : "parent";
     useEffect(() => {
         if (!user || loading) return;
 
         const navigatorWithHints = navigator as Navigator & { userAgentData?: { mobile?: boolean } };
-        const accountType = adminProfile ? "leader" : "parent";
         const timeoutMs = sessionInactivityTimeoutMs(
             accountType,
             sessionSettings,
@@ -253,7 +326,7 @@ export function AdminAuthProvider({ children }: Props) {
             window.removeEventListener("storage", handleStorage);
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
-    }, [user, adminProfile, loading, sessionSettings]);
+    }, [user, accountType, loading, sessionSettings]);
 
     const login = async (email: string, password: string) => {
         const credential = await signInWithEmailAndPassword(auth, email, password);
