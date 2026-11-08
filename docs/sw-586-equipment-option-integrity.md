@@ -1,7 +1,10 @@
 # SW-586 equipment option integrity
 
-Draft for implementation review. This change records the design and acceptance
-criteria. Application behavior and deployed Rules still need the implementation.
+Work in progress. The client now commits a rename, the matching item updates
+and their history entries together. The inventory snapshot is taken before the
+transaction, so this step alone does not cover a newly assigned item absent
+from that snapshot. Authoritative deletion and assignment coordination remain
+open.
 
 ## Current boundary
 

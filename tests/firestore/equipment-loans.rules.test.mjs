@@ -1,7 +1,9 @@
+import assert from "node:assert/strict";
+import { renameEquipmentOption } from "../../src/services/equipmentOptionRename.ts";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -138,4 +140,36 @@ test("checkout rejects missing, empty and whitespace sections at the persistence
   delete missingSection.section;
   await assertFails(setDoc(doc(db, "equipmentLoans/missing-section"), missingSection));
   await assertSucceeds(setDoc(doc(db, "equipmentLoans/valid-section"), loan("qm", "Scouts")));
+});
+
+test("Store rename commits matched assignments and history together for authorized managers", async () => {
+  const store = { id: "main", name: "Main Store" };
+  await seed([
+    ["adminUsers/qm", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/qm", { active: true, scoutingRole: "Group Quartermaster" }],
+    ["adminUsers/scouter", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["equipmentLocations/main", { name: store.name, createdBy: "qm", createdAt: new Date() }],
+    ["equipmentItems/active", item],
+    ["equipmentItems/archived", { ...item, archived: true, location: "main  store" }],
+    ["equipmentItems/other", { ...item, location: "Other Store" }],
+    ["equipmentHistory/original", { fromLocation: "Main Store", toLocation: "Main Store" }]
+  ]);
+  const db = testEnv.authenticatedContext("qm").firestore();
+  const scouter = testEnv.authenticatedContext("scouter").firestore();
+  const location = id => doc(db, "equipmentItems", id);
+  await assertFails(renameEquipmentOption(scouter, "scouter", "locations", store, "Side Store"));
+  assert.equal((await getDoc(doc(db, "equipmentLocations/main"))).get("name"), "Main Store");
+  assert.equal((await getDoc(location("active"))).get("location"), "Main Store");
+  assert.equal((await getDocs(collection(db, "equipmentHistory"))).size, 1);
+
+  assert.equal(await renameEquipmentOption(db, "qm", "locations", store, "Side Store"), 2);
+  assert.equal((await getDoc(doc(db, "equipmentLocations/main"))).get("name"), "Side Store");
+  assert.equal((await getDoc(location("active"))).get("location"), "Side Store");
+  assert.equal((await getDoc(location("archived"))).get("location"), "Side Store");
+  assert.equal((await getDoc(location("other"))).get("location"), "Other Store");
+  const history = await getDocs(collection(db, "equipmentHistory"));
+  assert.equal(history.size, 3);
+  assert.equal(history.docs.find(record => record.id === "original").get("toLocation"), "Main Store");
+  await assert.rejects(renameEquipmentOption(db, "qm", "locations", store, "Another Store"), /option changed/);
+  assert.equal((await getDocs(collection(db, "equipmentHistory"))).size, 3);
 });
