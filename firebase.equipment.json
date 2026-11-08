@@ -1,0 +1,8 @@
+{
+  "functions": [{
+    "source": "functions",
+    "codebase": "equipment",
+    "runtime": "nodejs22",
+    "predeploy": ["npm run build --prefix functions"]
+  }]
+}

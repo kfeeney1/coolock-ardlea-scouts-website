@@ -25,10 +25,36 @@ if (rollback) {
   console.log(`Rollback complete: ${removed} imported equipment records removed.`); process.exit(0);
 }
 if (!isCanonicalTestTarget && (process.env.PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT!==credentials.project_id || Number(process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT)!==plan.creates.length || process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256!==digest)) throw new Error("Reviewed project, create count or manifest digest does not match.");
+const retiredKey = name => `label:${name.trim().replace(/\s+/g, " ").toLowerCase()}`;
+async function writeUnlessRetired(labels, write) {
+  await db.runTransaction(async tx => {
+    const refs = labels.map(([kind]) => db.doc(`equipmentOptionRetirements/${kind}`));
+    const snapshots = await tx.getAll(...refs);
+    for (const [index, [, label]] of labels.entries()) {
+      if (Object.hasOwn(snapshots[index].get("names") ?? {}, retiredKey(label))) {
+        throw new Error(`Refusing to import retired equipment label: ${label}`);
+      }
+    }
+    write(tx);
+  });
+}
 const optionId=(kind,value)=>`equipment-import-${kind}-${createHash("sha256").update(value.toLocaleLowerCase("en-IE")).digest("hex").slice(0,20)}`;
 for (const [collectionName,kind,values] of [
   ["equipmentCategories","category",new Set(plan.creates.map((item)=>item.category))],
   ["equipmentLocations","location",new Set(plan.creates.map((item)=>item.location))]
-]) for (const name of values) await db.collection(collectionName).doc(optionId(kind,name)).set({name,createdBy:"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp()},{merge:true});
-for (const item of plan.creates) { const {id,...data}=item; await db.collection("equipmentItems").doc(id).create({...data,checkedOutQuantity:0,unavailableQuantity:0,archived:false,createdBy:"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp(),updatedBy:"CONTROLLED_EQUIPMENT_IMPORT",updatedAt:FieldValue.serverTimestamp()}); }
+]) for (const name of values) {
+  const ref = db.collection(collectionName).doc(optionId(kind, name));
+  await writeUnlessRetired([[kind === "category" ? "categories" : "locations", name]], tx => {
+    tx.set(ref, { name, createdBy: "CONTROLLED_EQUIPMENT_IMPORT", createdAt: FieldValue.serverTimestamp() }, { merge: true });
+  });
+}
+for (const { id, ...data } of plan.creates) {
+  await writeUnlessRetired([["categories", data.category], ["locations", data.location]], tx => {
+    tx.create(db.collection("equipmentItems").doc(id), {
+      ...data, checkedOutQuantity: 0, unavailableQuantity: 0, archived: false,
+      createdBy: "CONTROLLED_EQUIPMENT_IMPORT", createdAt: FieldValue.serverTimestamp(),
+      updatedBy: "CONTROLLED_EQUIPMENT_IMPORT", updatedAt: FieldValue.serverTimestamp()
+    });
+  });
+}
 console.log(`Import complete: ${plan.creates.length} created; ${plan.matches.length} unchanged.`);
