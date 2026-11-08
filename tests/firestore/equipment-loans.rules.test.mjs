@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { renameEquipmentOption } from "../../src/services/equipmentOptionRename.ts";
+import { deleteApp, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { mutateEquipmentOption } from "../../functions/src/equipmentOptions.js";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
@@ -155,21 +157,68 @@ test("Store rename commits matched assignments and history together for authoriz
     ["equipmentHistory/original", { fromLocation: "Main Store", toLocation: "Main Store" }]
   ]);
   const db = testEnv.authenticatedContext("qm").firestore();
-  const scouter = testEnv.authenticatedContext("scouter").firestore();
-  const location = id => doc(db, "equipmentItems", id);
-  await assertFails(renameEquipmentOption(scouter, "scouter", "locations", store, "Side Store"));
-  assert.equal((await getDoc(doc(db, "equipmentLocations/main"))).get("name"), "Main Store");
-  assert.equal((await getDoc(location("active"))).get("location"), "Main Store");
-  assert.equal((await getDocs(collection(db, "equipmentHistory"))).size, 1);
+  const adminApp = initializeApp({ projectId }, "equipment-option-mutation");
+  const server = getFirestore(adminApp);
+  const rename = uid => mutateEquipmentOption(server, uid, {
+    kind: "locations", id: store.id, expectedName: store.name, action: "rename", name: "Side Store"
+  });
+  const remove = expectedName => mutateEquipmentOption(server, "qm", {
+    kind: "locations", id: store.id, expectedName, action: "delete"
+  });
+  try {
+    const location = id => doc(db, "equipmentItems", id);
+    await assert.rejects(rename("scouter"), { code: "permission-denied" });
+    await assert.rejects(remove("Main Store"), /Equipment still uses/);
+    assert.equal((await getDoc(doc(db, "equipmentLocations/main"))).get("name"), "Main Store");
+    assert.equal((await getDoc(location("active"))).get("location"), "Main Store");
+    assert.equal((await getDocs(collection(db, "equipmentHistory"))).size, 1);
 
-  assert.equal(await renameEquipmentOption(db, "qm", "locations", store, "Side Store"), 2);
-  assert.equal((await getDoc(doc(db, "equipmentLocations/main"))).get("name"), "Side Store");
-  assert.equal((await getDoc(location("active"))).get("location"), "Side Store");
-  assert.equal((await getDoc(location("archived"))).get("location"), "Side Store");
-  assert.equal((await getDoc(location("other"))).get("location"), "Other Store");
-  const history = await getDocs(collection(db, "equipmentHistory"));
-  assert.equal(history.size, 3);
-  assert.equal(history.docs.find(record => record.id === "original").get("toLocation"), "Main Store");
-  await assert.rejects(renameEquipmentOption(db, "qm", "locations", store, "Another Store"), /option changed/);
-  assert.equal((await getDocs(collection(db, "equipmentHistory"))).size, 3);
+    assert.deepEqual(await rename("qm"), { changed: 2 });
+    assert.equal((await getDoc(doc(db, "equipmentLocations/main"))).get("name"), "Side Store");
+    assert.equal((await getDoc(location("active"))).get("location"), "Side Store");
+    assert.equal((await getDoc(location("archived"))).get("location"), "Side Store");
+    assert.equal((await getDoc(location("other"))).get("location"), "Other Store");
+    const history = await getDocs(collection(db, "equipmentHistory"));
+    assert.equal(history.size, 3);
+    assert.equal(history.docs.find(record => record.id === "original").get("toLocation"), "Main Store");
+    await assert.rejects(rename("qm"), /option changed/);
+    assert.equal((await getDocs(collection(db, "equipmentHistory"))).size, 3);
+    await assertFails(updateDoc(location("other"), { location: " MAIN  Store ", updatedBy: "qm", updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(location("active"), { location: "Other Store", updatedBy: "qm", updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(location("archived"), { location: "Other Store", updatedBy: "qm", updatedAt: serverTimestamp() }));
+    await remove("Side Store");
+    assert.equal((await server.doc("equipmentOptionRetirements/locations").get()).get("names")["label:side store"], true);
+    await assertFails(getDoc(doc(db, "equipmentOptionRetirements/locations")));
+    assert.equal((await getDoc(doc(db, "equipmentLocations/main"))).exists(), false);
+    await assertFails(updateDoc(location("other"), { location: "Side Store", updatedBy: "qm", updatedAt: serverTimestamp() }));
+  } finally {
+    await deleteApp(adminApp);
+  }
+});
+
+test("deletion and a concurrent first assignment cannot both commit", async () => {
+  const name = "Concurrent Store";
+  await seed([
+    ["adminUsers/manager", { active: true, role: "admin", sections: ["Group"] }],
+    ["equipmentLocations/concurrent", { name, createdBy: "manager", createdAt: new Date() }]
+  ]);
+  const db = testEnv.authenticatedContext("manager").firestore();
+  const adminApp = initializeApp({ projectId }, "equipment-option-race");
+  try {
+    const assignment = doc(db, "equipmentItems/concurrent");
+    const [deletion, creation] = await Promise.allSettled([
+      mutateEquipmentOption(getFirestore(adminApp), "manager", {
+        kind: "locations", id: "concurrent", expectedName: name, action: "delete"
+      }),
+      setDoc(assignment, {
+        ...item, location: name, createdBy: "manager", updatedBy: "manager",
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+      })
+    ]);
+    assert.notEqual(deletion.status, creation.status);
+    assert.equal((await getDoc(assignment)).exists(), creation.status === "fulfilled");
+    assert.equal((await getDoc(doc(db, "equipmentLocations/concurrent"))).exists(), creation.status === "fulfilled");
+  } finally {
+    await deleteApp(adminApp);
+  }
 });

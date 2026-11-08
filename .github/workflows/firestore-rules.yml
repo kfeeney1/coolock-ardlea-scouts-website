@@ -9,6 +9,7 @@ on:
       - "firebase.json"
       - "tests/firestore/**"
       - "tests/storage/**"
+      - "functions/src/equipmentOptions.js"
       - "src/services/**"
       - "src/security/hallBookingAccess.ts"
       - "email-worker/src/hall*.js"
@@ -50,6 +51,9 @@ jobs:
 
       - name: Install pinned Firebase test tooling
         run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@6.0.0 firebase-tools@15.28.1
+
+      - name: Install equipment backend dependencies
+        run: npm ci --prefix functions --no-audit
 
       - name: Run Firestore rules tests
         run: npx firebase emulators:exec --only firestore --project "$FIREBASE_PROJECT_ID" "node --test --test-concurrency=1 tests/firestore/*.test.mjs"

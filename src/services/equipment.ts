@@ -2,7 +2,6 @@ import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -12,9 +11,9 @@ import {
   updateDoc,
   where
 } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import app, { appEnvironment, auth, db } from "../firebase";
+import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
 import { recordAuditEvent } from "./auditLog";
-import { renameEquipmentOption } from "./equipmentOptionRename";
 import { recordEquipmentHistory } from "./equipmentHistory";
 import { normaliseEquipmentLabel } from "./equipmentLogic";
 import type { EquipmentCondition, EquipmentTrackingMode } from "./equipmentLogic";
@@ -166,10 +165,17 @@ export async function addEquipmentOption(kind: "categories" | "locations", name:
   return { id: result.id, name: safeName };
 }
 
+const equipmentFunctions = getFunctions(app, "europe-west1");
+if (appEnvironment === "local") connectFunctionsEmulator(equipmentFunctions, "127.0.0.1", 5001);
+const mutateOption = httpsCallable<
+  { kind: "categories" | "locations"; id: string; expectedName: string; action: "rename" | "delete"; name?: string },
+  { changed: number }
+>(equipmentFunctions, "equipmentOptionMutation");
+
 export async function updateEquipmentOption(kind: "categories" | "locations", option: EquipmentOption, name: string): Promise<EquipmentOption> {
   const safeName = normaliseEquipmentLabel(name);
   if (!safeName) throw new Error(`Enter a ${kind === "categories" ? "category" : "Store"} name.`);
-  const changed = await renameEquipmentOption(db, currentUid(), kind, option, safeName);
+  const { data: { changed } } = await mutateOption({ kind, id: option.id, expectedName: option.name, action: "rename", name: safeName });
   await recordAuditEvent({
     category: "equipment",
     action: `${kind === "categories" ? "category" : "location"}-updated`,
@@ -182,7 +188,7 @@ export async function updateEquipmentOption(kind: "categories" | "locations", op
 }
 
 export async function deleteEquipmentOption(kind: "categories" | "locations", option: EquipmentOption): Promise<void> {
-  await deleteDoc(doc(db, kind === "categories" ? "equipmentCategories" : "equipmentLocations", option.id));
+  await mutateOption({ kind, id: option.id, expectedName: option.name, action: "delete" });
   await recordAuditEvent({
     category: "equipment",
     action: `${kind === "categories" ? "category" : "location"}-deleted`,

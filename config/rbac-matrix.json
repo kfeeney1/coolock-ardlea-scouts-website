@@ -105,6 +105,7 @@
     "equipmentItems": "equipment-management",
     "equipmentLoans": "equipment-section",
     "equipmentLocations": "equipment-management",
+    "equipmentOptionRetirements": "admin-sdk-only",
     "equipmentProgrammeRequirements": "equipment-section",
     "eventConsentLinks": "public-active-leader-section",
     "eventConsentResponses": "public-create-admin-process",

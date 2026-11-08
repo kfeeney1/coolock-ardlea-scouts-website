@@ -1,10 +1,9 @@
 # SW-586 equipment option integrity
 
-Work in progress. The client now commits a rename, the matching item updates
-and their history entries together. The inventory snapshot is taken before the
-transaction, so this step alone does not cover a newly assigned item absent
-from that snapshot. Authoritative deletion and assignment coordination remain
-open.
+The callable is deployed by the TEST workflow after review and merge. Direct
+Firestore updates and deletes of catalogue options are denied. A retired name
+is reserved to prevent an old selection from reintroducing an assignment.
+No production deployment is included.
 
 ## Current boundary
 
@@ -20,7 +19,7 @@ delete only checks the caller's role. A browser-side query followed by a
 transaction on the option document leaves the same bypass and can race a new
 assignment.
 
-## Proposed implementation
+## Implementation
 
 Reuse existing authenticated infrastructure for a group-scoped option mutation.
 Evaluate the canonical role and active appointments against current Firestore
@@ -44,13 +43,21 @@ before mutating records.
 
 ## Cost and rollout gate
 
-Measure documents read per delete or rename with representative TEST inventory.
-A full catalogue-reference scan costs reads proportional to inventory size,
-including on transaction retry. A verified index could bound lookups but would
-require a backfill and extra writes on assignment changes. Record the measured
-cost and writer coverage before choosing the implementation. Use existing
-infrastructure without polling, scheduled reconciliation, a plan upgrade or a
-separate service. Keep TEST and PRODUCTION separate.
+A manager-initiated rename or deletion uses one callable invocation. The
+transaction reads current authority, the target option, its retired-name
+registry, and at most 1,001 catalogue documents and 1,001 inventory documents
+per attempt. It fails closed above 1,000 documents in either collection and
+above 248 matched items for rename. A rename writes two records per matched
+item plus the option and retirement metadata. Normal inventory assignments
+check the relevant retirement registry, at most two document lookups on create
+and only changed labels on update. Stock-only updates do not add lookups.
+Imports check the same registry in their write transactions. There is no
+scheduled workload or separate service.
+
+Validate the callable deployment permission in the existing TEST project.
+The main-only TEST workflow targets the single named function. Review and
+approve the equivalent production function deployment separately before
+releasing client and Rules changes to production.
 
 ## Acceptance tests
 
