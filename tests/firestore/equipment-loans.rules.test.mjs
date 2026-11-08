@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
-import { deleteApp, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { createRequire } from "node:module";
 import { mutateEquipmentOption } from "../../functions/src/equipmentOptions.js";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+
+// Firestore write transforms must come from the same SDK instance as the transaction.
+const requireFunctionsDependency = createRequire(new URL("../../functions/package.json", import.meta.url));
+const { deleteApp, initializeApp } = requireFunctionsDependency("firebase-admin/app");
+const { getFirestore } = requireFunctionsDependency("firebase-admin/firestore");
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
