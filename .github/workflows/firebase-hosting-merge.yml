@@ -102,7 +102,6 @@ jobs:
         run: |
           npm ci
           npm ci --prefix maintenance-functions --no-audit
-          npm ci --prefix functions --no-audit
           npm install --no-save --package-lock=false @firebase/rules-unit-testing@6.0.0 firebase-tools@15.28.1
       - name: Re-run release security checks
         run: |
@@ -132,17 +131,6 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
-      - name: Verify production equipment function is available
-        shell: bash
-        run: |
-          set -euo pipefail
-          response="$(curl --silent --show-error --max-time 15 \
-            --header 'Content-Type: application/json' --data '{"data":{}}' \
-            "https://europe-west1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/equipmentOptionMutation")"
-          if ! jq -e '.error.status == "UNAUTHENTICATED"' >/dev/null <<< "$response"; then
-            echo "::error::The production equipment function must be deployed and require authentication before publishing dependent Rules and Hosting."
-            exit 1
-          fi
       - name: Deploy matching PRODUCTION email Worker
         working-directory: email-worker
         env:

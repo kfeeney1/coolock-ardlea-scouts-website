@@ -61,7 +61,7 @@ test("ordinary Group-scoped Leader is denied the same cross-section protected re
 
 test("Deputy Group Leader can manage equipment without Admin promotion", async () => {
   const db = testEnv.authenticatedContext("dgl").firestore();
-  await assertFails(deleteDoc(doc(db, "equipmentCategories/dgl-delete")));
+  await assertSucceeds(deleteDoc(doc(db, "equipmentCategories/dgl-delete")));
 });
 
 test("ordinary Leader cannot use the Group Leadership equipment-management grant", async () => {
