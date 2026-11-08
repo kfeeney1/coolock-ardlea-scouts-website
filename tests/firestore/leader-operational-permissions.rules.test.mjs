@@ -96,7 +96,7 @@ test("equipment options are readable by leaders but managed only by equipment ro
     name: "Store", createdBy: "qm", createdAt: serverTimestamp(),
   }));
   await assertFails(deleteDoc(doc(leaderDb, "equipmentCategories/tents")));
-  await assertFails(deleteDoc(doc(qmDb, "equipmentCategories/tents")));
+  await assertSucceeds(deleteDoc(doc(qmDb, "equipmentCategories/tents")));
 });
 
 test("only equipment managers can create provenance-backed imported items", async () => {

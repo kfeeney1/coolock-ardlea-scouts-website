@@ -1826,12 +1826,6 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    function equipmentLabelAvailable(kind, value) {
-      let path = /databases/$(database)/documents/equipmentOptionRetirements/$(kind);
-      let key = 'label:' + value.lower().replace('[\\s\\p{Z}\\x{FEFF}]+', ' ').trim();
-      return !existsAfter(path) || !(key in getAfter(path).data.names);
-    }
-
     match /equipmentItems/{itemId} {
       allow get, list: if isActiveLeader();
       function _validateWrite51(_writeData) {
@@ -1844,8 +1838,6 @@ service cloud.firestore {
         && _writeData.checkedOutQuantity == 0
         && _writeData.unavailableQuantity == 0
         && _writeData.location is string
-        && equipmentLabelAvailable("categories", _writeData.category)
-        && equipmentLabelAvailable("locations", _writeData.location)
         && _writeData.condition in ["not-recorded", "good", "needs-attention", "repair", "missing", "lost", "retired"]
         && _writeData.notes is string
         && (_writeData.replacementValue == null || _writeData.replacementValue is number)
@@ -1891,8 +1883,6 @@ service cloud.firestore {
           && (!_writeData.keys().hasAny(["unavailableQuantity"])
             || _writeData.checkedOutQuantity <= _writeData.totalQuantity)
           && _writeData.location is string
-          && (_writeData.category == resource.data.category || equipmentLabelAvailable("categories", _writeData.category))
-          && (_writeData.location == resource.data.location || equipmentLabelAvailable("locations", _writeData.location))
           && _writeData.condition in ["not-recorded", "good", "needs-attention", "repair", "missing", "lost", "retired"]
           && _writeData.notes is string
           && (_writeData.replacementValue == null || _writeData.replacementValue is number)
@@ -1919,22 +1909,36 @@ service cloud.firestore {
       allow get, list: if isActiveLeader();
       allow create: if canManageEquipment()
         && request.resource.data.name is string
-        && equipmentLabelAvailable("categories", request.resource.data.name)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.keys().hasOnly(["name", "createdBy", "createdAt"]);
-      allow update, delete: if false;
+      allow update: if canManageEquipment()
+        && request.resource.data.name is string
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "updatedBy", "updatedAt"])
+        && request.resource.data.keys().hasOnly(["name", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow delete: if canManageEquipment();
     }
 
     match /equipmentLocations/{optionId} {
       allow get, list: if isActiveLeader();
       allow create: if canManageEquipment()
         && request.resource.data.name is string
-        && equipmentLabelAvailable("locations", request.resource.data.name)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.keys().hasOnly(["name", "createdBy", "createdAt"]);
-      allow update, delete: if false;
+      allow update: if canManageEquipment()
+        && request.resource.data.name is string
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "updatedBy", "updatedAt"])
+        && request.resource.data.keys().hasOnly(["name", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow delete: if canManageEquipment();
     }
 
     match /equipmentLoans/{loanId} {
