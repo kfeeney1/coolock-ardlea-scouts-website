@@ -179,6 +179,8 @@ jobs:
           VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
       - name: Deploy reviewed Rules, indexes, Storage rules and Hosting to PRODUCTION
         env:
+          PRODUCTION_PROJECT_CONFIRMATION: coolock-ardlea-scouts
+          ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
         shell: bash
         run: |
@@ -216,19 +218,17 @@ jobs:
           console.log('Production Storage CORS matches reviewed configuration.');
           NODE
 
-          # New default buckets use PROJECT_ID.firebasestorage.app. Bind the reviewed
-          # Storage rules to the exact production bucket instead of relying on the
-          # CLI's default-bucket discovery. Keep the generated config in the repo
-          # root so Firebase resolves the adjacent .firebaserc target mapping.
-          npx --yes firebase-tools@15.28.1 target:apply storage production-default "$PRODUCTION_STORAGE_BUCKET" --project "$FIREBASE_PROJECT_ID" --non-interactive
+          node scripts/publish-production-rules.mjs --allow-production
+
+          # Keep Rules out of the CLI config after exact-source publication and read-back.
           node - <<'NODE'
           const fs = require('node:fs');
           const config = JSON.parse(fs.readFileSync('firebase.json', 'utf8'));
-          config.storage = [{ target: 'production-default', rules: 'storage.rules' }];
-          fs.writeFileSync('firebase.production.generated.json', JSON.stringify(config, null, 2));
+          delete config.firestore.rules;
+          delete config.storage;
+          fs.writeFileSync('firebase.production.generated.json', JSON.stringify(config));
           NODE
-
-          npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "$FIREBASE_PROJECT_ID" --config firebase.production.generated.json --non-interactive
+          npx --yes firebase-tools@15.28.1 deploy --only firestore:indexes,hosting --project "$FIREBASE_PROJECT_ID" --config firebase.production.generated.json --non-interactive
       - name: Publish canonical public website content
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
