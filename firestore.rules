@@ -38,21 +38,28 @@ service cloud.firestore {
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
     function groupAppointmentDateAllows(value, endDate) {
-      return value == "" || (validIsoDate(value) && groupAppointmentDateIncludesToday(value, endDate));
+      return value == "" || (value is string
+        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+        && groupAppointmentDateIncludesToday(value, endDate));
     }
     function groupAppointmentDateIncludesToday(value, endDate) {
       let parts = value.split('-');
-      let date = timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
-      return endDate ? request.time < date + duration.value(1, 'd') : date <= request.time;
+      let year = int(parts[0]);
+      let month = int(parts[1]);
+      let day = int(parts[2]);
+      let date = timestamp.date(year, month, day);
+      return date.year() == year && date.month() == month && date.day() == day
+        && (endDate ? request.time < date + duration.value(1, 'd') : date <= request.time);
     }
     function groupAppointmentAt(items, index, roles) {
-      return items.size() > index && items[index] is map
-        && items[index].get("appointment", "") is string
-        && items[index].appointment.lower() in roles
-        && items[index].get("scope", "Group") == "Group"
-        && items[index].get("active", true) == true
-        && groupAppointmentDateAllows(items[index].get("startDate", ""), false)
-        && groupAppointmentDateAllows(items[index].get("endDate", ""), true);
+      let item = index < items.size() ? items[index] : null;
+      return item is map
+        && item.get("scope", "Group") == "Group"
+        && item.get("active", true) == true
+        && item.get("appointment", "") is string
+        && item.get("appointment", "").lower() in roles
+        && groupAppointmentDateAllows(item.get("startDate", ""), false)
+        && groupAppointmentDateAllows(item.get("endDate", ""), true);
     }
     // The canonical writer supports twelve slots. A populated list supersedes
     // the scalar label, including when all its appointments are ineffective.
@@ -61,12 +68,13 @@ service cloud.firestore {
       return data.get("active", false) == true && items is list && items.size() <= 12
         && (items.size() == 0
           ? data.get("scoutingRole", "") is string && data.get("scoutingRole", "").lower() in roles
-          : groupAppointmentAt(items, 0, roles) || groupAppointmentAt(items, 1, roles)
-            || groupAppointmentAt(items, 2, roles) || groupAppointmentAt(items, 3, roles)
-            || groupAppointmentAt(items, 4, roles) || groupAppointmentAt(items, 5, roles)
-            || groupAppointmentAt(items, 6, roles) || groupAppointmentAt(items, 7, roles)
-            || groupAppointmentAt(items, 8, roles) || groupAppointmentAt(items, 9, roles)
-            || groupAppointmentAt(items, 10, roles) || groupAppointmentAt(items, 11, roles));
+          // Group the checks to keep the compiler expression tree shallow.
+          : ((groupAppointmentAt(items, 0, roles) || groupAppointmentAt(items, 1, roles))
+            || (groupAppointmentAt(items, 2, roles) || groupAppointmentAt(items, 3, roles)))
+          || (((groupAppointmentAt(items, 4, roles) || groupAppointmentAt(items, 5, roles))
+            || (groupAppointmentAt(items, 6, roles) || groupAppointmentAt(items, 7, roles)))
+          || ((groupAppointmentAt(items, 8, roles) || groupAppointmentAt(items, 9, roles))
+            || (groupAppointmentAt(items, 10, roles) || groupAppointmentAt(items, 11, roles)))));
     }
     function groupLeadershipRoles() {
       return ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl"];
@@ -2078,10 +2086,12 @@ service cloud.firestore {
           && isGroupLeadershipDelegableAppointment(items[index].get("appointment", "")));
       }
       function allDelegableSlots(items) {
-        return delegableSlot(items, 0) && delegableSlot(items, 1) && delegableSlot(items, 2)
-          && delegableSlot(items, 3) && delegableSlot(items, 4) && delegableSlot(items, 5)
-          && delegableSlot(items, 6) && delegableSlot(items, 7) && delegableSlot(items, 8)
-          && delegableSlot(items, 9) && delegableSlot(items, 10) && delegableSlot(items, 11);
+        return ((delegableSlot(items, 0) && delegableSlot(items, 1))
+          && (delegableSlot(items, 2) && delegableSlot(items, 3)))
+          && (((delegableSlot(items, 4) && delegableSlot(items, 5))
+            && (delegableSlot(items, 6) && delegableSlot(items, 7)))
+          && ((delegableSlot(items, 8) && delegableSlot(items, 9))
+            && (delegableSlot(items, 10) && delegableSlot(items, 11))));
       }
       function canChangeDelegatedAppointments(before, after) {
         let previous = before.get("appointments", []);
