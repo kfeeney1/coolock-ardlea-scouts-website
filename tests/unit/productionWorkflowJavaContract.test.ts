@@ -35,7 +35,10 @@ test("production preflight emulator tests are isolated to the demo Firebase proj
 
 test("production deployment target remains the real production Firebase project", () => {
   assert.match(workflow, /^  FIREBASE_PROJECT_ID: coolock-ardlea-scouts$/m);
-  assert.match(workflow, /deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "\$FIREBASE_PROJECT_ID" --config firebase\.production\.generated\.json --non-interactive/);
+  assert.match(workflow, /deploy --only firestore:indexes,hosting --project "\$FIREBASE_PROJECT_ID" --config firebase\.production\.generated\.json --non-interactive/);
+  assert.ok(workflow.indexOf("node scripts/publish-production-rules.mjs --allow-production")
+    < workflow.indexOf("deploy --only firestore:indexes,hosting"));
+  assert.match(workflow, /node scripts\/publish-production-rules\.mjs --allow-production/);
 });
 
 test("production excludes Maintenance Functions while the zero-cost requirement is unresolved", () => {
@@ -44,11 +47,13 @@ test("production excludes Maintenance Functions while the zero-cost requirement 
 
 test("production Storage rules explicitly target the provisioned firebasestorage.app bucket", () => {
   assert.match(workflow, /^  PRODUCTION_STORAGE_BUCKET: coolock-ardlea-scouts\.firebasestorage\.app$/m);
-  assert.match(workflow, /target:apply storage production-default "\$PRODUCTION_STORAGE_BUCKET" --project "\$FIREBASE_PROJECT_ID" --non-interactive/);
-  assert.match(workflow, /config\.storage = \[\{ target: 'production-default', rules: 'storage\.rules' \}\]/);
-  assert.match(workflow, /fs\.writeFileSync\('firebase\.production\.generated\.json'/);
-  assert.doesNotMatch(workflow, /--config \/tmp\/firebase\.production\.json/);
-  assert.doesNotMatch(workflow, /deploy --only firestore:rules,firestore:indexes,storage,hosting/);
+  const publisher = readFileSync("scripts/publish-production-rules.mjs", "utf8");
+  assert.match(publisher, /bucket !== "coolock-ardlea-scouts\.firebasestorage\.app"/);
+  assert.match(publisher, /publishProjectRules\(\{ raw, projectId: target\.projectId, bucket \}\)/);
+  assert.match(publisher, /allowProduction: true/);
+  assert.match(workflow, /delete config\.firestore\.rules;/);
+  assert.match(workflow, /delete config\.storage;/);
+  assert.doesNotMatch(workflow, /deploy --only [^\n]*(?:firestore:rules|storage:)/);
 });
 
 
