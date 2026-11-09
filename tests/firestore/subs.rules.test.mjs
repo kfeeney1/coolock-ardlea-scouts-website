@@ -139,3 +139,23 @@ test("ineffective canonical appointments suppress stale scalar finance grants", 
     await assertFails(getDocs(collection(db, "members")));
   }
 });
+
+test("group-wide meeting reads accept an effective secretary after an invalid leadership appointment", async () => {
+  const uid = "group-secretary";
+  const appointments = [
+    { appointment: "Group Leader", scope: "Group", startDate: "2020-02-30" },
+    ...Array.from({ length: 10 }, () => ({ appointment: "Scouter", scope: "Cubs" })),
+    { appointment: "Group Secretary", scope: "Group" }
+  ];
+  await seed([
+    [`adminUsers/${uid}`, { active: true, role: "leader", sections: ["Cubs"] }],
+    [`organisationLeadership/${uid}`, { active: true, scoutingRole: "Group Leader", appointments }],
+    ["weeklyMeetings/group-scope-check", { section: "Scouts", meetingDate: "2026-10-01" }]
+  ]);
+  const db = env.authenticatedContext(uid).firestore();
+  await assertSucceeds(getDoc(doc(db, "weeklyMeetings/group-scope-check")));
+  await seed([[`organisationLeadership/${uid}`, {
+    active: true, scoutingRole: "Group Leader", appointments: appointments.slice(0, -1)
+  }]]);
+  await assertFails(getDoc(doc(db, "weeklyMeetings/group-scope-check")));
+});

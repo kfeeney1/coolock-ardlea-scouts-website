@@ -33,8 +33,10 @@ test("shared leader checks expand canonical profile reads only once", () => {
   assert.equal([...section.matchAll(/isActiveLeader\(\)/g)].length, 1);
   assert.doesNotMatch(section, /isAdmin\(/);
   const group = rules.match(/function isGroupLeader\(\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
-  assert.match(group, /isActiveLeader\(\)[\s\S]*exists\([\s\S]*activeGroupLeadership\(get\(/);
-  assert.equal([...group.matchAll(/get\(/g)].length, 1);
+  assert.match(group, /isActiveLeader\(\) && currentGroupAppointment\(groupLeadershipRoles\(\)\)/);
+  const appointment = rules.match(/function currentGroupAppointment\(roles\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
+  assert.match(appointment, /exists\(path\) && hasGroupAppointment\(get\(path\)\.data, roles\)/);
+  assert.equal([...appointment.matchAll(/get\(/g)].length, 1);
 });
 
 test("local write validators receive incoming data and only guard create/update", () => {
