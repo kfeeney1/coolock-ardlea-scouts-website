@@ -39,14 +39,21 @@ test("shared leader checks expand canonical profile reads only once", () => {
 
 test("local write validators receive incoming data and only guard create/update", () => {
   const rules = readFileSync("firestore.rules", "utf8");
-  const validators = [...rules.matchAll(/^([ ]*)function (_validateWrite\d+)\(_writeData\) \{\n[ ]*return ([\s\S]*?);\n\1\}/gm)];
+  const validators = [...rules.matchAll(/^([ ]*)function (_validateWrite\d+)\(_writeData(, _storedData)?\) \{\n[ ]*return ([\s\S]*?);\n\1\}/gm)];
   assert.equal(validators.length, 53);
-  for (const [, , name, expression] of validators) {
+  for (const [, , name, storedData, expression] of validators) {
     assert.ok(expression.includes("_writeData"), name);
     assert.doesNotMatch(expression, /request\.resource\.data/);
     const calls = [...rules.matchAll(new RegExp(`allow ([^:]+): if ${name}\\(([^;]+)\\);`, "g"))];
     assert.equal(calls.length, 1, name);
     assert.ok(["create", "update", "create, update"].includes(calls[0][1]), name);
-    assert.equal(calls[0][2], "request.resource.data", name);
+    if (storedData) {
+      assert.equal(calls[0][1], "update", name);
+      assert.equal(calls[0][2], "request.resource.data, resource.data", name);
+      assert.ok(expression.includes("_storedData"), name);
+      assert.doesNotMatch(expression, /resource\.data/);
+    } else {
+      assert.equal(calls[0][2], "request.resource.data", name);
+    }
   }
 });

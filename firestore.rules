@@ -387,30 +387,30 @@ service cloud.firestore {
         && request.resource.data.sections is list
         && request.resource.data.sections.size() > 0
         && !request.resource.data.keys().hasAny(["section"]);
-      function _validateWrite2(_writeData) {
+      function _validateWrite2(_writeData, _storedData) {
         return (maintenanceDirectoryInvalidated()
-        || !_writeData.diff(resource.data).affectedKeys().hasAny(["active", "role", "sections", "section"]))
+        || !_writeData.diff(_storedData).affectedKeys().hasAny(["active", "role", "sections", "section"]))
         && ((request.auth.uid == userId && isActiveLeader()
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["displayName", "mobileNumber"]))
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["displayName", "mobileNumber"]))
         || (request.auth.uid == userId && isSuperAdmin()
           && _writeData.uiTheme in ["default", "modern", "irish-adventure", "uk-campaign", "programme-led"]
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["uiTheme"]))
-        || ((isAdmin() || canDelegateLeaderTarget(userId)) && resource.data.role == "leader"
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["uiTheme"]))
+        || ((isAdmin() || canDelegateLeaderTarget(userId)) && _storedData.role == "leader"
           && _writeData.role == "leader"
           && _writeData.sections is list
           && _writeData.sections.size() > 0
           && !_writeData.keys().hasAny(["section"])
           && _writeData.updatedBy == request.auth.uid
           && _writeData.updatedAt == request.time
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(isAdmin() ? ["active", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"] : ["sections", "updatedAt", "updatedBy"]))
-        || (isSuperAdmin() && resource.data.role != "super-admin"
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(isAdmin() ? ["active", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"] : ["sections", "updatedAt", "updatedBy"]))
+        || (isSuperAdmin() && _storedData.role != "super-admin"
           && _writeData.role in ["leader", "admin"]
           && _writeData.sections is list
           && _writeData.sections.size() > 0
           && !_writeData.keys().hasAny(["section"])
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["active", "role", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"])));
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["active", "role", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"])));
       }
-      allow update: if _validateWrite2(request.resource.data);
+      allow update: if _validateWrite2(request.resource.data, resource.data);
       allow delete: if false;
     }
 
@@ -684,20 +684,20 @@ service cloud.firestore {
       allow read: if isActiveLeader()
         && ((request.auth.token.email is string && resource.data.emailAddress == request.auth.token.email)
           || (profileHasSection("Rovers") && resource.data.keys().hasAny(["accountUid"])));
-      function _validateWrite14(_writeData) {
-        return isManagedRoverMemberChange() || (isActiveLeader() && isYouthSection(_writeData.section) && (!_writeData.keys().hasAny(["sections"]) || (_writeData.sections is list && _writeData.sections.size() > 0 && _writeData.sections.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]) && _writeData.section in _writeData.sections)) && canAccessMemberSections(resource.data) && (canAccessMemberSections(_writeData) || canTransferMember(resource.data.section, _writeData.section))
-          && (memberId != "rover_" + request.auth.uid || resource.data.accountUid == request.auth.uid)
+      function _validateWrite14(_writeData, _storedData) {
+        return isManagedRoverMemberChange() || (isActiveLeader() && isYouthSection(_writeData.section) && (!_writeData.keys().hasAny(["sections"]) || (_writeData.sections is list && _writeData.sections.size() > 0 && _writeData.sections.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]) && _writeData.section in _writeData.sections)) && canAccessMemberSections(_storedData) && (canAccessMemberSections(_writeData) || canTransferMember(_storedData.section, _writeData.section))
+          && (memberId != "rover_" + request.auth.uid || _storedData.accountUid == request.auth.uid)
           && _writeData.status in ["active", "inactive", "left"]
-          && (!_writeData.diff(resource.data).affectedKeys().hasAny(["accountUid"]) || (isAdmin() && _writeData.accountUid is string
-            && (!resource.data.keys().hasAny(["accountUid"]) || resource.data.accountUid == "" || resource.data.accountUid == _writeData.accountUid)))
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "sectionRoles", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "accountUid", "updatedAt", "updatedBy"]))
+          && (!_writeData.diff(_storedData).affectedKeys().hasAny(["accountUid"]) || (isAdmin() && _writeData.accountUid is string
+            && (!_storedData.keys().hasAny(["accountUid"]) || _storedData.accountUid == "" || _storedData.accountUid == _writeData.accountUid)))
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "sectionRoles", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "accountUid", "updatedAt", "updatedBy"]))
         || (isAdmin()
           && _writeData.familyId is string
           && _writeData.familyUpdatedBy == request.auth.uid
           && _writeData.familyUpdatedAt == request.time
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["familyId", "familyUpdatedBy", "familyUpdatedAt"]));
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["familyId", "familyUpdatedBy", "familyUpdatedAt"]));
       }
-      allow update: if _validateWrite14(request.resource.data);
+      allow update: if _validateWrite14(request.resource.data, resource.data);
       allow update: if isSelfManagedRoverMember();
       allow delete: if false;
     }
@@ -1353,29 +1353,29 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
             && canAccessMemberSections(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data))))
         || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
-      function _validateWrite35(_writeData) {
-        return (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data))
+      function _validateWrite35(_writeData, _storedData) {
+        return (isActiveLeader() && (isAdmin() || hasResourceSection(_storedData))
           && _writeData.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
           && !_writeData.keys().hasAny(["scoutSection"])
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
         || (isSuperAdmin()
-          && resource.data.formType == "youth-activity-consent"
-          && _writeData.formType == resource.data.formType
+          && _storedData.formType == "youth-activity-consent"
+          && _writeData.formType == _storedData.formType
           && _writeData.memberId is string
           && exists(/databases/$(database)/documents/members/$(_writeData.memberId))
           && _writeData.reconciledBy == request.auth.uid
           && _writeData.reconciledAt == request.time
           && _writeData.reconciliationReason is string
           && _writeData.reconciliationReason.size() > 0
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["memberId", "linkedBy", "linkedAt", "updatedAt", "reconciliationReason", "reconciledBy", "reconciledAt"]))
-        || (resource.data.formType == "youth-activity-consent" && resource.data.memberId is string
-          && isApprovedParentForMember(resource.data.memberId) && _writeData.memberId == resource.data.memberId
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["memberId", "linkedBy", "linkedAt", "updatedAt", "reconciliationReason", "reconciledBy", "reconciledAt"]))
+        || (_storedData.formType == "youth-activity-consent" && _storedData.memberId is string
+          && isApprovedParentForMember(_storedData.memberId) && _writeData.memberId == _storedData.memberId
           && validDateRange(_writeData.consentFrom, _writeData.consentTo)
           && _writeData.parentUpdatedBy == request.auth.uid
           && !_writeData.keys().hasAny(["scoutSection"])
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["consentFrom", "consentTo", "photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "vaccinated", "medicalFurtherInfo", "gpName", "gpTel", "gpAddress", "lastCheckup", "parent1Name", "parent2Name", "homePhone", "mobile1", "workPhone", "email", "homeAddress", "altContactName", "altContactPhone", "additionalInfo", "medicationManagement", "updatedByParent", "parentUpdatedBy", "parentUpdatedAt", "updatedAt"]));
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["consentFrom", "consentTo", "photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "vaccinated", "medicalFurtherInfo", "gpName", "gpTel", "gpAddress", "lastCheckup", "parent1Name", "parent2Name", "homePhone", "mobile1", "workPhone", "email", "homeAddress", "altContactName", "altContactPhone", "additionalInfo", "medicationManagement", "updatedByParent", "parentUpdatedBy", "parentUpdatedAt", "updatedAt"]));
       }
-      allow update: if _validateWrite35(request.resource.data);
+      allow update: if _validateWrite35(request.resource.data, resource.data);
       allow delete: if false;
     }
 
@@ -1513,11 +1513,11 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["kind", "section", "name", "leader", "notes", "equipment", "durationMinutes", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       }
       allow create: if _validateWrite41(request.resource.data);
-      function _validateWrite42(_writeData) {
+      function _validateWrite42(_writeData, _storedData) {
         return isActiveLeader()
-        && resource.data.section is string
-        && _writeData.section == resource.data.section
-        && (hasSection(resource.data.section) || isGroupLeader())
+        && _storedData.section is string
+        && _writeData.section == _storedData.section
+        && (hasSection(_storedData.section) || isGroupLeader())
         && _writeData.kind in ["activity", "badgework"]
         && _writeData.name is string
         && _writeData.leader is string
@@ -1526,13 +1526,13 @@ service cloud.firestore {
         && _writeData.durationMinutes is number
         && _writeData.durationMinutes >= 0
         && _writeData.durationMinutes <= 360
-        && _writeData.createdBy == resource.data.createdBy
-        && _writeData.createdAt == resource.data.createdAt
+        && _writeData.createdBy == _storedData.createdBy
+        && _writeData.createdAt == _storedData.createdAt
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
-        && _writeData.diff(resource.data).affectedKeys().hasOnly(["kind", "name", "leader", "notes", "equipment", "durationMinutes", "updatedBy", "updatedAt"]);
+        && _writeData.diff(_storedData).affectedKeys().hasOnly(["kind", "name", "leader", "notes", "equipment", "durationMinutes", "updatedBy", "updatedAt"]);
       }
-      allow update: if _validateWrite42(request.resource.data);
+      allow update: if _validateWrite42(request.resource.data, resource.data);
       allow delete: if isActiveLeader()
         && resource.data.section is string
         && (hasSection(resource.data.section) || isGroupLeader());
@@ -1864,7 +1864,7 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       }
       allow create: if _validateWrite51(request.resource.data);
-      function _validateWrite52(_writeData) {
+      function _validateWrite52(_writeData, _storedData) {
         return (isActiveLeader()
           && _writeData.checkedOutQuantity is number
           && _writeData.checkedOutQuantity >= 0
@@ -1875,7 +1875,7 @@ service cloud.firestore {
               && _writeData.checkedOutQuantity + _writeData.unavailableQuantity <= _writeData.totalQuantity))
           && _writeData.updatedBy == request.auth.uid
           && _writeData.updatedAt == request.time
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "unavailableQuantity", "updatedBy", "updatedAt"]))
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["checkedOutQuantity", "unavailableQuantity", "updatedBy", "updatedAt"]))
         || (canManageEquipment()
           && _writeData.name is string
           && _writeData.category is string
@@ -1895,21 +1895,21 @@ service cloud.firestore {
           && _writeData.notes is string
           && (_writeData.replacementValue == null || _writeData.replacementValue is number)
           && _writeData.archived is bool
-          && _writeData.createdBy == resource.data.createdBy
-          && _writeData.createdAt == resource.data.createdAt
+          && _writeData.createdBy == _storedData.createdBy
+          && _writeData.createdAt == _storedData.createdAt
           && _writeData.updatedBy == request.auth.uid
           && _writeData.updatedAt == request.time
           && (!_writeData.keys().hasAny(["purchaseDate"]) || _writeData.purchaseDate is string)
           && (!_writeData.keys().hasAny(["disposalDate"]) || _writeData.disposalDate is string)
           && (!_writeData.keys().hasAny(["replacementValueNote"]) || _writeData.replacementValueNote is string)
           && (!_writeData.keys().hasAny(["assetRegisterSection"]) || _writeData.assetRegisterSection is string)
-          && (!_writeData.keys().hasAny(["source"]) || _writeData.source == resource.data.source)
-          && (!_writeData.keys().hasAny(["importBatch"]) || _writeData.importBatch == resource.data.importBatch)
-          && (!_writeData.keys().hasAny(["importSourceRef"]) || _writeData.importSourceRef == resource.data.importSourceRef)
+          && (!_writeData.keys().hasAny(["source"]) || _writeData.source == _storedData.source)
+          && (!_writeData.keys().hasAny(["importBatch"]) || _writeData.importBatch == _storedData.importBatch)
+          && (!_writeData.keys().hasAny(["importSourceRef"]) || _writeData.importSourceRef == _storedData.importSourceRef)
           && _writeData.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"])
         );
       }
-      allow update: if _validateWrite52(request.resource.data);
+      allow update: if _validateWrite52(request.resource.data, resource.data);
       allow delete: if false;
     }
 
@@ -1968,22 +1968,22 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["section", "expectedReturnDate", "notes", "status", "lines", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       }
       allow create: if _validateWrite57(request.resource.data);
-      function _validateWrite58(_writeData) {
+      function _validateWrite58(_writeData, _storedData) {
         return isActiveLeader()
-        && (canManageEquipment() || hasSection(resource.data.section))
-        && _writeData.section == resource.data.section
-        && _writeData.expectedReturnDate == resource.data.expectedReturnDate
-        && _writeData.notes == resource.data.notes
-        && _writeData.createdBy == resource.data.createdBy
-        && _writeData.createdAt == resource.data.createdAt
+        && (canManageEquipment() || hasSection(_storedData.section))
+        && _writeData.section == _storedData.section
+        && _writeData.expectedReturnDate == _storedData.expectedReturnDate
+        && _writeData.notes == _storedData.notes
+        && _writeData.createdBy == _storedData.createdBy
+        && _writeData.createdAt == _storedData.createdAt
         && _writeData.status in ["open", "returned"]
         && _writeData.lines is list
         && _writeData.lines.size() > 0
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
-        && _writeData.diff(resource.data).affectedKeys().hasOnly(["status", "lines", "updatedBy", "updatedAt"]);
+        && _writeData.diff(_storedData).affectedKeys().hasOnly(["status", "lines", "updatedBy", "updatedAt"]);
       }
-      allow update: if _validateWrite58(request.resource.data);
+      allow update: if _validateWrite58(request.resource.data, resource.data);
       allow delete: if false;
     }
 
@@ -2028,30 +2028,30 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt", "stockAdjusted"]);
       }
       allow create: if _validateWrite59(request.resource.data);
-      function _validateWrite60(_writeData) {
+      function _validateWrite60(_writeData, _storedData) {
         return (isActiveLeader()
-          && resource.data.reportedBy == request.auth.uid
-          && _writeData.reportedBy == resource.data.reportedBy
-          && _writeData.status == resource.data.status
+          && _storedData.reportedBy == request.auth.uid
+          && _writeData.reportedBy == _storedData.reportedBy
+          && _writeData.status == _storedData.status
           && _writeData.notificationState in ["sent", "failed"]
           && (_writeData.notificationSentAt == null || _writeData.notificationSentAt == request.time)
-          && _writeData.diff(resource.data).affectedKeys().hasOnly(["notificationState", "notificationSentAt"]))
+          && _writeData.diff(_storedData).affectedKeys().hasOnly(["notificationState", "notificationSentAt"]))
         || (canManageEquipment()
           && _writeData.updatedBy == request.auth.uid
           && _writeData.updatedAt == request.time
-          && ((resource.data.status == "reported"
+          && ((_storedData.status == "reported"
               && _writeData.status == "investigating"
-              && _writeData.diff(resource.data).affectedKeys().hasOnly(["status", "updatedBy", "updatedAt"]))
-            || (resource.data.status in ["reported", "investigating"]
+              && _writeData.diff(_storedData).affectedKeys().hasOnly(["status", "updatedBy", "updatedAt"]))
+            || (_storedData.status in ["reported", "investigating"]
               && _writeData.status == "resolved"
               && _writeData.resolutionType in ["found-returned", "repaired", "replaced", "written-off", "no-action"]
               && _writeData.resolutionNotes is string
               && (_writeData.resolutionType != "written-off" || _writeData.resolutionNotes != "")
               && _writeData.resolvedBy == request.auth.uid
               && _writeData.resolvedAt == request.time
-              && _writeData.diff(resource.data).affectedKeys().hasOnly(["status", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt", "updatedBy", "updatedAt"]))));
+              && _writeData.diff(_storedData).affectedKeys().hasOnly(["status", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt", "updatedBy", "updatedAt"]))));
       }
-      allow update: if _validateWrite60(request.resource.data);
+      allow update: if _validateWrite60(request.resource.data, resource.data);
       allow delete: if false;
     }
 
@@ -2515,22 +2515,22 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["sourceType", "sourceId", "sourceLabel", "section", "date", "lines", "loanId", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       }
       allow create: if _validateWrite77(request.resource.data);
-      function _validateWrite78(_writeData) {
+      function _validateWrite78(_writeData, _storedData) {
         return isActiveLeader()
-        && resource.data.section is string
-        && (hasSection(resource.data.section) || isGroupLeader())
-        && _writeData.section == resource.data.section
-        && _writeData.sourceId == resource.data.sourceId
-        && _writeData.sourceType == resource.data.sourceType
-        && _writeData.createdBy == resource.data.createdBy
-        && _writeData.createdAt == resource.data.createdAt
+        && _storedData.section is string
+        && (hasSection(_storedData.section) || isGroupLeader())
+        && _writeData.section == _storedData.section
+        && _writeData.sourceId == _storedData.sourceId
+        && _writeData.sourceType == _storedData.sourceType
+        && _writeData.createdBy == _storedData.createdBy
+        && _writeData.createdAt == _storedData.createdAt
         && _writeData.lines is list
         && _writeData.loanId is string
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
-        && _writeData.diff(resource.data).affectedKeys().hasOnly(["sourceLabel", "date", "lines", "loanId", "updatedBy", "updatedAt"]);
+        && _writeData.diff(_storedData).affectedKeys().hasOnly(["sourceLabel", "date", "lines", "loanId", "updatedBy", "updatedAt"]);
       }
-      allow update: if _validateWrite78(request.resource.data);
+      allow update: if _validateWrite78(request.resource.data, resource.data);
       allow delete: if false;
     }
 
