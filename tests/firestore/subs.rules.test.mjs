@@ -132,6 +132,8 @@ test("ineffective canonical appointments suppress stale scalar finance grants", 
     { appointment: "Group Treasurer", scope: "Group", startDate: "2999-01-01" },
     { appointment: "Group Treasurer", scope: "Group", endDate: "2000-01-01" },
     { appointment: "Group Treasurer", scope: "Group", startDate: "2020-02-30" },
+    { appointment: "Group Treasurer", scope: "Group", endDate: "2999-02-29" },
+    { appointment: "Group Treasurer", scope: "Group", startDate: 0 },
     { appointment: "Group Treasurer", scope: "Cubs" }
   ]) {
     await seed([["organisationLeadership/stale", { active: true, scoutingRole: "Group Treasurer", appointments: [appointment] }]]);
