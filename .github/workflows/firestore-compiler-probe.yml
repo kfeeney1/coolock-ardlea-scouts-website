@@ -1,0 +1,30 @@
+name: Firestore Compiler Probe (TEST)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-test-deploy
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: test
+    env:
+      DEPLOY_ENVIRONMENT: test
+      FIREBASE_PROJECT_ID: coolock-ardlea-scouts-test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: npm ci --ignore-scripts --no-audit
+      - name: Compare immutable Firestore Rules sources
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+        run: node scripts/probe-test-firestore-compiler.mjs
