@@ -76,6 +76,7 @@ export const suiteSpecs = {
     "event-consent-linking.spec.ts",
     "event-gallery.spec.ts",
     "event-record-page.spec.ts",
+    "event-create-date-picker.spec.ts",
     "event-schedule.spec.ts",
     "event-audience-selection.spec.ts",
     "sw403-programme-scouter-event-save.spec.ts",
