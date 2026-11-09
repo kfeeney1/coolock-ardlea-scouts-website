@@ -3,19 +3,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function matchesCalendarDate(value) {
+    function calendarDateAllows(value, kind) {
       let parts = value.split('-');
       let year = int(parts[0]);
       let month = int(parts[1]);
       let day = int(parts[2]);
       let date = timestamp.date(year, month, day);
-      return date.year() == year && date.month() == month && date.day() == day;
+      return date.year() == year && date.month() == month && date.day() == day
+        && (kind == "date" || (kind == "end" ? request.time < date + duration.value(1, 'd') : date <= request.time));
     }
-    function validIsoDate(value) {
+    function validCalendarDate(value, kind) {
       return value is string
         && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
-        && matchesCalendarDate(value);
+        && calendarDateAllows(value, kind);
     }
+    function validIsoDate(value) { return validCalendarDate(value, "date"); }
     function validDateRange(startDate, endDate) {
       return validIsoDate(startDate) && validIsoDate(endDate)
         && startDate <= endDate;
@@ -37,29 +39,20 @@ service cloud.firestore {
     }
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
-    function groupAppointmentDateAllows(value, endDate) {
-      return value == "" || (value is string
-        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
-        && groupAppointmentDateIncludesToday(value, endDate));
-    }
-    function groupAppointmentDateIncludesToday(value, endDate) {
-      let parts = value.split('-');
-      let year = int(parts[0]);
-      let month = int(parts[1]);
-      let day = int(parts[2]);
-      let date = timestamp.date(year, month, day);
-      return date.year() == year && date.month() == month && date.day() == day
-        && (endDate ? request.time < date + duration.value(1, 'd') : date <= request.time);
-    }
     function groupAppointmentAt(items, index, roles) {
       let item = index < items.size() ? items[index] : null;
       return item is map
         && item.get("scope", "Group") == "Group"
         && item.get("active", true) == true
-        && item.get("appointment", "") is string
-        && item.get("appointment", "").lower() in roles
-        && groupAppointmentDateAllows(item.get("startDate", ""), false)
-        && groupAppointmentDateAllows(item.get("endDate", ""), true);
+        && effectiveGroupAppointment(item, roles);
+    }
+    function effectiveGroupAppointment(item, roles) {
+      let appointment = item.get("appointment", "");
+      let startDate = item.get("startDate", "");
+      let endDate = item.get("endDate", "");
+      return appointment is string && appointment.lower() in roles
+        && (startDate == "" || validCalendarDate(startDate, "start"))
+        && (endDate == "" || validCalendarDate(endDate, "end"));
     }
     // The canonical writer supports twelve slots. A populated list supersedes
     // the scalar label, including when all its appointments are ineffective.
@@ -79,13 +72,8 @@ service cloud.firestore {
     function groupLeadershipRoles() {
       return ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl"];
     }
-    function activeGroupLeadership(data) {
-      return hasGroupAppointment(data, groupLeadershipRoles());
-    }
     function isGroupLeader() {
-      return isActiveLeader()
-        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
-        && activeGroupLeadership(get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data);
+      return isActiveLeader() && currentGroupAppointment(groupLeadershipRoles());
     }
     function joinSectionLeaderAppointmentAt(data, index, section) {
       return data.keys().hasAny(["appointments"])
@@ -138,8 +126,8 @@ service cloud.firestore {
       let path = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
       return exists(path) && hasGroupAppointment(get(path).data, roles);
     }
-    function isGroupSecretary() {
-      return isActiveLeader() && currentGroupAppointment(["group secretary"]);
+    function isGroupLeaderOrSecretary() {
+      return isActiveLeader() && currentGroupAppointment(groupLeadershipRoles().concat(["group secretary"]));
     }
     function canManageEquipment() {
       return isActiveLeader() && (profile().role in ["admin", "super-admin"]
@@ -415,7 +403,7 @@ service cloud.firestore {
     }
 
     match /leaderChildRelationships/{relationshipId} {
-      allow get, list: if isAdmin() || isGroupLeader() || canViewAllFinance();
+      allow get, list: if canViewAllFinance();
       function _validateWrite3(_writeData) {
         return (isAdmin() || isGroupLeader())
         && _writeData.leaderUid is string
@@ -963,7 +951,7 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/members/$(memberId))
             && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
               || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)
-              || isGroupLeader() || isGroupSecretary()));
+              || isGroupLeaderOrSecretary()));
         // The member read in canWriteAdventureRequirement also proves existence. Avoid a
         // separate exists() call so a ten-member atomic batch stays within Rules' 20-call cap.
         function _validateWrite16(_writeData) {
@@ -1003,7 +991,7 @@ service cloud.firestore {
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
             && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
-              || isGroupLeader() || isGroupSecretary()
+              || isGroupLeaderOrSecretary()
               || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)));
         function _validateWrite17(_writeData) {
           return isActiveLeader()
@@ -1381,8 +1369,7 @@ service cloud.firestore {
 
     match /meetingRecords/{meetingId} {
       allow read: if isAdmin()
-        || isGroupLeader()
-        || isGroupSecretary()
+        || isGroupLeaderOrSecretary()
         || (isActiveLeader()
           && resource.data.meetingType == "leader"
           && resource.data.section is string
@@ -1427,10 +1414,11 @@ service cloud.firestore {
     }
 
     match /weeklyMeetings/{weeklyMeetingId} {
-      allow read: if isSuperAdmin()
-        || (isActiveLeader()
-        && resource.data.section is string
-        && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary()));
+      allow read: if isActiveLeader()
+        && (profile().role == "super-admin"
+          || (resource.data.section is string
+            && (profile().role == "admin" || profileHasSection(resource.data.section)
+              || currentGroupAppointment(groupLeadershipRoles().concat(["group secretary"])))));
       function _validateWrite38(_writeData) {
         return isActiveLeader()
         && _writeData.section is string
@@ -1455,8 +1443,7 @@ service cloud.firestore {
         && (resource.data.get("hallResource", "") != "group-hall" || _writeData.meetingDate == resource.data.meetingDate)
         && resource.data.section is string
         && _writeData.section is string
-        && (hasSection(resource.data.section) || isGroupLeader())
-        && (hasSection(_writeData.section) || isGroupLeader())
+        && ((hasSection(resource.data.section) && hasSection(_writeData.section)) || isGroupLeader())
         && _writeData.status in ["open", "closed"]
         && _writeData.location is string
         && _writeData.plannedActivities is string
@@ -1477,7 +1464,7 @@ service cloud.firestore {
       function canReadWeeklyAttendance() {
         let meetingPath = /databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId);
         return exists(meetingPath) && isActiveLeader()
-          && (isSuperAdmin() || hasSection(get(meetingPath).data.section) || isGroupLeader() || isGroupSecretary());
+          && (isSuperAdmin() || hasSection(get(meetingPath).data.section) || isGroupLeaderOrSecretary());
       }
       function canWriteWeeklyAttendance() {
         let meetingPath = /databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId);
@@ -1564,8 +1551,7 @@ service cloud.firestore {
         && hallDateUnchanged(_writeData)
         && resource.data.section is string
         && _writeData.section is string
-        && (hasSection(resource.data.section) || isGroupLeader())
-        && (hasSection(_writeData.section) || isGroupLeader())
+        && ((hasSection(resource.data.section) && hasSection(_writeData.section)) || isGroupLeader())
         && _writeData.meetingDate is string
         && _writeData.status in ["open", "closed"]
         && _writeData.location is string
@@ -2477,7 +2463,7 @@ service cloud.firestore {
     }
 
     match /auditLog/{entryId} {
-      allow get, list: if isAdmin() || isGroupLeader() || isGroupSecretary();
+      allow get, list: if isAdmin() || isGroupLeaderOrSecretary();
       function _validateWrite76(_writeData) {
         return isActiveLeader()
         && _writeData.actorUid == request.auth.uid

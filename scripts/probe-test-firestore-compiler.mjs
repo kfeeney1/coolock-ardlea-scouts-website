@@ -5,8 +5,11 @@ import { getSecurityRules } from "firebase-admin/security-rules";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 import { rulesCompilerReason } from "./publish-test-rules.mjs";
 
+const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const samples = [
-  ["Last successful production source", "dabd334b78899076acec1b1c6f1efc94dd54ac9b"],
+  ["Current main source", head, true],
+  ["Last successful production source", "dabd334b78899076acec1b1c6f1efc94dd54ac9b", true],
+  // Keep the older failures as comparison points without gating the current source.
   ["Previously published TEST source", "89eae97811a83d256968485b5fd223adb4fd0787"],
   ["Failing #993 source", "b1d3d411b2b9fd00d5f3f9a7e83a3c805854c3aa"],
 ];
@@ -17,9 +20,10 @@ if (target.environment !== "test" || target.credentialProjectId !== target.proje
   throw new Error("The probe requires explicit Firebase TEST credentials.");
 }
 
-const sources = samples.map(([label, sha]) => ({
+const sources = samples.map(([label, sha, required = false]) => ({
   label,
   sha,
+  required,
   content: execFileSync("git", ["show", `${sha}:firestore.rules`], { encoding: "utf8" }),
 }));
 
@@ -31,7 +35,7 @@ function status(error) {
 const app = initializeApp({ credential: cert(JSON.parse(raw)), projectId: target.projectId });
 try {
   const rules = getSecurityRules(app);
-  for (const { label, sha, content } of sources) {
+  for (const { label, sha, content, required } of sources) {
     const digest = createHash("sha256").update(content).digest("hex");
     console.log(`${label}: commit=${sha}, source SHA-256=${digest}`);
     const started = performance.now();
@@ -41,7 +45,7 @@ try {
     } catch (error) {
       const elapsed = Math.round(performance.now() - started);
       console.error(`Compile failed after ${elapsed} ms (HTTP ${status(error)}; ${rulesCompilerReason(error)}).`);
-      process.exitCode = 1;
+      if (required) process.exitCode = 1;
       continue;
     }
     console.log(`Compile succeeded after ${Math.round(performance.now() - started)} ms.`);
