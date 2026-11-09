@@ -5,14 +5,36 @@ import { getSecurityRules } from "firebase-admin/security-rules";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 import { rulesCompilerReason } from "./publish-test-rules.mjs";
 
-const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-const samples = [
-  ["Current main source", head, true],
-  ["Last successful production source", "dabd334b78899076acec1b1c6f1efc94dd54ac9b", true],
-  // Keep the older failures as comparison points without gating the current source.
-  ["Previously published TEST source", "89eae97811a83d256968485b5fd223adb4fd0787"],
-  ["Failing #993 source", "b1d3d411b2b9fd00d5f3f9a7e83a3c805854c3aa"],
-];
+function git(...args) {
+  return execFileSync("git", args, { encoding: "utf8" }).trimEnd();
+}
+
+const knownGood = "dabd334b78899076acec1b1c6f1efc94dd54ac9b";
+const lastFailed = "ca2ee1a076cb119144aa43b109ce7d4e0d124a74";
+const control = ["Last successful production source", knownGood, true];
+
+function historySamples() {
+  // Compare every first-parent Rules change in the observed failure interval.
+  // A binary search would miss recoveries if failures are intermittent.
+  const history = git("log", "--first-parent", "--reverse", "--format=%H %s",
+    `${knownGood}..${lastFailed}`, "--", "firestore.rules");
+  const checkpoints = history.split("\n");
+  if (checkpoints.length !== 12 || !checkpoints.at(-1).startsWith(`${lastFailed} `)) {
+    throw new Error("The expected Firestore Rules comparison history is unavailable.");
+  }
+  return [control, ...checkpoints.map((line) => [line.slice(41), line.slice(0, 40)])];
+}
+
+function selectSamples(comparison) {
+  if (comparison === "history") return historySamples();
+  if (comparison !== "current") throw new Error("Unknown Firestore compiler comparison.");
+  return [
+    ["Current main source", git("rev-parse", "HEAD"), true],
+    control,
+    ["Previously published TEST source", "89eae97811a83d256968485b5fd223adb4fd0787"],
+    ["Failing #993 source", "b1d3d411b2b9fd00d5f3f9a7e83a3c805854c3aa"],
+  ];
+}
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 const target = requireFirebaseMutationTarget({ operation: "probe-test-firestore-compiler", credentialJson: raw });
@@ -20,7 +42,8 @@ if (target.environment !== "test" || target.credentialProjectId !== target.proje
   throw new Error("The probe requires explicit Firebase TEST credentials.");
 }
 
-const sources = samples.map(([label, sha, required = false]) => ({
+const comparison = process.env.FIRESTORE_PROBE_COMPARISON || "current";
+const sources = selectSamples(comparison).map(([label, sha, required = false]) => ({
   label,
   sha,
   required,
@@ -32,6 +55,7 @@ function status(error) {
   return Number.isInteger(code) ? code : "unavailable";
 }
 
+const results = [];
 const app = initializeApp({ credential: cert(JSON.parse(raw)), projectId: target.projectId });
 try {
   const rules = getSecurityRules(app);
@@ -45,9 +69,11 @@ try {
     } catch (error) {
       const elapsed = Math.round(performance.now() - started);
       console.error(`Compile failed after ${elapsed} ms (HTTP ${status(error)}; ${rulesCompilerReason(error)}).`);
+      results.push({ sha, label, result: `HTTP ${status(error)}` });
       if (required) process.exitCode = 1;
       continue;
     }
+    results.push({ sha, label, result: "compiled" });
     console.log(`Compile succeeded after ${Math.round(performance.now() - started)} ms.`);
     try {
       await rules.deleteRuleset(ruleset.name);
@@ -57,6 +83,7 @@ try {
       process.exitCode = 1;
     }
   }
+  console.table(results);
 } finally {
   await deleteApp(app);
 }
