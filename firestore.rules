@@ -41,15 +41,16 @@ service cloud.firestore {
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
     function groupAppointmentAt(items, index, roles) {
       let item = index < items.size() ? items[index] : null;
-      return item is map && effectiveGroupAppointment(item, roles);
+      return item is map
+        && item.get("scope", "Group") == "Group"
+        && item.get("active", true) == true
+        && effectiveGroupAppointment(item, roles);
     }
     function effectiveGroupAppointment(item, roles) {
       let appointment = item.get("appointment", "");
       let startDate = item.get("startDate", "");
       let endDate = item.get("endDate", "");
-      return item.get("scope", "Group") == "Group"
-        && item.get("active", true) == true
-        && appointment is string && appointment.lower() in roles
+      return appointment is string && appointment.lower() in roles
         && (startDate == "" || validCalendarDate(startDate, "start"))
         && (endDate == "" || validCalendarDate(endDate, "end"));
     }
@@ -1413,10 +1414,11 @@ service cloud.firestore {
     }
 
     match /weeklyMeetings/{weeklyMeetingId} {
-      allow read: if isSuperAdmin()
-        || (isActiveLeader()
-        && resource.data.section is string
-        && (hasSection(resource.data.section) || isGroupLeaderOrSecretary()));
+      allow read: if isActiveLeader()
+        && (profile().role == "super-admin"
+          || (resource.data.section is string
+            && (profile().role == "admin" || profileHasSection(resource.data.section)
+              || currentGroupAppointment(groupLeadershipRoles().concat(["group secretary"])))));
       function _validateWrite38(_writeData) {
         return isActiveLeader()
         && _writeData.section is string
