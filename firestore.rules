@@ -3,21 +3,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function calendarDateAllows(value, kind) {
+    function matchesCalendarDate(value) {
       let parts = value.split('-');
       let year = int(parts[0]);
       let month = int(parts[1]);
       let day = int(parts[2]);
       let date = timestamp.date(year, month, day);
-      return date.year() == year && date.month() == month && date.day() == day
-        && (kind == "date" || (kind == "end" ? request.time < date + duration.value(1, 'd') : date <= request.time));
+      return date.year() == year && date.month() == month && date.day() == day;
     }
-    function validCalendarDate(value, kind) {
+    function validIsoDate(value) {
       return value is string
         && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
-        && calendarDateAllows(value, kind);
+        && matchesCalendarDate(value);
     }
-    function validIsoDate(value) { return validCalendarDate(value, "date"); }
     function validDateRange(startDate, endDate) {
       return validIsoDate(startDate) && validIsoDate(endDate)
         && startDate <= endDate;
@@ -39,35 +37,48 @@ service cloud.firestore {
     }
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
-    function groupAppointmentAt(items, index, roles) {
+    function appointmentDateInRange(value, today, isStart) {
+      return value == "" || (value is string
+        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+        && appointmentDateOnCorrectSide(value.split('-'), today, isStart));
+    }
+    function appointmentDateOnCorrectSide(parts, today, isStart) {
+      // timestamp.date rejects impossible dates. Compare UTC midnights to
+      // include the entire final day without adding a day to the stored date.
+      let date = timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
+      return isStart ? date <= today : today <= date;
+    }
+    function groupAppointmentAt(items, index, roles, today) {
       let item = index < items.size() ? items[index] : null;
       return item is map
         && item.get("scope", "Group") == "Group"
         && item.get("active", true) == true
-        && effectiveGroupAppointment(item, roles);
+        && effectiveGroupAppointment(item, roles, today);
     }
-    function effectiveGroupAppointment(item, roles) {
+    function effectiveGroupAppointment(item, roles, today) {
       let appointment = item.get("appointment", "");
-      let startDate = item.get("startDate", "");
-      let endDate = item.get("endDate", "");
       return appointment is string && appointment.lower() in roles
-        && (startDate == "" || validCalendarDate(startDate, "start"))
-        && (endDate == "" || validCalendarDate(endDate, "end"));
+        && appointmentDateInRange(item.get("startDate", ""), today, true)
+        && appointmentDateInRange(item.get("endDate", ""), today, false);
+    }
+    function groupAppointmentsMatch(items, roles) {
+      let today = request.time.date();
+      return ((groupAppointmentAt(items, 0, roles, today) || groupAppointmentAt(items, 1, roles, today))
+        || (groupAppointmentAt(items, 2, roles, today) || groupAppointmentAt(items, 3, roles, today)))
+        || (((groupAppointmentAt(items, 4, roles, today) || groupAppointmentAt(items, 5, roles, today))
+          || (groupAppointmentAt(items, 6, roles, today) || groupAppointmentAt(items, 7, roles, today)))
+        || ((groupAppointmentAt(items, 8, roles, today) || groupAppointmentAt(items, 9, roles, today))
+          || (groupAppointmentAt(items, 10, roles, today) || groupAppointmentAt(items, 11, roles, today))));
     }
     // The canonical writer supports twelve slots. A populated list supersedes
     // the scalar label, including when all its appointments are ineffective.
     function hasGroupAppointment(data, roles) {
       let items = data.get("appointments", []);
+      let legacy = data.get("scoutingRole", "");
       return data.get("active", false) == true && items is list && items.size() <= 12
         && (items.size() == 0
-          ? data.get("scoutingRole", "") is string && data.get("scoutingRole", "").lower() in roles
-          // Group the checks to keep the compiler expression tree shallow.
-          : ((groupAppointmentAt(items, 0, roles) || groupAppointmentAt(items, 1, roles))
-            || (groupAppointmentAt(items, 2, roles) || groupAppointmentAt(items, 3, roles)))
-          || (((groupAppointmentAt(items, 4, roles) || groupAppointmentAt(items, 5, roles))
-            || (groupAppointmentAt(items, 6, roles) || groupAppointmentAt(items, 7, roles)))
-          || ((groupAppointmentAt(items, 8, roles) || groupAppointmentAt(items, 9, roles))
-            || (groupAppointmentAt(items, 10, roles) || groupAppointmentAt(items, 11, roles)))));
+          ? legacy is string && legacy.lower() in roles
+          : groupAppointmentsMatch(items, roles));
     }
     function groupLeadershipRoles() {
       return ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl"];
@@ -2068,8 +2079,10 @@ service cloud.firestore {
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
       function delegableSlot(items, index) {
-        return items.size() <= index || (items[index] is map
-          && isGroupLeadershipDelegableAppointment(items[index].get("appointment", "")));
+        return items.size() <= index || isDelegableAppointment(items[index]);
+      }
+      function isDelegableAppointment(item) {
+        return item is map && isGroupLeadershipDelegableAppointment(item.get("appointment", ""));
       }
       function allDelegableSlots(items) {
         return ((delegableSlot(items, 0) && delegableSlot(items, 1))
@@ -2094,7 +2107,6 @@ service cloud.firestore {
       function _validateWrite62(_writeData) {
         return maintenanceDirectoryInvalidated() && (isAdmin() || (canDelegateLeaderTarget(leaderId)
           && _writeData.scoutingRole is string
-          && (!("appointments" in _writeData) || (_writeData.appointments is list && _writeData.appointments.size() <= 12))
           && canChangeDelegatedAppointments(resource.data, _writeData)
           && (_writeData.scoutingRole == resource.data.scoutingRole || isGroupLeadershipDelegableAppointment(_writeData.scoutingRole)
             || (_writeData.scoutingRole == "" && isGroupLeadershipDelegableAppointment(resource.data.scoutingRole)))
