@@ -25,7 +25,19 @@ function historySamples() {
   return [control, ...checkpoints.map((line) => [line.slice(41), line.slice(0, 40)])];
 }
 
+function appointmentSamples() {
+  const before = "1829245312cad835682e06fbe4583f4b61e20c2a";
+  const after = "d0cf40cba39719b022194c257f9a57ce47f30f22";
+  return [
+    ["Before #981 (control)", before, true],
+    ["Full #981", after],
+    ["#981 appointment lookup only", after, false, before],
+    ["#981 delegated writes only", before, false, after],
+  ];
+}
+
 function selectSamples(comparison) {
+  if (comparison === "appointments") return appointmentSamples();
   if (comparison === "history") return historySamples();
   if (comparison !== "current") throw new Error("Unknown Firestore compiler comparison.");
   return [
@@ -43,12 +55,30 @@ if (target.environment !== "test" || target.credentialProjectId !== target.proje
 }
 
 const comparison = process.env.FIRESTORE_PROBE_COMPARISON || "current";
-const sources = selectSamples(comparison).map(([label, sha, required = false]) => ({
-  label,
-  sha,
-  required,
-  content: execFileSync("git", ["show", `${sha}:firestore.rules`], { encoding: "utf8" }),
-}));
+function readRules(sha) {
+  return execFileSync("git", ["show", `${sha}:firestore.rules`], { encoding: "utf8" });
+}
+
+function delegationMatch(source) {
+  const start = "    match /organisationLeadership/{leaderId} {";
+  const next = "    match /publicLeadership/{leaderId} {";
+  const from = source.indexOf(start);
+  const to = source.indexOf(next, from);
+  if (from < 0 || to <= from || source.lastIndexOf(start) !== from || source.lastIndexOf(next) !== to) {
+    throw new Error("Cannot isolate the organisationLeadership match.");
+  }
+  return source.slice(from, to);
+}
+
+const sources = selectSamples(comparison).map(([label, sha, required = false, delegationSha]) => {
+  const source = readRules(sha);
+  // #981 changed delegated writes only within this match. Swap it in memory
+  // for the two diagnostic variants, which must never be released.
+  const content = delegationSha
+    ? source.replace(delegationMatch(source), () => delegationMatch(readRules(delegationSha)))
+    : source;
+  return { label, sha, required, delegationSha, content };
+});
 
 function status(error) {
   const code = error.httpResponse?.status;
@@ -59,9 +89,10 @@ const results = [];
 const app = initializeApp({ credential: cert(JSON.parse(raw)), projectId: target.projectId });
 try {
   const rules = getSecurityRules(app);
-  for (const { label, sha, content, required } of sources) {
+  for (const { label, sha, content, required, delegationSha } of sources) {
     const digest = createHash("sha256").update(content).digest("hex");
-    console.log(`${label}: commit=${sha}, source SHA-256=${digest}`);
+    const revision = delegationSha ? `base=${sha}, delegation=${delegationSha}` : `commit=${sha}`;
+    console.log(`${label}: ${revision}, source SHA-256=${digest}`);
     const started = performance.now();
     let ruleset;
     try {
