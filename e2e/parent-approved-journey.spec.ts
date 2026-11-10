@@ -79,7 +79,7 @@ test.describe("approved parent journey", () => {
     const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
     await expect(summary.getByRole("heading", { name: "Things to do" })).toBeVisible();
     await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
-    await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
+    await expect(summary.getByText("Consent & Medical", { exact: true })).toBeVisible();
     await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
     await expect(medicalAttentionCount).toHaveText("1");
 
@@ -147,9 +147,14 @@ test.describe("approved parent journey", () => {
     await loginParent(page);
 
     const nextAction = page.getByTestId("parent-next-action");
-    await expect(nextAction).toContainText("Next action");
+    await expect(nextAction).toContainText("Consent required");
     await expect(nextAction).toContainText("TEST Beavers Open Day Trip");
-    await expect(nextAction.getByRole("button", { name: "Review consent" })).toBeVisible();
+    const portalUrl = page.url();
+    const historyLength = await page.evaluate(() => window.history.length);
+    await nextAction.getByRole("button", { name: "Review consent" }).click();
+    await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeInViewport();
+    await expect(page).toHaveURL(portalUrl);
+    expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
 
     await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
