@@ -1,14 +1,13 @@
 import { reportApplicationError } from "../../services/applicationErrors.ts";
 import {
-    Alert,
     Box,
     Button,
-    Chip,
     Paper,
     Stack,
     Typography
 } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { alpha } from "@mui/material/styles";
+import { useEffect, useState } from "react";
 
 import {
     OperationalErrorState,
@@ -30,17 +29,14 @@ type Props = {
     consentFlowsEnabled?: boolean;
 };
 
-const emptySummary: ParentTaskSummary = {
-    eventConsentCount: 0,
-    medicalAttentionCount: 0,
-    upcomingEventCount: 0,
-    totalAttentionCount: 0,
-    nextEvent: null,
-    nextConsentEvent: null
+const actionStyle = {
+    minHeight: 44,
+    "&.Mui-focusVisible": { outline: "2px solid", outlineOffset: 2 }
 };
 
 function scrollTo(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    document.getElementById(id)?.scrollIntoView({ behavior, block: "start" });
 }
 
 function eventDate(startDate: string, endDate: string): string {
@@ -49,39 +45,51 @@ function eventDate(startDate: string, endDate: string): string {
     return formatSiteDate(startDate);
 }
 
-export default function ParentThingsToDo({ memberIds, sections, refreshVersion = 0, consentFlowsEnabled = false }: Props) {
-    const [summary, setSummary] = useState<ParentTaskSummary>(emptySummary);
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState<unknown>(null);
+export default function ParentThingsToDo(props: Props) {
+    // A child or consent setting change must discard the previous summary before rendering.
+    const contextKey = JSON.stringify([props.memberIds, props.sections, props.consentFlowsEnabled]);
+    return <ParentTaskSummaryPanel key={contextKey} {...props} />;
+}
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        setLoadError(null);
-        try {
-            const nextSummary = await loadParentTaskSummary({
-                events: () => loadParentEventConsentLinks(memberIds, sections),
-                members: () => loadLinkedMembers(memberIds),
-                consents: () => consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
-            }, { eventConsentEnabled: consentFlowsEnabled });
-            setSummary(nextSummary);
-        } catch (error) {
-            const eventOperation = error && typeof error === "object" && "parentEventOperation" in error
-                ? Reflect.get(error, "parentEventOperation")
-                : undefined;
-            const operation = typeof eventOperation === "string"
-                ? `Unable to load parent task summary: ${eventOperation}`
-                : "Unable to load parent task summary";
-            reportApplicationError(error, { area: "ParentThingsToDo", operation });
-            setLoadError(error);
-        } finally {
-            setLoading(false);
-        }
-    }, [consentFlowsEnabled, memberIds, sections]);
+function ParentTaskSummaryPanel({ memberIds, sections, refreshVersion = 0, consentFlowsEnabled = false }: Props) {
+    const [context] = useState({ memberIds, sections, consentFlowsEnabled });
+    const [retryVersion, setRetryVersion] = useState(0);
+    const [result, setResult] = useState<{
+        revision: number;
+        retry: number;
+        outcome: { summary: ParentTaskSummary } | { error: unknown };
+    } | null>(null);
 
     useEffect(() => {
-        if (refreshVersion < 0) return;
+        if (refreshVersion < 0 && retryVersion === 0) return;
+        const { memberIds, sections, consentFlowsEnabled } = context;
+        if (memberIds.length === 0 && sections.length === 0) return;
+        let active = true;
+        const load = async () => {
+            try {
+                const summary = await loadParentTaskSummary({
+                    events: () => loadParentEventConsentLinks(memberIds, sections),
+                    members: () => loadLinkedMembers(memberIds),
+                    consents: () => consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
+                }, { eventConsentEnabled: consentFlowsEnabled });
+                if (active) setResult({ revision: refreshVersion, retry: retryVersion, outcome: { summary } });
+            } catch (error) {
+                if (!active) return;
+                const eventOperation = error && typeof error === "object" && "parentEventOperation" in error
+                    ? Reflect.get(error, "parentEventOperation")
+                    : undefined;
+                const operation = typeof eventOperation === "string"
+                    ? `Unable to load parent task summary: ${eventOperation}`
+                    : "Unable to load parent task summary";
+                reportApplicationError(error, { area: "ParentThingsToDo", operation });
+                setResult({ revision: refreshVersion, retry: retryVersion, outcome: { error } });
+            }
+        };
         void load();
-    }, [load, refreshVersion]);
+        return () => { active = false; };
+    }, [context, refreshVersion, retryVersion]);
+
+    const retry = () => setRetryVersion((version) => version + 1);
 
     const taskState = () => {
         if (memberIds.length === 0 && sections.length === 0) {
@@ -92,18 +100,19 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
             );
         }
 
-        if (loading) {
+        if (!result || result.retry !== retryVersion || (refreshVersion >= 0 && result.revision !== refreshVersion)) {
             return <OperationalLoading minHeight={120} label="Loading your things to do" />;
         }
 
-        if (loadError) {
+        if ("error" in result.outcome) {
+            const loadError = result.outcome.error;
             const message = firestoreFailureMessage(loadError, "Unable to load your things-to-do summary right now.");
             if (classifyFirestoreFailure(loadError) === "permission") {
                 return (
                     <OperationalPermissionState
                         title="Things to do access restricted"
                         actionLabel="Retry"
-                        onAction={() => void load()}
+                        onAction={retry}
                         testId="parent-things-to-do-permission"
                     >
                         {message}
@@ -114,7 +123,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
                 <OperationalErrorState
                     title="Things to do could not be loaded"
                     actionLabel="Retry"
-                    onAction={() => void load()}
+                    onAction={retry}
                     testId="parent-things-to-do-error"
                 >
                     {message}
@@ -122,68 +131,66 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
             );
         }
 
+        const { summary } = result.outcome;
+        const attentionCount = summary.eventConsentCount + (consentFlowsEnabled ? summary.medicalAttentionCount : 0);
+        const consentEvent = consentFlowsEnabled ? summary.nextConsentEvent : null;
+        const event = consentEvent ?? summary.nextEvent;
+        const eventTarget = "parent-event-consent";
+        const counts = [
+            ...(consentFlowsEnabled ? [
+                { count: summary.eventConsentCount, label: "Event consent", action: "Review events", target: eventTarget },
+                { count: summary.medicalAttentionCount, label: "Consent & Medical", action: "Review forms", target: "parent-medical-consent", testId: "parent-medical-attention-count" }
+            ] : []),
+            { count: summary.upcomingEventCount, label: "Upcoming events", action: "View events", target: eventTarget }
+        ];
+
         return (
             <>
-                {(summary.eventConsentCount + (consentFlowsEnabled ? summary.medicalAttentionCount : 0)) === 0 ? (
-                    <Alert severity="success" sx={{ mb: 2 }} role="status">
-                        Nothing needs your attention right now.
-                    </Alert>
-                ) : (
-                    <Alert severity="info" sx={{ mb: 2 }} role="status">
-                        You have {summary.eventConsentCount + (consentFlowsEnabled ? summary.medicalAttentionCount : 0)} item{summary.eventConsentCount + (consentFlowsEnabled ? summary.medicalAttentionCount : 0) === 1 ? "" : "s"} to review.
-                    </Alert>
-                )}
-
-                {consentFlowsEnabled && summary.nextConsentEvent && (
-                    <Paper variant="outlined" sx={{ p: 2.25, mb: 2 }} data-testid="parent-next-action">
-                        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
-                            <Box>
-                                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-                                    <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>Next action</Typography>
-                                    <Chip label="Consent required" color="warning" size="small" />
-                                </Stack>
-                                <Typography sx={{ mt: 0.75, fontWeight: 700 }}>{summary.nextConsentEvent.title}</Typography>
+                <Typography role="status" variant="body2" sx={{ mb: 1, fontWeight: 700 }}>
+                    {attentionCount === 0
+                        ? "Nothing needs your attention right now."
+                        : `${attentionCount} item${attentionCount === 1 ? "" : "s"} to review`}
+                </Typography>
+                {event && (
+                    <Paper variant="outlined" data-testid={consentEvent ? "parent-next-action" : "parent-next-event"}
+                        sx={(theme) => {
+                            const accent = consentEvent ? theme.palette.warning.main : theme.palette.success.main;
+                            return { p: 1.25, mb: 1, borderColor: accent, bgcolor: alpha(accent, 0.1) };
+                        }}>
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}
+                            sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                    {consentEvent ? "Consent required" : "Upcoming event"}
+                                </Typography>
+                                <Typography component="p" variant="subtitle1" color="secondary" sx={{ fontWeight: 800 }}>
+                                    {event.title}
+                                </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    {eventDate(summary.nextConsentEvent.startDate, summary.nextConsentEvent.endDate)} · {summary.nextConsentEvent.section}{summary.nextConsentEvent.location ? ` · ${summary.nextConsentEvent.location}` : ""}
+                                    {eventDate(event.startDate, event.endDate)} · {event.section}{event.location ? ` · ${event.location}` : ""}
                                 </Typography>
                             </Box>
-                            <Button variant="contained" color="warning" onClick={() => scrollTo("parent-event-consent")}>Review consent</Button>
+                            <Button variant="contained" color="secondary" onClick={() => scrollTo(eventTarget)}
+                                sx={{ ...actionStyle, flexShrink: { sm: 0 }, justifyContent: { xs: "flex-start", sm: "center" } }}>
+                                {consentEvent ? "Review consent" : "View event details"}
+                            </Button>
                         </Stack>
                     </Paper>
                 )}
-
-                {!summary.nextConsentEvent && summary.nextEvent && (
-                    <Paper variant="outlined" sx={{ p: 2.25, mb: 2 }} data-testid="parent-next-event">
-                        <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>Next upcoming event</Typography>
-                        <Typography sx={{ mt: 0.75, fontWeight: 700 }}>{summary.nextEvent.title}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            {eventDate(summary.nextEvent.startDate, summary.nextEvent.endDate)} · {summary.nextEvent.section}{summary.nextEvent.location ? ` · ${summary.nextEvent.location}` : ""}
-                        </Typography>
-                        <Button onClick={() => scrollTo("parent-event-consent")} sx={{ mt: 1, px: 0 }}>View event details</Button>
-                    </Paper>
-                )}
-
-                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
-                    {consentFlowsEnabled && <Paper variant="outlined" sx={{ p: 2.25 }}>
-                        <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>{summary.eventConsentCount}</Typography>
-                        <Typography sx={{ fontWeight: 700 }}>Event consent</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Upcoming consent request{summary.eventConsentCount === 1 ? "" : "s"} for linked sections.</Typography>
-                        <Button onClick={() => scrollTo("parent-event-consent")} sx={{ mt: 1.5, px: 0 }}>Review events</Button>
-                    </Paper>}
-
-                    {consentFlowsEnabled && <Paper variant="outlined" sx={{ p: 2.25 }}>
-                        <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }} data-testid="parent-medical-attention-count">{summary.medicalAttentionCount}</Typography>
-                        <Typography sx={{ fontWeight: 700 }}>Medical & consent</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Linked child record{summary.medicalAttentionCount === 1 ? "" : "s"} missing a parent-reviewed consent update.</Typography>
-                        <Button onClick={() => scrollTo("parent-medical-consent")} sx={{ mt: 1.5, px: 0 }}>Review forms</Button>
-                    </Paper>}
-
-                    <Paper variant="outlined" sx={{ p: 2.25 }}>
-                        <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>{summary.upcomingEventCount}</Typography>
-                        <Typography sx={{ fontWeight: 700 }}>Upcoming events</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Event{summary.upcomingEventCount === 1 ? "" : "s"} currently visible for your linked sections.</Typography>
-                        <Button onClick={() => scrollTo("parent-event-consent")} sx={{ mt: 1.5, px: 0 }}>View events</Button>
-                    </Paper>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: `repeat(${counts.length}, minmax(0, 1fr))` }, gap: 0.5 }}>
+                    {counts.map(({ count, label, action, target, testId }) => (
+                        <Box key={label} sx={{
+                            display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 0.75,
+                            justifyContent: { xs: "space-between", md: "flex-start" }
+                        }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                <Box component="span" data-testid={testId} sx={{ mr: 1, color: "secondary.main" }}>{count}</Box>
+                                <Box component="span">{label}</Box>
+                            </Typography>
+                            <Button variant="outlined" color="secondary" size="small" onClick={() => scrollTo(target)}
+                                sx={{ ...actionStyle, textAlign: "left" }}>{action}</Button>
+                        </Box>
+                    ))}
                 </Box>
 
                 <ParentWeeklyProgramme sections={sections} childId={memberIds[0] ?? ""} />
@@ -192,12 +199,9 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }} data-testid="parent-things-to-do">
-            <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>
+        <Paper variant="outlined" sx={{ p: { xs: 1.25, md: 2 }, mb: 2, overflowWrap: "anywhere" }} data-testid="parent-things-to-do">
+            <Typography component="h2" variant="h6" color="secondary" sx={{ fontWeight: 800 }}>
                 Things to do
-            </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-                Your next actions, upcoming events and weekly programme in one place.
             </Typography>
             {taskState()}
         </Paper>
