@@ -149,6 +149,7 @@ test.describe("approved parent journey", () => {
     const nextAction = page.getByTestId("parent-next-action");
     await expect(nextAction).toContainText("Consent required");
     await expect(nextAction).toContainText("TEST Beavers Open Day Trip");
+    await expect(page).toHaveURL(/child=TEST_member_beaver_01/);
     const portalUrl = page.url();
     const historyLength = await page.evaluate(() => window.history.length);
     await nextAction.getByRole("button", { name: "Review consent" }).click();
