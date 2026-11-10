@@ -163,7 +163,7 @@ function ParentTaskSummaryPanel({ memberIds, sections, refreshVersion = 0, conse
                                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                     {consentEvent ? "Consent required" : "Upcoming event"}
                                 </Typography>
-                                <Typography variant="subtitle1" color="secondary" sx={{ fontWeight: 800 }}>
+                                <Typography component="p" variant="subtitle1" color="secondary" sx={{ fontWeight: 800 }}>
                                     {event.title}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
