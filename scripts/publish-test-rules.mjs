@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { cert, initializeApp, deleteApp } from "firebase-admin/app";
 import { getSecurityRules } from "firebase-admin/security-rules";
+import { compileRulesSource, readReviewedTestRules } from "./reviewed-rules-source.mjs";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 export const RULES_ATTEMPTS = 4;
@@ -86,20 +87,25 @@ export async function publishTestRules() {
   if (buckets?.length !== 1 || buckets[0] !== "coolock-ardlea-scouts-test.firebasestorage.app") {
     throw new Error("Unexpected TEST Storage target; refusing Rules publication.");
   }
-  await publishProjectRules({ raw, projectId: target.projectId, bucket: buckets[0] });
+  const sha = process.env.GITHUB_SHA;
+  const sources = {
+    "firestore.rules": await readReviewedTestRules(sha, "firestore.rules"),
+    "storage.rules": await readReviewedTestRules(sha, "storage.rules"),
+  };
+  await publishProjectRules({ raw, projectId: target.projectId, bucket: buckets[0], sources });
 }
 
 // Callers must validate their environment, credentials and bucket first.
-export async function publishProjectRules({ raw, projectId, bucket }) {
+export async function publishProjectRules({ raw, projectId, bucket, sources }) {
   const app = initializeApp({ credential: cert(JSON.parse(raw)), projectId }, "reviewed-rules-deploy");
   try {
     const rules = getSecurityRules(app);
     for (const name of ["firestore.rules", "storage.rules"]) {
       const firestore = name === "firestore.rules";
       await publishReviewedRules({
-        name, source: await readFile(name, "utf8"),
+        name, source: sources?.[name] ?? await readFile(name, "utf8"),
         getLive: () => firestore ? rules.getFirestoreRuleset() : rules.getStorageRuleset(bucket),
-        create: (file) => rules.createRuleset(file),
+        create: (file) => compileRulesSource(rules, file),
         release: (ruleset) => firestore ? rules.releaseFirestoreRuleset(ruleset) : rules.releaseStorageRuleset(ruleset, bucket),
       });
     }
