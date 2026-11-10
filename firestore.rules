@@ -1093,7 +1093,8 @@ service cloud.firestore {
         && validDateRange(request.resource.data.startDate, request.resource.data.endDate)
         && (request.resource.data.audience == resource.data.audience || validVersion3EventAudience(request.resource.data))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "consentLinkToken", "audience", "attendance", "consent", "updatedAt", "updatedBy"]);
-      allow delete: if false;
+      // SW-595: canonical active Super Admin only; appointments never grant deletion.
+      allow delete: if isSuperAdmin();
     }
 
     match /events/{eventId}/audienceMembers/{memberId} {
