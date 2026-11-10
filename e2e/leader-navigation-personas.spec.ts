@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { accountNavItems, dashboardNavItem, leaderNavGroups, redesignedNavigationGroups, type LeaderNavItem } from "../src/navigation/leaderNavigation";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { categoryRouteSamples, navigationPersonas, personaAccountDestinations } from "./support/leader-navigation-personas";
+import { setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const items = [dashboardNavItem, ...leaderNavGroups.flatMap((group) => group.items), ...accountNavItems];
@@ -11,10 +12,7 @@ const redesignedOrder = ["programme", "people-parents", "secretary", "quartermas
 
 async function selectVersion(page: Page, redesigned: boolean) {
   await page.goto("/leader/settings");
-  const choice = page.getByRole("button", { name: `${redesigned ? "Redesigned" : "Existing"} navigation`, exact: true });
-  await expect(choice).toBeEnabled();
-  if (await choice.getAttribute("aria-pressed") !== "true") await choice.click();
-  await expect(choice).toHaveAttribute("aria-pressed", "true");
+  await setRolloutSwitch(page, "navigation", redesigned);
 }
 async function openMenu(page: Page) {
   const toggle = page.locator('button[aria-controls="leader-navigation"]');
@@ -130,7 +128,7 @@ for (const redesigned of [false, true]) {
           await expect(page.getByRole("heading", { name: "System Information", exact: true, includeHidden: true })).toHaveCount(0);
           await page.goto("/leader/settings");
           await expect(page.getByTestId("page-settings").or(page.getByTestId("admin-overview"))).toBeVisible();
-          await expect(page.getByRole("button", { name: "Redesigned navigation", exact: true, includeHidden: true })).toHaveCount(0);
+          await expect(page.getByRole("switch", { name: "Redesigned navigation", exact: true, includeHidden: true })).toHaveCount(0);
         }
       } finally {
         try { await selectVersion(settingsPage, false); } finally { await settingsContext.close(); }

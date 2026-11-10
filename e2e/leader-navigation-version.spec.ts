@@ -1,14 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
+import { rolloutSwitch, setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const superEmail = process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com";
 async function selectVersion(page: Page, version: "Existing" | "Redesigned") {
   await page.goto("/leader/settings");
-  const button = page.getByRole("button", { name: `${version} navigation`, exact: true });
-  await expect(button).toBeEnabled();
-  if (await button.getAttribute("aria-pressed") !== "true") await button.click();
-  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await setRolloutSwitch(page, "navigation", version === "Redesigned");
 }
 async function openMenu(page: Page) {
   const toggle = page.getByRole("button", { name: /Leader Menu|Menu ·/ });
@@ -52,14 +50,16 @@ test("Superuser persists both versions with complete menu parity, keyboard state
   const mobile = testInfo.project.name === "mobile-chromium";
   await loginAsLeader(page, { email: superEmail, password: password! });
   await page.goto("/leader/settings");
-  await expect(page.getByRole("button", { name: "Existing navigation", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(rolloutSwitch(page, "navigation")).toBeEnabled();
+  await expect(rolloutSwitch(page, "navigation")).not.toBeChecked();
   let baseline: string[] = [];
   try {
     for (const redesigned of [false, true]) {
       const mode = redesigned ? "Redesigned" : "Existing";
       await selectVersion(page, mode);
       await page.reload();
-      await expect(page.getByRole("button", { name: `${mode} navigation`, exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(rolloutSwitch(page, "navigation")).toBeEnabled();
+      await expect(rolloutSwitch(page, "navigation")).toBeChecked({ checked: redesigned });
       const actual = await destinations(page, redesigned, mobile);
       if (!redesigned) baseline = actual;
       else expect(actual).toEqual(baseline);

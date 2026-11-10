@@ -1,14 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
+import { setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
 async function selectVersion(page: Page, redesigned: boolean) {
   await page.goto("/leader/settings");
-  const choice = page.getByRole("button", { name: `${redesigned ? "Redesigned" : "Existing"} navigation`, exact: true });
-  await expect(choice).toBeEnabled();
-  if (await choice.getAttribute("aria-pressed") !== "true") await choice.click();
-  await expect(choice).toHaveAttribute("aria-pressed", "true");
+  await setRolloutSwitch(page, "navigation", redesigned);
 }
 
 async function activeDestination(page: Page, redesigned: boolean, mobile: boolean, id: string, category: string, label: string) {
@@ -86,7 +84,7 @@ for (const redesigned of [false, true]) {
         await expect(page.getByRole("navigation", { name: "Leader navigation", exact: true }).locator('[aria-current="page"]')).toHaveCount(0);
         await page.keyboard.press("Escape");
         await expect(page.getByTestId("page-treasurer-settings")).toHaveCount(0);
-        await expect(page.getByRole("button", { name: "Redesigned navigation", exact: true, includeHidden: true })).toHaveCount(0);
+        await expect(page.getByRole("switch", { name: "Redesigned navigation", exact: true, includeHidden: true })).toHaveCount(0);
       }
       await page.goto("/leader/settings?section=Cubs&view=treasurer");
       await expect(page).toHaveURL(/\/leader$/);

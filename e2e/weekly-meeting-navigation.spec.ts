@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
+import { setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const sectionLeaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
@@ -129,14 +130,10 @@ for (const redesigned of [false, true]) {
     test.skip(!password, "Configure canonical E2E credentials.");
     const settingsContext = await browser.newContext({ baseURL });
     const settingsPage = await settingsContext.newPage();
-    const choice = (name: string) => settingsPage.getByRole("button", { name: `${name} navigation`, exact: true });
     try {
       await loginAsLeader(settingsPage, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
       await settingsPage.goto("/leader/settings");
-      const selectedMode = choice(redesigned ? "Redesigned" : "Existing");
-      await expect(selectedMode).toBeEnabled();
-      if (await selectedMode.getAttribute("aria-pressed") !== "true") await selectedMode.click();
-      await expect(selectedMode).toHaveAttribute("aria-pressed", "true");
+      await setRolloutSwitch(settingsPage, "navigation", redesigned);
       await loginAsLeader(page, { email: sectionLeaderEmail, password: password! });
       await ensureOpenScoutsMeeting(page);
       const menu = page.locator('button[aria-controls="leader-navigation"]');
@@ -179,8 +176,7 @@ for (const redesigned of [false, true]) {
     } finally {
       try {
         if (redesigned) {
-          await choice("Existing").click();
-          await expect(choice("Existing")).toHaveAttribute("aria-pressed", "true");
+          await setRolloutSwitch(settingsPage, "navigation", false);
         }
       } finally { await settingsContext.close(); }
     }
