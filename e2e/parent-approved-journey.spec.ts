@@ -232,10 +232,27 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     }
   });
 
-  test("menu preserves the linked child, deep links and browser Back", async ({ page }) => {
+  test("menu preserves the linked child, deep links and browser Back", async ({ page }, testInfo) => {
+    const isMobile = testInfo.project.name === "mobile-chromium";
+    if (isMobile) await page.setViewportSize({ width: 320, height: 720 });
     const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
     await expect(childSelect).toBeVisible();
     const badgeworkLink = page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" });
+    const summary = page.getByTestId("parent-things-to-do");
+    const context = page.getByTestId("parent-child-context");
+    const polls = page.locator("#parent-dashboard-polls");
+    await expect(summary).toBeVisible();
+    await expect(polls).toBeVisible();
+    expect((await context.boundingBox())!.y).toBeLessThan((await summary.boundingBox())!.y);
+    expect((await summary.boundingBox())!.y).toBeLessThan((await polls.boundingBox())!.y);
+    if (isMobile) {
+      const links = page.getByTestId("parent-portal-menu").getByRole("link");
+      const firstLink = (await links.first().boundingBox())!;
+      const secondLink = (await links.nth(1).boundingBox())!;
+      expect(firstLink.height).toBeGreaterThanOrEqual(44);
+      expect(secondLink.y).toBeGreaterThanOrEqual(firstLink.y + firstLink.height);
+      expect(secondLink.x + secondLink.width).toBeLessThanOrEqual(320);
+    }
     const firstHref = await badgeworkLink.getAttribute("href");
     const firstChild = new URL(firstHref!, "http://localhost").searchParams.get("child") || "";
     expect(firstChild).not.toBe("");
