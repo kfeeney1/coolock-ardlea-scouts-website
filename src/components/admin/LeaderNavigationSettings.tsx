@@ -1,4 +1,4 @@
-import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
+import { Alert, FormControlLabel, Paper, Switch } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { saveLeaderNavigation, watchLeaderNavigation, type LeaderNavigationVersion } from "../../services/leaderNavigationSettings";
@@ -21,13 +21,21 @@ export default function LeaderNavigationSettings() {
     catch (failure) { setError(applicationErrorMessage(failure, "Unable to save navigation settings.", "LeaderNavigationSettings")); }
     finally { inFlight.current = false; setSaving(false); }
   };
-  return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
-    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Leader navigation version</Typography>
+  return <Paper aria-busy={saving} variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3, borderRadius: 2 }}>
+    <FormControlLabel
+      label="Redesigned navigation"
+      control={<Switch
+        color="secondary"
+        checked={version === "redesigned"}
+        disabled={!version || saving}
+        onChange={event => void save(event.target.checked ? "redesigned" : "existing")}
+        slotProps={{ input: { role: "switch" } }}
+        sx={{ minHeight: 44 }}
+      />}
+    />
+    {!version && !error && <Alert severity="info" role="status">Loading navigation setting…</Alert>}
+    {saving && <Alert severity="info" role="status">Saving navigation setting…</Alert>}
     {error && <Alert severity="error">{error}</Alert>}
-    {saved && <Alert severity="success" role="status">Navigation saved. The selected version applies across sessions.</Alert>}
-    {!version && !error && <Typography>Loading navigation setting…</Typography>}
-    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-      {(["existing", "redesigned"] as const).map((option) => <Button key={option} aria-pressed={version === option} variant={version === option ? "contained" : "outlined"} disabled={!version || saving} onClick={() => void save(option)} sx={{ minHeight: 44 }}>{option === "existing" ? "Existing navigation" : "Redesigned navigation"}</Button>)}
-    </Stack>
+    {saved && <Alert severity="success" role="status">Navigation setting saved.</Alert>}
   </Paper>;
 }
