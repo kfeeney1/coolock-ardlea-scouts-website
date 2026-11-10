@@ -563,7 +563,10 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
+      function canManageRoverMembership() {
+        // Check the narrower Rover grant before scanning group appointments.
+        return isAdmin() || isRoverSectionLeader() || isGroupLeader();
+      }
       function isEligibleAdultUid(uid) {
         return uid is string
           && exists(/databases/$(database)/documents/adminUsers/$(uid))
