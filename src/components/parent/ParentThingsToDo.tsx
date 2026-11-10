@@ -62,15 +62,16 @@ function ParentTaskSummaryPanel({ memberIds, sections, refreshVersion = 0, conse
 
     useEffect(() => {
         if (refreshVersion < 0 && retryVersion === 0) return;
-        if (context.memberIds.length === 0 && context.sections.length === 0) return;
+        const { memberIds, sections, consentFlowsEnabled } = context;
+        if (memberIds.length === 0 && sections.length === 0) return;
         let active = true;
         const load = async () => {
             try {
                 const summary = await loadParentTaskSummary({
-                    events: () => loadParentEventConsentLinks(context.memberIds, context.sections),
-                    members: () => loadLinkedMembers(context.memberIds),
-                    consents: () => context.consentFlowsEnabled ? loadParentConsents(context.memberIds) : Promise.resolve([])
-                }, { eventConsentEnabled: context.consentFlowsEnabled });
+                    events: () => loadParentEventConsentLinks(memberIds, sections),
+                    members: () => loadLinkedMembers(memberIds),
+                    consents: () => consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
+                }, { eventConsentEnabled: consentFlowsEnabled });
                 if (active) setResult({ revision: refreshVersion, retry: retryVersion, outcome: { summary } });
             } catch (error) {
                 if (!active) return;
