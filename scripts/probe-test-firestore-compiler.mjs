@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { compileRulesSource, readCommittedRules, rulesSourceDigest } from "./reviewed-rules-source.mjs";
 import { cert, deleteApp, initializeApp } from "firebase-admin/app";
 import { getSecurityRules } from "firebase-admin/security-rules";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
@@ -56,7 +56,7 @@ if (target.environment !== "test" || target.credentialProjectId !== target.proje
 
 const comparison = process.env.FIRESTORE_PROBE_COMPARISON || "current";
 function readRules(sha) {
-  return execFileSync("git", ["show", `${sha}:firestore.rules`], { encoding: "utf8" });
+  return readCommittedRules(sha).toString("utf8");
 }
 
 function delegationMatch(source) {
@@ -90,13 +90,13 @@ const app = initializeApp({ credential: cert(JSON.parse(raw)), projectId: target
 try {
   const rules = getSecurityRules(app);
   for (const { label, sha, content, required, delegationSha } of sources) {
-    const digest = createHash("sha256").update(content).digest("hex");
+    const digest = rulesSourceDigest(content);
     const revision = delegationSha ? `base=${sha}, delegation=${delegationSha}` : `commit=${sha}`;
     console.log(`${label}: ${revision}, source SHA-256=${digest}`);
     const started = performance.now();
     let ruleset;
     try {
-      ruleset = await rules.createRuleset({ name: "firestore.rules", content });
+      ruleset = await compileRulesSource(rules, { name: "firestore.rules", content });
     } catch (error) {
       const elapsed = Math.round(performance.now() - started);
       console.error(`Compile failed after ${elapsed} ms (HTTP ${status(error)}; ${rulesCompilerReason(error)}).`);
