@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, serverTimestamp, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { listAll, ref } from "firebase/storage";
 import { auth, db, storage } from "../firebase";
 import { UserFacingError } from "./applicationErrors.ts";
