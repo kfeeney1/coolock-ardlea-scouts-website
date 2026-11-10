@@ -133,6 +133,8 @@ test("ineffective canonical appointments suppress stale scalar finance grants", 
     { appointment: "Group Treasurer", scope: "Group", endDate: "2000-01-01" },
     { appointment: "Group Treasurer", scope: "Group", startDate: "2020-02-30" },
     { appointment: "Group Treasurer", scope: "Group", endDate: "2999-02-29" },
+    { appointment: "Group Treasurer", scope: "Group", startDate: "1900-02-29" },
+    { appointment: "Group Treasurer", scope: "Group", startDate: "0000-01-01" },
     { appointment: "Group Treasurer", scope: "Group", startDate: 0 },
     { appointment: "Group Treasurer", scope: "Cubs" }
   ]) {
@@ -147,7 +149,7 @@ test("group-wide meeting reads accept an effective secretary after an invalid le
   const appointments = [
     { appointment: "Group Leader", scope: "Group", startDate: "2020-02-30" },
     ...Array.from({ length: 10 }, () => ({ appointment: "Scouter", scope: "Cubs" })),
-    { appointment: "Group Secretary", scope: "Group" }
+    { appointment: "Group Secretary", scope: "Group", startDate: "2000-02-29", endDate: "2999-01-01" }
   ];
   await seed([
     [`adminUsers/${uid}`, { active: true, role: "leader", sections: ["Cubs"] }],

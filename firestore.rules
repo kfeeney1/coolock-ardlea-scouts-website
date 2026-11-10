@@ -37,16 +37,15 @@ service cloud.firestore {
     }
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
-    function appointmentDateInRange(value, today, isStart) {
-      return value == "" || (value is string
-        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
-        && appointmentDateOnCorrectSide(value.split('-'), today, isStart));
-    }
-    function appointmentDateOnCorrectSide(parts, today, isStart) {
-      // timestamp.date rejects impossible dates. Compare UTC midnights to
-      // include the entire final day without adding a day to the stored date.
-      let date = timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
-      return isStart ? date <= today : today <= date;
+    function appointmentDateKey(value, fallback) {
+      // Match real calendar dates, including Gregorian leap days. Invalid
+      // values return a sentinel so another valid appointment can still grant.
+      let ordinary = '^[0-9]{4}-(02-(0[1-9]|1[0-9]|2[0-8])|(04|06|09|11)-(0[1-9]|[12][0-9]|30)|(01|03|05|07|08|10|12)-(0[1-9]|[12][0-9]|3[01]))$';
+      let leap = '^([0-9]{2}(0[48]|[2468][048]|[13579][26])|(0[48]|[2468][048]|[13579][26])00)-02-29$';
+      return value == "" ? fallback
+        : value is string && !value.matches('^0000-.*') && (value.matches(ordinary) || value.matches(leap))
+          ? int(value.replace('-', ''))
+          : -1;
     }
     function groupAppointmentAt(items, index, roles, today) {
       let item = index < items.size() ? items[index] : null;
@@ -58,17 +57,29 @@ service cloud.firestore {
     function effectiveGroupAppointment(item, roles, today) {
       let appointment = item.get("appointment", "");
       return appointment is string && appointment.lower() in roles
-        && appointmentDateInRange(item.get("startDate", ""), today, true)
-        && appointmentDateInRange(item.get("endDate", ""), today, false);
+        && appointmentWindowIncludesToday(item, today);
+    }
+    function appointmentWindowIncludesToday(item, today) {
+      let start = appointmentDateKey(item.get("startDate", ""), 0);
+      let end = appointmentDateKey(item.get("endDate", ""), 99991231);
+      return start >= 0 && start <= today && today <= end;
+    }
+    function appointmentTripletMatches(items, roles, today, index) {
+      // Use bounded membership checks instead of expanding one OR expression
+      // per slot. Keep the outer short circuit for early successful batches.
+      return true in [
+        groupAppointmentAt(items, index, roles, today),
+        groupAppointmentAt(items, index + 1, roles, today),
+        groupAppointmentAt(items, index + 2, roles, today)
+      ];
     }
     function groupAppointmentsMatch(items, roles) {
-      let today = request.time.date();
-      return ((groupAppointmentAt(items, 0, roles, today) || groupAppointmentAt(items, 1, roles, today))
-        || (groupAppointmentAt(items, 2, roles, today) || groupAppointmentAt(items, 3, roles, today)))
-        || (((groupAppointmentAt(items, 4, roles, today) || groupAppointmentAt(items, 5, roles, today))
-          || (groupAppointmentAt(items, 6, roles, today) || groupAppointmentAt(items, 7, roles, today)))
-        || ((groupAppointmentAt(items, 8, roles, today) || groupAppointmentAt(items, 9, roles, today))
-          || (groupAppointmentAt(items, 10, roles, today) || groupAppointmentAt(items, 11, roles, today))));
+      let now = request.time;
+      let today = now.year() * 10000 + now.month() * 100 + now.day();
+      return appointmentTripletMatches(items, roles, today, 0)
+        || appointmentTripletMatches(items, roles, today, 3)
+        || appointmentTripletMatches(items, roles, today, 6)
+        || appointmentTripletMatches(items, roles, today, 9);
     }
     // The canonical writer supports twelve slots. A populated list supersedes
     // the scalar label, including when all its appointments are ineffective.
