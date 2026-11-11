@@ -15,14 +15,15 @@ type InspectionResponse = {
 };
 
 const functions = getFunctions(app, "europe-west1");
-if (appEnvironment === "local") {
-  const emulatorHost = import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_HOST?.trim();
-  if (emulatorHost) {
+const emulatorHost = import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_HOST?.trim();
+if (appEnvironment !== "local" && emulatorHost) {
+  throw new Error("Non-local builds must not reference a Functions emulator.");
+}
+if (appEnvironment === "local" && emulatorHost) {
     const [host, rawPort] = emulatorHost.split(":");
     const port = Number(rawPort);
     if (!host || !Number.isInteger(port) || port <= 0) throw new Error("Invalid Functions emulator address.");
     connectFunctionsEmulator(functions, host, port);
-  }
 }
 
 export async function inspectEventDeletion(event: EventRecord): Promise<EventDeletionPreflight> {
