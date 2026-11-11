@@ -42,3 +42,21 @@ test("even clean-looking events cannot be deleted before external evidence recon
 test("unauthenticated deletion is denied without any database access", async () => {
   await assert.rejects(handleEventDeletion({ doc: () => { throw new Error("database accessed"); } }, {}, { data: { action: "delete", eventId: "test" } }), /Sign in as Super Admin/);
 });
+
+test("inspection identifies hall and member audience evidence without allowing deletion", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
+    assert.equal(path, "events/linked");
+    return {
+      get: async () => ({ exists: true, data: () => ({ title: "Linked", section: "Cubs", hallResource: "group-hall", audience: { memberIds: ["member-1"] } }) }),
+      collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
+    };
+  } };
+  const bucket = { getFiles: async () => [[]] };
+  const request = { auth: { uid: "root" }, data: { action: "inspect", eventId: "linked" } };
+  const inspection = await handleEventDeletion(db, bucket, request);
+  assert.ok(inspection.blockers.includes("hall booking association"));
+  assert.ok(inspection.blockers.includes("member audience evidence"));
+  await assert.rejects(handleEventDeletion(db, bucket, { ...request, data: { action: "delete", eventId: "linked" } }), /Deletion is blocked/);
+});
