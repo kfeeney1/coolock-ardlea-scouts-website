@@ -33,7 +33,7 @@ test("even clean-looking events cannot be deleted before external evidence recon
     };
   } };
   const bucket = { getFiles: async () => [[]] };
-  const auth = { auth: { uid: "root" }, data: { action: "delete", eventId: "old-event" } };
+  const auth = { auth: { uid: "root" }, data: { action: "delete", eventId: "old-event", confirmTitle: "Old event", revision: 1794400000000, confirmation: "DELETE EVENT" } };
   await assert.rejects(handleEventDeletion(db, bucket, auth), /Deletion is blocked/);
   const inspection = await handleEventDeletion(db, bucket, { ...auth, data: { ...auth.data, action: "inspect" } });
   assert.ok(inspection.blockers.includes("cross-collection evidence verification pending"));
@@ -58,7 +58,7 @@ test("inspection identifies hall and member audience evidence without allowing d
   const inspection = await handleEventDeletion(db, bucket, request);
   assert.ok(inspection.blockers.includes("hall booking association"));
   assert.ok(inspection.blockers.includes("member audience evidence"));
-  await assert.rejects(handleEventDeletion(db, bucket, { ...request, data: { action: "delete", eventId: "linked" } }), /Deletion is blocked/);
+  await assert.rejects(handleEventDeletion(db, bucket, { ...request, data: { action: "delete", eventId: "linked", confirmTitle: "Linked", revision: 1794400000000, confirmation: "DELETE EVENT" } }), /Deletion is blocked/);
 });
 
 test("malformed event identifiers are rejected before any event document read", async () => {
@@ -96,4 +96,25 @@ test("inspection fails closed when Firestore revision is missing", async () => {
     handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "inspect", eventId: "legacy" } }),
     /Event revision unavailable/
   );
+});
+
+test("deletion refuses stale revisions, mismatched titles and absent deliberate confirmation", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "publicEvents/event" || path === "parentGalleryEvents/event") return { get: async () => ({ exists: false }) };
+    assert.equal(path, "events/event");
+    return {
+      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Actual event", section: "Cubs" }) }),
+      collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
+    };
+  } };
+  const bucket = { getFiles: async () => [[]] };
+  const base = { action: "delete", eventId: "event", confirmTitle: "Actual event", revision: 1794400000000, confirmation: "DELETE EVENT" };
+  for (const changes of [{ revision: 1794399999999 }, { confirmTitle: "Another event" }, { confirmation: "" }]) {
+    await assert.rejects(
+      handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { ...base, ...changes } }),
+      /Refresh the review and confirm/
+    );
+  }
+  await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: base }), /Deletion is blocked/);
 });
