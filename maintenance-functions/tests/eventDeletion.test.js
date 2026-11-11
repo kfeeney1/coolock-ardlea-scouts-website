@@ -28,7 +28,7 @@ test("even clean-looking events cannot be deleted before external evidence recon
     if (path === "publicEvents/old-event" || path === "parentGalleryEvents/old-event") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/old-event");
     return {
-      get: async () => ({ exists: true, data: () => ({ title: "Old event", section: "Cubs", attendance: {}, consent: {} }) }),
+      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Old event", section: "Cubs", attendance: {}, consent: {} }) }),
       collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
     };
   } };
@@ -49,7 +49,7 @@ test("inspection identifies hall and member audience evidence without allowing d
     if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/linked");
     return {
-      get: async () => ({ exists: true, data: () => ({ title: "Linked", section: "Cubs", hallResource: "group-hall", audience: { memberIds: ["member-1"] } }) }),
+      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Linked", section: "Cubs", hallResource: "group-hall", audience: { memberIds: ["member-1"] } }) }),
       collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
     };
   } };
@@ -83,5 +83,17 @@ test("nonexistent events cannot be deleted", async () => {
   await assert.rejects(
     handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "delete", eventId: "missing" } }),
     /Event no longer exists/
+  );
+});
+
+test("inspection fails closed when Firestore revision is missing", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    assert.equal(path, "events/legacy");
+    return { get: async () => ({ exists: true, data: () => ({ title: "Legacy", section: "Cubs" }) }) };
+  } };
+  await assert.rejects(
+    handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "inspect", eventId: "legacy" } }),
+    /Event revision unavailable/
   );
 });
