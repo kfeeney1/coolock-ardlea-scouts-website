@@ -33,7 +33,7 @@ export async function handleEventDeletion(db, bucket, request) {
     const collection = await eventRef.collection(child).limit(101).get();
     linked[child] = { count: collection.size ?? collection.docs?.length ?? (collection.empty ? 0 : 1), truncated: (collection.size ?? collection.docs?.length ?? 0) >= 101 };
   }
-  if (typeof event.section !== "string" || !event.section.trim() || event.section.includes("/")) throw new HttpsError("failed-precondition", "Invalid event section.");
+  if (typeof event.section !== "string" || !/^[A-Za-z0-9][A-Za-z0-9 _-]{0,127}$/.test(event.section)) throw new HttpsError("failed-precondition", "Invalid event section.");
   // Bound the scan to avoid unbounded Storage listings. A full inventory is still
   // required before any destructive operation is ever enabled.
   const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 101 });
