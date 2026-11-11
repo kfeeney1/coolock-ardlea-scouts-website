@@ -29,7 +29,9 @@ export async function handleEventDeletion(db, bucket, request) {
     linked[child] = !collection.empty;
   }
   if (typeof event.section !== "string" || !event.section.trim() || event.section.includes("/")) throw new HttpsError("failed-precondition", "Invalid event section.");
-  // Bound the scan to avoid unbounded Storage listings. A full inventory is still\n  // required before any destructive operation is ever enabled.\n  const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 101 });
+  // Bound the scan to avoid unbounded Storage listings. A full inventory is still
+  // required before any destructive operation is ever enabled.
+  const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 101 });
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
   const blockers = Object.entries(linked).filter(([, present]) => present).map(([name]) => name);
   if (photos.length) blockers.push(`gallery photos (${photos.length >= 101 ? "more than 100" : photos.length} found)`);
