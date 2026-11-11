@@ -56,7 +56,7 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
           {loading && <CircularProgress size={24} aria-label="Inspecting linked event data" />}
           {error && <Alert severity="error">{error}</Alert>}
           {preflight && <>
-            <Typography>Gallery photos found: {preflight.photoCount}</Typography>
+            <Typography>Gallery photos: {preflight.photoCount > 0 ? "At least one photo found" : "None found in the checked gallery path"}</Typography>
             <Alert severity="warning">Deletion is disabled until a trusted service can safely reconcile linked records.</Alert>
             {preflight.blockers.map((blocker) => <Typography key={blocker} variant="body2">• {blocker}</Typography>)}
           </>}
