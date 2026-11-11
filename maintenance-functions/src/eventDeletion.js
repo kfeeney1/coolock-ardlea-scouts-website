@@ -29,10 +29,10 @@ export async function handleEventDeletion(db, bucket, request) {
     linked[child] = !collection.empty;
   }
   if (typeof event.section !== "string" || !event.section.trim() || event.section.includes("/")) throw new HttpsError("failed-precondition", "Invalid event section.");
-  const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 1 });
+  // Bound the scan to avoid unbounded Storage listings. A full inventory is still\n  // required before any destructive operation is ever enabled.\n  const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 101 });
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
   const blockers = Object.entries(linked).filter(([, present]) => present).map(([name]) => name);
-  if (photos.length) blockers.push("gallery photos (at least one)");
+  if (photos.length) blockers.push(`gallery photos (${photos.length >= 101 ? "more than 100" : photos.length} found)`);
   if (event.hallResource || event.hallInterval || event.hallRevision) blockers.push("hall booking association");
   if (event.audience?.resolvedMemberIds?.length || event.audience?.memberIds?.length) blockers.push("member audience evidence");
   if (publicProjection.exists) blockers.push("public event projection");
@@ -44,7 +44,7 @@ export async function handleEventDeletion(db, bucket, request) {
   // index and preservation policy, server-side deletion MUST remain denied.
   blockers.push("cross-collection evidence verification pending");
   if (action === "inspect") {
-    return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: photos.length, photoCountIsMinimum: true, revision, blockers };
+    return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: Math.min(photos.length, 100), photoCountIsMinimum: photos.length > 100, revision, blockers };
   }
   // The eventual write path must require a fresh, exact, deliberate confirmation.
   // This validation does not grant deletion: all requests still fail closed below.
