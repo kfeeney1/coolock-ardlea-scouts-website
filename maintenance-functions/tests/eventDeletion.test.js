@@ -60,3 +60,28 @@ test("inspection identifies hall and member audience evidence without allowing d
   assert.ok(inspection.blockers.includes("member audience evidence"));
   await assert.rejects(handleEventDeletion(db, bucket, { ...request, data: { action: "delete", eventId: "linked" } }), /Deletion is blocked/);
 });
+
+test("malformed event identifiers are rejected before any event document read", async () => {
+  const db = { doc(path) {
+    assert.equal(path, "adminUsers/root");
+    return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+  } };
+  for (const eventId of ["../other", "event/name", "", "a".repeat(129), null, 42]) {
+    await assert.rejects(
+      handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "delete", eventId } }),
+      /Invalid event deletion request/
+    );
+  }
+});
+
+test("nonexistent events cannot be deleted", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    assert.equal(path, "events/missing");
+    return { get: async () => ({ exists: false }) };
+  } };
+  await assert.rejects(
+    handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "delete", eventId: "missing" } }),
+    /Event no longer exists/
+  );
+});
