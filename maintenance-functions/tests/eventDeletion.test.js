@@ -145,3 +145,23 @@ test("gallery inventory reports exact small counts and bounded larger counts", a
   assert.equal(large.photoCountIsMinimum, true);
   assert.ok(large.blockers.some(value => value.includes("more than 100")));
 });
+
+test("inspection reports linked subcollection record counts without deleting anything", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "publicEvents/linked-count" || path === "parentGalleryEvents/linked-count") return { get: async () => ({ exists: false }) };
+    assert.equal(path, "events/linked-count");
+    return {
+      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Linked", section: "Cubs" }) }),
+      collection: (name) => ({ limit: (count) => {
+        assert.equal(count, 101);
+        return { get: async () => ({ size: name === "audienceMembers" ? 2 : name === "programmes" ? 101 : 0 }) };
+      } })
+    };
+  } };
+  const result = await handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action: "inspect", eventId: "linked-count" } });
+  assert.deepEqual(result.linked.audienceMembers, { count: 2, truncated: false });
+  assert.deepEqual(result.linked.programmes, { count: 101, truncated: true });
+  assert.ok(result.blockers.includes("audienceMembers (2 linked records)"));
+  assert.ok(result.blockers.includes("programmes (more than 100 linked records)"));
+});
