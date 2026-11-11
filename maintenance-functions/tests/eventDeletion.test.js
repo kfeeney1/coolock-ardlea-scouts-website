@@ -179,3 +179,23 @@ test("inspection and deletion fail closed for missing persisted event titles", a
   }
   assert.equal(storageAccessed, false);
 });
+
+test("concurrent event edits invalidate inspection and deletion before confirmation", async () => {
+  let reads = 0;
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "publicEvents/racing" || path === "parentGalleryEvents/racing") return { get: async () => ({ exists: false }) };
+    assert.equal(path, "events/racing");
+    return {
+      get: async () => ({ exists: true, updateTime: { toMillis: () => ++reads === 1 ? 1794400000000 : 1794400000001 }, data: () => ({ title: "Racing event", section: "Cubs" }) }),
+      collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+    };
+  } };
+  for (const action of ["inspect", "delete"]) {
+    reads = 0;
+    await assert.rejects(
+      handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action, eventId: "racing", confirmTitle: "Racing event", revision: 1794400000000, confirmation: "DELETE EVENT" } }),
+      /Event changed during deletion review/
+    );
+  }
+});
