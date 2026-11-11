@@ -25,6 +25,7 @@ test("crafted requests from non-Super Admin are denied before event lookup", asy
 test("even clean-looking events cannot be deleted before external evidence reconciliation", async () => {
   const db = { doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "publicEvents/old-event" || path === "parentGalleryEvents/old-event") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/old-event");
     return {
       get: async () => ({ exists: true, data: () => ({ title: "Old event", section: "Cubs", attendance: {}, consent: {} }) }),
@@ -36,4 +37,8 @@ test("even clean-looking events cannot be deleted before external evidence recon
   await assert.rejects(handleEventDeletion(db, bucket, auth), /Deletion is blocked/);
   const inspection = await handleEventDeletion(db, bucket, { ...auth, data: { ...auth.data, action: "inspect" } });
   assert.ok(inspection.blockers.includes("cross-collection evidence verification pending"));
+});
+
+test("unauthenticated deletion is denied without any database access", async () => {
+  await assert.rejects(handleEventDeletion({ doc: () => { throw new Error("database accessed"); } }, {}, { data: { action: "delete", eventId: "test" } }), /Sign in as Super Admin/);
 });
