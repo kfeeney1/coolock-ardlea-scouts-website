@@ -46,6 +46,12 @@ export async function handleEventDeletion(db, bucket, request) {
   if (parentProjection.exists) blockers.push("parent gallery projection");
   if (Object.keys(event.attendance ?? {}).length || Object.keys(event.consent ?? {}).length) blockers.push("attendance/consent evidence");
   if (event.consentLinkToken) blockers.push("consent link");
+  // A concurrent event edit invalidates the review even when the first read
+  // succeeded. Do not return an apparently current deletion confirmation.
+  const latest = await eventRef.get();
+  if (!latest.exists || latest.updateTime?.toMillis?.() !== revision) {
+    throw new HttpsError("failed-precondition", "Event changed during deletion review. Refresh and inspect again.");
+  }
   // Financial, calendar, notification and equipment records may refer to this event
   // without being nested under it. Until every such reference has a verified
   // index and preservation policy, server-side deletion MUST remain denied.
