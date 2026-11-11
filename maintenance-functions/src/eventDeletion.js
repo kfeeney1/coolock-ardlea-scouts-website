@@ -25,15 +25,15 @@ export async function handleEventDeletion(db, bucket, request) {
   }
   const linked = {};
   for (const child of ["audienceMembers", "programmeAccess", "programmes", "leaderAttendance"]) {
-    const collection = await eventRef.collection(child).limit(1).get();
-    linked[child] = !collection.empty;
+    const collection = await eventRef.collection(child).limit(101).get();
+    linked[child] = { count: collection.size ?? collection.docs?.length ?? (collection.empty ? 0 : 1), truncated: (collection.size ?? collection.docs?.length ?? 0) >= 101 };
   }
   if (typeof event.section !== "string" || !event.section.trim() || event.section.includes("/")) throw new HttpsError("failed-precondition", "Invalid event section.");
   // Bound the scan to avoid unbounded Storage listings. A full inventory is still
   // required before any destructive operation is ever enabled.
   const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 101 });
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
-  const blockers = Object.entries(linked).filter(([, present]) => present).map(([name]) => name);
+  const blockers = Object.entries(linked).filter(([, evidence]) => evidence.count > 0).map(([name, evidence]) => `${name} (${evidence.truncated ? "more than 100" : evidence.count} linked records)`);
   if (photos.length) blockers.push(`gallery photos (${photos.length >= 101 ? "more than 100" : photos.length} found)`);
   if (event.hallResource || event.hallInterval || event.hallRevision) blockers.push("hall booking association");
   if (event.audience?.resolvedMemberIds?.length || event.audience?.memberIds?.length) blockers.push("member audience evidence");
@@ -46,7 +46,7 @@ export async function handleEventDeletion(db, bucket, request) {
   // index and preservation policy, server-side deletion MUST remain denied.
   blockers.push("cross-collection evidence verification pending");
   if (action === "inspect") {
-    return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: Math.min(photos.length, 100), photoCountIsMinimum: photos.length > 100, revision, blockers };
+    return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: Math.min(photos.length, 100), photoCountIsMinimum: photos.length > 100, linked, revision, blockers };
   }
   // The eventual write path must require a fresh, exact, deliberate confirmation.
   // This validation does not grant deletion: all requests still fail closed below.
