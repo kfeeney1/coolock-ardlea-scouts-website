@@ -24,10 +24,13 @@ export async function handleEventDeletion(db, bucket, request) {
     const collection = await eventRef.collection(child).limit(1).get();
     linked[child] = !collection.empty;
   }
+  if (typeof event.section !== "string" || !event.section.trim() || event.section.includes("/")) throw new HttpsError("failed-precondition", "Invalid event section.");
   const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 1 });
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
   const blockers = Object.entries(linked).filter(([, present]) => present).map(([name]) => name);
   if (photos.length) blockers.push("gallery photos (at least one)");
+  if (event.hallResource || event.hallInterval || event.hallRevision) blockers.push("hall booking association");
+  if (event.audience?.resolvedMemberIds?.length || event.audience?.memberIds?.length) blockers.push("member audience evidence");
   if (publicProjection.exists) blockers.push("public event projection");
   if (parentProjection.exists) blockers.push("parent gallery projection");
   if (Object.keys(event.attendance ?? {}).length || Object.keys(event.consent ?? {}).length) blockers.push("attendance/consent evidence");
