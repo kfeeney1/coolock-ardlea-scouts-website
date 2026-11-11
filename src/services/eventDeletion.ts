@@ -1,5 +1,5 @@
-import { getFunctions, httpsCallable } from "firebase/functions";
-import app from "../firebase";
+import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
+import app, { appEnvironment } from "../firebase";
 import type { EventRecord } from "./eventAdmin";
 
 export type EventDeletionPreflight = { event: EventRecord; photoCount: number; blockers: string[] };
@@ -14,11 +14,22 @@ type InspectionResponse = {
   blockers: string[];
 };
 
+const functions = getFunctions(app, "europe-west1");
+if (appEnvironment === "local") {
+  const emulatorHost = import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_HOST?.trim();
+  if (emulatorHost) {
+    const [host, rawPort] = emulatorHost.split(":");
+    const port = Number(rawPort);
+    if (!host || !Number.isInteger(port) || port <= 0) throw new Error("Invalid Functions emulator address.");
+    connectFunctionsEmulator(functions, host, port);
+  }
+}
+
 export async function inspectEventDeletion(event: EventRecord): Promise<EventDeletionPreflight> {
   // The trusted callable performs canonical Super Admin checks and independently
   // reads the event. Client-provided details are never used for authorisation.
   const callable = httpsCallable<{ action: "inspect"; eventId: string }, InspectionResponse>(
-    getFunctions(app, "europe-west1"), "eventDeletion"
+    functions, "eventDeletion"
   );
   const result = (await callable({ action: "inspect", eventId: event.id })).data;
   if (result.eventId !== event.id || result.title !== event.title
