@@ -10,6 +10,7 @@ type InspectionResponse = {
   section: string;
   startDate: string;
   endDate: string;
+  photoCount: number;
   blockers: string[];
 };
 
@@ -24,5 +25,5 @@ export async function inspectEventDeletion(event: EventRecord): Promise<EventDel
     || result.section !== event.section || result.startDate !== event.startDate || result.endDate !== event.endDate) {
     throw new Error("Event details changed. Refresh before reviewing deletion.");
   }
-  return { event, photoCount: 0, blockers: result.blockers };
+  return { event, photoCount: result.photoCount, blockers: result.blockers };
 }
