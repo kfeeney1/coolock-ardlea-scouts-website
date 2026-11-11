@@ -1,5 +1,5 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from "../firebase";
+import app from "../firebase";
 import type { EventRecord } from "./eventAdmin";
 
 export type EventDeletionPreflight = { event: EventRecord; photoCount: number; blockers: string[] };
