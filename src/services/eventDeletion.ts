@@ -2,7 +2,7 @@ import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/
 import app, { appEnvironment } from "../firebase";
 import type { EventRecord } from "./eventAdmin";
 
-export type EventDeletionPreflight = { event: EventRecord; photoCount: number; blockers: string[] };
+export type EventDeletionPreflight = { event: EventRecord; photoCount: number; revision: number; blockers: string[] };
 
 type InspectionResponse = {
   eventId: string;
@@ -11,6 +11,7 @@ type InspectionResponse = {
   startDate: string;
   endDate: string;
   photoCount: number;
+  revision: number;
   blockers: string[];
 };
 
@@ -37,5 +38,8 @@ export async function inspectEventDeletion(event: EventRecord): Promise<EventDel
     || result.section !== event.section || result.startDate !== event.startDate || result.endDate !== event.endDate) {
     throw new Error("Event details changed. Refresh before reviewing deletion.");
   }
-  return { event, photoCount: result.photoCount, blockers: result.blockers };
+  if (!Number.isSafeInteger(result.revision) || result.revision <= 0) {
+    throw new Error("Deletion review did not include a trusted event revision.");
+  }
+  return { event, photoCount: result.photoCount, revision: result.revision, blockers: result.blockers };
 }
