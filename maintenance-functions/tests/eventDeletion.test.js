@@ -199,3 +199,21 @@ test("concurrent event edits invalidate inspection and deletion before confirmat
     );
   }
 });
+
+test("malformed persisted sections cannot escape gallery inventory scope", async () => {
+  let section = "../other";
+  let storageAccessed = false;
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    assert.equal(path, "events/scoped");
+    return {
+      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Scoped event", section }) }),
+      collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+    };
+  } };
+  const bucket = { getFiles: async () => { storageAccessed = true; return [[]]; } };
+  for (section of ["../other", "Cubs/other", ".", "..", " Cubs", "Cubs ", "Cubs\\\\Other", ""]) {
+    await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action: "inspect", eventId: "scoped" } }), /Invalid event section/);
+  }
+  assert.equal(storageAccessed, false);
+});
