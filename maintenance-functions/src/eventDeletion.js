@@ -19,12 +19,10 @@ export async function handleEventDeletion(db, bucket, request) {
   const snapshot = await eventRef.get();
   if (!snapshot.exists) throw new HttpsError("not-found", "Event no longer exists.");
   const event = snapshot.data();
-  // A deletion review must never present an incomplete or misleading identity.
+  // A deletion review must never present an incomplete or misleading title.
   // Validate persisted data before inspecting linked resources or returning it.
-  if (!event || typeof event.title !== "string" || !event.title.trim()
-    || typeof event.startDate !== "string" || !event.startDate.trim()
-    || typeof event.endDate !== "string" || !event.endDate.trim()) {
-    throw new HttpsError("failed-precondition", "Event identity or dates are incomplete; deletion review cannot be trusted.");
+  if (!event || typeof event.title !== "string" || !event.title.trim()) {
+    throw new HttpsError("failed-precondition", "Event title is missing; deletion review cannot be trusted.");
   }
   const revision = snapshot.updateTime?.toMillis?.();
   if (!Number.isSafeInteger(revision) || revision <= 0) {
