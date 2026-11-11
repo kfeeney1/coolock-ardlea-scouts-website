@@ -26,7 +26,7 @@ export async function handleEventDeletion(db, bucket, request) {
   }
   const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 1 });
   const blockers = Object.entries(linked).filter(([, present]) => present).map(([name]) => name);
-  if (photos.length) blockers.push("gallery photos");
+  if (photos.length) blockers.push("gallery photos (at least one)");
   if (Object.keys(event.attendance ?? {}).length || Object.keys(event.consent ?? {}).length) blockers.push("attendance/consent evidence");
   if (event.consentLinkToken) blockers.push("consent link");
   // Financial, calendar, notification and equipment records may refer to this event
@@ -34,7 +34,7 @@ export async function handleEventDeletion(db, bucket, request) {
   // index and preservation policy, server-side deletion MUST remain denied.
   blockers.push("cross-collection evidence verification pending");
   if (action === "inspect") {
-    return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, blockers };
+    return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: photos.length, blockers };
   }
   throw new HttpsError("failed-precondition", "Deletion is blocked until all event references can be safely reconciled.");
 }
