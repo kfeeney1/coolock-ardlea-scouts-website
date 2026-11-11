@@ -165,3 +165,17 @@ test("inspection reports linked subcollection record counts without deleting any
   assert.ok(result.blockers.includes("audienceMembers (2 linked records)"));
   assert.ok(result.blockers.includes("programmes (more than 100 linked records)"));
 });
+
+test("inspection and deletion fail closed for missing persisted event titles", async () => {
+  let storageAccessed = false;
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    assert.equal(path, "events/untitled");
+    return { get: async () => ({ exists: true, data: () => ({ section: "Cubs" }), updateTime: { toMillis: () => 1794400000000 } }) };
+  } };
+  const bucket = { getFiles: async () => { storageAccessed = true; return [[]]; } };
+  for (const action of ["inspect", "delete"]) {
+    await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action, eventId: "untitled" } }), /Event title is missing/);
+  }
+  assert.equal(storageAccessed, false);
+});
