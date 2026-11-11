@@ -46,5 +46,11 @@ export async function handleEventDeletion(db, bucket, request) {
   if (action === "inspect") {
     return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: photos.length, photoCountIsMinimum: true, revision, blockers };
   }
+  // The eventual write path must require a fresh, exact, deliberate confirmation.
+  // This validation does not grant deletion: all requests still fail closed below.
+  if (request.data?.confirmTitle !== event.title || request.data?.revision !== revision
+    || request.data?.confirmation !== "DELETE EVENT") {
+    throw new HttpsError("failed-precondition", "Refresh the review and confirm the exact event title and revision.");
+  }
   throw new HttpsError("failed-precondition", "Deletion is blocked until all event references can be safely reconciled.");
 }
