@@ -30,7 +30,7 @@ async function calendar(page: Page) {
 }
 const reminders = (page: Page, date: string) => page.locator(`[data-calendar-date="${date}"]`).getByRole("link", {name: /^Training renewal:/});
 async function save(page: Page) {
-  await page.getByRole("button", {name: "Save record", exact: true}).focus(); await page.keyboard.press("Enter");
+  await page.getByRole("button", {name: "Save record", exact: true}).click();
   await expect(page.getByText("Training record saved.", {exact: true})).toBeVisible();
 }
 test("all categories opt in, persist, coexist with meetings and renew a single canonical calendar entry", async ({page}) => {
