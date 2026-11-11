@@ -118,3 +118,30 @@ test("deletion refuses stale revisions, mismatched titles and absent deliberate 
   }
   await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: base }), /Deletion is blocked/);
 });
+
+test("gallery inventory reports exact small counts and bounded larger counts", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "publicEvents/gallery" || path === "parentGalleryEvents/gallery") return { get: async () => ({ exists: false }) };
+    assert.equal(path, "events/gallery");
+    return {
+      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Gallery", section: "Cubs" }) }),
+      collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
+    };
+  } };
+  let photoCount = 3;
+  const bucket = { getFiles: async (options) => {
+    assert.equal(options.maxResults, 101);
+    assert.equal(options.prefix, "attachments/event-gallery/Cubs/gallery/");
+    return [Array.from({ length: photoCount }, (_, i) => ({ name: String(i) }))];
+  } };
+  const request = { auth: { uid: "root" }, data: { action: "inspect", eventId: "gallery" } };
+  const small = await handleEventDeletion(db, bucket, request);
+  assert.equal(small.photoCount, 3);
+  assert.equal(small.photoCountIsMinimum, false);
+  photoCount = 101;
+  const large = await handleEventDeletion(db, bucket, request);
+  assert.equal(large.photoCount, 100);
+  assert.equal(large.photoCountIsMinimum, true);
+  assert.ok(large.blockers.some(value => value.includes("more than 100")));
+});
