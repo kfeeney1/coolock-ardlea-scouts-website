@@ -64,6 +64,13 @@ export async function handleEventDeletion(db, bucket, request) {
     linked[collectionName] = { count, truncated: count >= 101 };
     if (count > 0) blockers.push(`${collectionName} (${count >= 101 ? "more than 100" : count} linked records)`);
   }
+  // Independently stored operational evidence is retained and blocks deletion.
+  for (const collectionName of ["financeTransactions", "equipmentLoans", "equipmentIncidents"]) {
+    const matches = await db.collection(collectionName).where("eventId", "==", eventId).limit(101).get();
+    const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
+    linked[collectionName] = { count, truncated: count >= 101 };
+    if (count > 0) blockers.push(`${collectionName} (${count >= 101 ? "more than 100" : count} linked records)`);
+  }
   // A concurrent event edit invalidates the review
   // succeeded. Do not return an apparently current deletion confirmation.
   const latest = await eventRef.get();
