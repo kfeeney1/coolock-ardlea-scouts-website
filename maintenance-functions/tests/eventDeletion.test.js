@@ -244,7 +244,7 @@ test("unknown nested event collections are surfaced as deletion blockers", async
 test("external consent responses are retained and reported as deletion blockers", async () => {
   const db = {
     collection(name) {
-      assert.ok(["eventConsentLinks", "eventConsentResponses", "financeTransactions", "equipmentLoans", "equipmentIncidents"].includes(name));
+      assert.ok(["eventConsentLinks", "eventConsentResponses", "financeTransactions", "equipmentLoans", "equipmentIncidents", "eventInvitations", "eventNotifications", "calendarEntries"].includes(name));
       return { where(field, op, id) {
         assert.equal(field, "eventId"); assert.equal(op, "=="); assert.equal(id, "consented");
         return { limit: (count) => { assert.equal(count, 101); return { get: async () => ({ size: name === "eventConsentResponses" ? 2 : 1 }) }; } };
