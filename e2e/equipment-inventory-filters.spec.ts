@@ -110,8 +110,9 @@ test("equipment store filters retain their viewport when applied, changed and cl
 
   const storeFilter = page.getByTestId("equipment-location-filter");
   await storeFilter.scrollIntoViewIfNeeded();
+  // On layouts where the filter already fits in the viewport, no scrolling is
+  // needed. Assert viewport retention in both cases instead of assuming scrollY > 0.
   const initialScroll = await page.evaluate(() => window.scrollY);
-  expect(initialScroll).toBeGreaterThan(0);
 
   const assertStoreFilterVisible = async () => {
     const box = await storeFilter.boundingBox();
@@ -120,6 +121,10 @@ test("equipment store filters retain their viewport when applied, changed and cl
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.y).toBeLessThan(viewportHeight);
     expect(box!.y + box!.height).toBeGreaterThan(0);
+    if (initialScroll > 0) {
+      const scrollY = await page.evaluate(() => window.scrollY);
+      expect(scrollY).toBeGreaterThan(0);
+    }
   };
 
   const selectStore = async (name: string) => {
