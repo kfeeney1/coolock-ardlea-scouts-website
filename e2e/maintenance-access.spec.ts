@@ -1,3 +1,14 @@
+import { randomUUID } from "node:crypto";
+import { getApps } from "firebase-admin/app";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
+import { getStorage as getAdminStorage } from "firebase-admin/storage";
+import { deleteApp, initializeApp } from "firebase/app";
+import { connectAuthEmulator, getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore, terminate } from "firebase/firestore";
+import { connectStorageEmulator, getStorage } from "firebase/storage";
+import { maintenanceDocumentStore, documentPath } from "../src/services/maintenanceDocumentStore";
+import { maintenanceTaskStore } from "../src/services/maintenanceTaskStore";
+import { enableMaintenanceFixture } from "./support/maintenance-fixtures";
 import { expect, test } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
@@ -61,5 +72,69 @@ for (const navigationVersion of ["existing", "redesigned"] as const) test(`Maint
   } finally {
     if (before.exists) await setting.set(before.data()!); else await setting.delete();
     if (previousNavigation.exists) await navigationSetting.set(previousNavigation.data()!); else await navigationSetting.delete();
+  }
+});
+
+test("signed-in outsider cannot read or change enabled Maintenance tasks or documents", async ({ page }) => {
+  test.skip(!password, "Configure canonical E2E credentials.");
+  const fixtureDb = scheduleFixtureDb();
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099" || process.env.FIREBASE_STORAGE_EMULATOR_HOST !== "127.0.0.1:9199") {
+    throw new Error("Maintenance access fixtures require local demo Auth and Storage emulators.");
+  }
+  const projectId = fixtureDb.projectId;
+  const storageBucket = `${projectId}.appspot.com`;
+  const adminApp = getApps().find(app => app.name === "schedule-fixtures")!;
+  const adminAuth = getAdminAuth(adminApp);
+  const id = randomUUID();
+  const email = `maintenance-outsider-${id}@example.com`;
+  const task = fixtureDb.doc(`maintenance/group/tasks/${id}`);
+  const document = fixtureDb.doc(`maintenance/group/documents/${id}`);
+  const object = getAdminStorage(adminApp).bucket(storageBucket).file(documentPath(id));
+  const restore = await enableMaintenanceFixture();
+  const client = initializeApp({ apiKey: "demo-api-key", projectId, storageBucket }, id);
+  const auth = getAuth(client);
+  const db = getFirestore(client);
+  const storage = getStorage(client);
+  let outsiderUid: string | undefined;
+  try {
+    outsiderUid = (await adminAuth.createUser({ email, password: password! })).uid;
+    await page.goto("/parent");
+    await page.getByLabel("Email", { exact: true }).fill(email);
+    await page.getByLabel("Password", { exact: true }).fill(password!);
+    await page.getByRole("button", { name: "Sign In", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Submit Parent Registration", exact: true })).toBeVisible();
+
+    for (const path of ["/maintenance/tasks", "/maintenance/tasks/new", "/maintenance/documents"]) {
+      await page.goto(path);
+      await expect(page.getByRole("alert")).toHaveText("Maintenance is restricted to approved group members.");
+      await expect(page.getByRole("navigation", { name: "Maintenance", exact: true })).toHaveCount(0);
+    }
+
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    connectStorageEmulator(storage, "127.0.0.1", 9199);
+    await signInWithEmailAndPassword(auth, email, password!);
+    const uid = () => auth.currentUser?.uid;
+    const tasks = maintenanceTaskStore(db, uid);
+    const documents = maintenanceDocumentStore(db, storage, uid);
+    const denied = { code: "permission-denied" };
+    await expect(tasks({ action: "list" })).rejects.toMatchObject(denied);
+    await expect(documents.list()).rejects.toMatchObject(denied);
+    await expect(tasks({ action: "create", id, description: "Outsider task", documentIds: [] })).rejects.toMatchObject(denied);
+    const pdf = new File(["%PDF-1.4\nSynthetic maintenance document\n%%EOF"], "outsider.pdf", { type: "application/pdf" });
+    await expect(documents.upload(pdf, id)).rejects.toMatchObject(denied);
+
+    expect((await task.get()).exists).toBe(false);
+    expect((await document.get()).exists).toBe(false);
+    expect((await object.exists())[0]).toBe(false);
+  } finally {
+    await Promise.all([
+      task.delete(),
+      document.delete(),
+      object.delete({ ignoreNotFound: true }),
+      outsiderUid ? adminAuth.deleteUser(outsiderUid) : Promise.resolve(),
+      restore(),
+      terminate(db).finally(() => deleteApp(client)),
+    ]);
   }
 });
