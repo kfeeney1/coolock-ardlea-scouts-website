@@ -292,3 +292,40 @@ test("financial and equipment references are reported without deletion", async (
     assert.ok(result.blockers.some(blocker => blocker.startsWith(name + " (")));
   }
 });
+
+test("external calendar, invitation and notification evidence blocks deletion", async () => {
+  const counts = { eventInvitations: 2, eventNotifications: 1, calendarEntries: 101 };
+  const db = {
+    collection(name) {
+      return { where(field, operator, value) {
+        assert.equal(field, "eventId");
+        assert.equal(operator, "==");
+        assert.equal(value, "linked");
+        return { limit(max) {
+          assert.equal(max, 101);
+          return { get: async () => ({ size: counts[name] ?? 0 }) };
+        } };
+      } };
+    },
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
+      assert.equal(path, "events/linked");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Linked", section: "Cubs" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const request = { auth: { uid: "root" }, data: { action: "inspect", eventId: "linked" } };
+  const inspection = await handleEventDeletion(db, { getFiles: async () => [[]] }, request);
+  for (const [name, count] of Object.entries(counts)) {
+    assert.equal(inspection.linked[name].count, count);
+    assert.equal(inspection.linked[name].truncated, count >= 101);
+    assert.ok(inspection.blockers.some(blocker => blocker.startsWith(name + " (")));
+  }
+  await assert.rejects(handleEventDeletion(db, { getFiles: async () => [[]] }, {
+    ...request, data: { action: "delete", eventId: "linked", confirmTitle: "Linked", revision: 1794400000000, confirmation: "DELETE EVENT" }
+  }), /Deletion is blocked/);
+});
