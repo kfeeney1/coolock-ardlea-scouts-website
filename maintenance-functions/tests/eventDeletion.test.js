@@ -15,7 +15,7 @@ test("only active canonical Super Admin is authorised", () => {
 });
 
 test("crafted requests from non-Super Admin are denied before event lookup", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     assert.equal(path, "adminUsers/attacker");
     return { get: async () => ({ data: () => ({ active: true, role: "admin", sections: ["Group"] }) }) };
   } };
@@ -23,7 +23,7 @@ test("crafted requests from non-Super Admin are denied before event lookup", asy
 });
 
 test("even clean-looking events cannot be deleted before external evidence reconciliation", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/old-event" || path === "parentGalleryEvents/old-event") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/old-event");
@@ -45,7 +45,7 @@ test("unauthenticated deletion is denied without any database access", async () 
 });
 
 test("inspection identifies hall and member audience evidence without allowing deletion", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/linked");
@@ -64,7 +64,7 @@ test("inspection identifies hall and member audience evidence without allowing d
 });
 
 test("malformed event identifiers are rejected before any event document read", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     assert.equal(path, "adminUsers/root");
     return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
   } };
@@ -77,7 +77,7 @@ test("malformed event identifiers are rejected before any event document read", 
 });
 
 test("nonexistent events cannot be deleted", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/missing");
     return { get: async () => ({ exists: false }) };
@@ -89,7 +89,7 @@ test("nonexistent events cannot be deleted", async () => {
 });
 
 test("inspection fails closed when Firestore revision is missing", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/legacy");
     return { get: async () => ({ exists: true, data: () => ({ title: "Legacy", section: "Cubs" }) }) };
@@ -101,7 +101,7 @@ test("inspection fails closed when Firestore revision is missing", async () => {
 });
 
 test("deletion refuses stale revisions, mismatched titles and absent deliberate confirmation", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/event" || path === "parentGalleryEvents/event") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/event");
@@ -123,7 +123,7 @@ test("deletion refuses stale revisions, mismatched titles and absent deliberate 
 });
 
 test("gallery inventory reports exact small counts and bounded larger counts", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/gallery" || path === "parentGalleryEvents/gallery") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/gallery");
@@ -151,7 +151,7 @@ test("gallery inventory reports exact small counts and bounded larger counts", a
 });
 
 test("inspection reports linked subcollection record counts without deleting anything", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/linked-count" || path === "parentGalleryEvents/linked-count") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/linked-count");
@@ -173,7 +173,7 @@ test("inspection reports linked subcollection record counts without deleting any
 
 test("inspection and deletion fail closed for missing persisted event titles", async () => {
   let storageAccessed = false;
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/untitled");
     return { get: async () => ({ exists: true, data: () => ({ section: "Cubs" }), updateTime: { toMillis: () => 1794400000000 } }) };
@@ -187,7 +187,7 @@ test("inspection and deletion fail closed for missing persisted event titles", a
 
 test("concurrent event edits invalidate inspection and deletion before confirmation", async () => {
   let reads = 0;
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/racing" || path === "parentGalleryEvents/racing") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/racing");
@@ -209,7 +209,7 @@ test("concurrent event edits invalidate inspection and deletion before confirmat
 test("malformed persisted sections cannot escape gallery inventory scope", async () => {
   let section = "../other";
   let storageAccessed = false;
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/scoped");
     return {
@@ -226,7 +226,7 @@ test("malformed persisted sections cannot escape gallery inventory scope", async
 });
 
 test("unknown nested event collections are surfaced as deletion blockers", async () => {
-  const db = { doc(path) {
+  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/extra" || path === "parentGalleryEvents/extra") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/extra");
@@ -239,4 +239,29 @@ test("unknown nested event collections are surfaced as deletion blockers", async
   const inspection = await handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action: "inspect", eventId: "extra" } });
   assert.ok(inspection.blockers.includes("unrecognised event subcollection: unexpectedHistory"));
   assert.equal(inspection.linked.unexpectedHistory.count, 1);
+});
+
+test("external consent responses are retained and reported as deletion blockers", async () => {
+  const db = {
+    collection(name) {
+      assert.ok(["eventConsentLinks", "eventConsentResponses"].includes(name));
+      return { where(field, op, id) {
+        assert.equal(field, "eventId"); assert.equal(op, "=="); assert.equal(id, "consented");
+        return { limit: (count) => { assert.equal(count, 101); return { get: async () => ({ size: name === "eventConsentResponses" ? 2 : 1 }) }; } };
+      } };
+    },
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/consented" || path === "parentGalleryEvents/consented") return { get: async () => ({ exists: false }) };
+      assert.equal(path, "events/consented");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Consent event", section: "Cubs" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const result = await handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action: "inspect", eventId: "consented" } });
+  assert.ok(result.blockers.includes("eventConsentResponses (2 linked records)"));
+  assert.ok(result.blockers.includes("eventConsentLinks (1 linked records)"));
 });
