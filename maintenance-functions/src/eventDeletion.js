@@ -32,8 +32,14 @@ export async function handleEventDeletion(db, bucket, request) {
     || !/^[A-Za-z0-9][A-Za-z0-9 _-]{0,127}$/.test(event.section)) {
     throw new HttpsError("failed-precondition", "Invalid event section.");
   }
+  // Discover actual nested collections instead of assuming the known four are exhaustive.
+  // Unknown nested records must not become orphaned when the event document is removed.
+  const knownChildren = ["audienceMembers", "programmeAccess", "programmes", "leaderAttendance"];
+  const discovered = await eventRef.listCollections();
+  const discoveredNames = discovered.map(collection => collection.id);
+  const childNames = [...new Set([...knownChildren, ...discoveredNames])];
   const linked = {};
-  for (const child of ["audienceMembers", "programmeAccess", "programmes", "leaderAttendance"]) {
+  for (const child of childNames) {
     const collection = await eventRef.collection(child).limit(101).get();
     linked[child] = { count: collection.size ?? collection.docs?.length ?? (collection.empty ? 0 : 1), truncated: (collection.size ?? collection.docs?.length ?? 0) >= 101 };
   }
@@ -41,7 +47,8 @@ export async function handleEventDeletion(db, bucket, request) {
   // required before any destructive operation is ever enabled.
   const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 101 });
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
-  const blockers = Object.entries(linked).filter(([, evidence]) => evidence.count > 0).map(([name, evidence]) => `${name} (${evidence.truncated ? "more than 100" : evidence.count} linked records)`);
+  const blockers = discoveredNames.filter(name => !knownChildren.includes(name)).map(name => `unrecognised event subcollection: ${name}`);
+  blockers.push(...Object.entries(linked).filter(([, evidence]) => evidence.count > 0).map(([name, evidence]) => `${name} (${evidence.truncated ? "more than 100" : evidence.count} linked records)`));
   if (photos.length) blockers.push(`gallery photos (${photos.length >= 101 ? "more than 100" : photos.length} found)`);
   if (event.hallResource || event.hallInterval || event.hallRevision) blockers.push("hall booking association");
   if (event.audience?.resolvedMemberIds?.length || event.audience?.memberIds?.length) blockers.push("member audience evidence");
