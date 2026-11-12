@@ -61,6 +61,18 @@ export async function handleEventDeletion(db, bucket, request) {
   if (event.audience?.resolvedMemberIds?.length || event.audience?.memberIds?.length) blockers.push("member audience evidence");
   if (publicProjection.exists) blockers.push("public event projection");
   if (parentProjection.exists) blockers.push("parent gallery projection");
+  // Parent gallery grants live under an independent event-keyed root.
+  // Inspect both the root and its child collections so grants cannot be orphaned.
+  const galleryAccessRef = db.doc("eventGalleryAccess/" + eventId);
+  const galleryAccessRoot = await galleryAccessRef.get();
+  if (galleryAccessRoot.exists) blockers.push("event gallery access root");
+  const galleryAccessCollections = await galleryAccessRef.listCollections();
+  for (const child of galleryAccessCollections) {
+    const matches = await child.limit(101).get();
+    const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
+    linked["eventGalleryAccess/" + child.id] = { count, truncated: count >= 101 };
+    if (count > 0) blockers.push(`event gallery access ${child.id} (${count >= 101 ? "more than 100" : count} linked records)`);
+  }
   if (Object.keys(event.attendance ?? {}).length || Object.keys(event.consent ?? {}).length) blockers.push("attendance/consent evidence");
   if (event.consentLinkToken) blockers.push("consent link");
   // Consent links and submitted responses live outside events/{id}. Preserve
