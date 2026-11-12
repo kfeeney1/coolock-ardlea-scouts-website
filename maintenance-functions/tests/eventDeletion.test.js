@@ -16,6 +16,10 @@ test("only active canonical Super Admin is authorised", () => {
 
 test("crafted requests from non-Super Admin are denied before event lookup", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     assert.equal(path, "adminUsers/attacker");
     return { get: async () => ({ data: () => ({ active: true, role: "admin", sections: ["Group"] }) }) };
   } };
@@ -24,6 +28,10 @@ test("crafted requests from non-Super Admin are denied before event lookup", asy
 
 test("even clean-looking events cannot be deleted before external evidence reconciliation", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/old-event" || path === "parentGalleryEvents/old-event") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/old-event");
@@ -46,6 +54,10 @@ test("unauthenticated deletion is denied without any database access", async () 
 
 test("inspection identifies hall and member audience evidence without allowing deletion", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/linked");
@@ -65,6 +77,10 @@ test("inspection identifies hall and member audience evidence without allowing d
 
 test("malformed event identifiers are rejected before any event document read", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     assert.equal(path, "adminUsers/root");
     return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
   } };
@@ -78,6 +94,10 @@ test("malformed event identifiers are rejected before any event document read", 
 
 test("nonexistent events cannot be deleted", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/missing");
     return { get: async () => ({ exists: false }) };
@@ -90,6 +110,10 @@ test("nonexistent events cannot be deleted", async () => {
 
 test("inspection fails closed when Firestore revision is missing", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/legacy");
     return { get: async () => ({ exists: true, data: () => ({ title: "Legacy", section: "Cubs" }) }) };
@@ -102,6 +126,10 @@ test("inspection fails closed when Firestore revision is missing", async () => {
 
 test("deletion refuses stale revisions, mismatched titles and absent deliberate confirmation", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/event" || path === "parentGalleryEvents/event") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/event");
@@ -124,6 +152,10 @@ test("deletion refuses stale revisions, mismatched titles and absent deliberate 
 
 test("gallery inventory reports exact small counts and bounded larger counts", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/gallery" || path === "parentGalleryEvents/gallery") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/gallery");
@@ -152,6 +184,10 @@ test("gallery inventory reports exact small counts and bounded larger counts", a
 
 test("inspection reports linked subcollection record counts without deleting anything", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/linked-count" || path === "parentGalleryEvents/linked-count") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/linked-count");
@@ -174,6 +210,10 @@ test("inspection reports linked subcollection record counts without deleting any
 test("inspection and deletion fail closed for missing persisted event titles", async () => {
   let storageAccessed = false;
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/untitled");
     return { get: async () => ({ exists: true, data: () => ({ section: "Cubs" }), updateTime: { toMillis: () => 1794400000000 } }) };
@@ -188,6 +228,10 @@ test("inspection and deletion fail closed for missing persisted event titles", a
 test("concurrent event edits invalidate inspection and deletion before confirmation", async () => {
   let reads = 0;
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/racing" || path === "parentGalleryEvents/racing") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/racing");
@@ -210,6 +254,10 @@ test("malformed persisted sections cannot escape gallery inventory scope", async
   let section = "../other";
   let storageAccessed = false;
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     assert.equal(path, "events/scoped");
     return {
@@ -227,6 +275,10 @@ test("malformed persisted sections cannot escape gallery inventory scope", async
 
 test("unknown nested event collections are surfaced as deletion blockers", async () => {
   const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     if (path === "publicEvents/extra" || path === "parentGalleryEvents/extra") return { get: async () => ({ exists: false }) };
     assert.equal(path, "events/extra");
@@ -251,6 +303,10 @@ test("external consent responses are retained and reported as deletion blockers"
       } };
     },
     doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
       if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
       if (path === "publicEvents/consented" || path === "parentGalleryEvents/consented") return { get: async () => ({ exists: false }) };
       assert.equal(path, "events/consented");
@@ -276,6 +332,10 @@ test("financial and equipment references are reported without deletion", async (
       } };
     },
     doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
       if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
       if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
       assert.equal(path, "events/linked");
@@ -308,6 +368,10 @@ test("external calendar, invitation and notification evidence blocks deletion", 
       } };
     },
     doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
       if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
       if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
       assert.equal(path, "events/linked");
@@ -333,6 +397,10 @@ test("external calendar, invitation and notification evidence blocks deletion", 
 
 test("malformed delete confirmation fails before reading the event or inventory", async () => {
   const db = { doc(path) {
+    if (path.startsWith("eventGalleryAccess/")) return {
+      get: async () => ({ exists: false }),
+      listCollections: async () => []
+    };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
     throw new Error("event lookup must not happen");
   } };
