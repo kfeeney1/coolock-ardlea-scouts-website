@@ -412,3 +412,39 @@ test("malformed delete confirmation fails before reading the event or inventory"
     }), /Refresh the review and confirm/);
   }
 });
+
+
+test("gallery access grants outside the event document block deletion", async () => {
+  const revision = 1794400000000;
+  const db = {
+    collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }),
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/gallery-grants" || path === "parentGalleryEvents/gallery-grants") return { get: async () => ({ exists: false }) };
+      if (path === "eventGalleryAccess/gallery-grants") return {
+        get: async () => ({ exists: true }),
+        listCollections: async () => [{
+          id: "parents",
+          limit: count => {
+            assert.equal(count, 101);
+            return { get: async () => ({ size: 2 }) };
+          }
+        }]
+      };
+      assert.equal(path, "events/gallery-grants");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Gallery grants", section: "Cubs" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const request = { auth: { uid: "root" }, data: { action: "inspect", eventId: "gallery-grants" } };
+  const inspection = await handleEventDeletion(db, { getFiles: async () => [[]] }, request);
+  assert.ok(inspection.blockers.includes("event gallery access root"));
+  assert.ok(inspection.blockers.includes("event gallery access parents (2 linked records)"));
+  assert.deepEqual(inspection.linked["eventGalleryAccess/parents"], { count: 2, truncated: false });
+  await assert.rejects(handleEventDeletion(db, { getFiles: async () => [[]] }, {
+    ...request, data: { action: "delete", eventId: "gallery-grants", confirmTitle: "Gallery grants", revision, confirmation: "DELETE EVENT" }
+  }), /Deletion is blocked/);
+});
