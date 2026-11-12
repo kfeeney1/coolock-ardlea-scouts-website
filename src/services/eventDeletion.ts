@@ -44,3 +44,17 @@ export async function inspectEventDeletion(event: EventRecord): Promise<EventDel
   }
   return { event, photoCount: result.photoCount, photoCountIsMinimum: result.photoCountIsMinimum, revision: result.revision, blockers: result.blockers };
 }
+
+/** Destructive requests are always re-authorised by the trusted callable. */
+export async function deleteEventAfterReview(preflight: EventDeletionPreflight, confirmedTitle: string): Promise<void> {
+  if (preflight.blockers.length) throw new Error("Event deletion is blocked by linked records or unresolved evidence.");
+  if (confirmedTitle !== preflight.event.title) throw new Error("Enter the exact event title to confirm deletion.");
+  const callable = httpsCallable<{
+    action: "delete"; eventId: string; confirmTitle: string; revision: number; confirmation: "DELETE EVENT"
+  }, { deleted: boolean }>(functions, "eventDeletion");
+  const result = (await callable({
+    action: "delete", eventId: preflight.event.id, confirmTitle: confirmedTitle,
+    revision: preflight.revision, confirmation: "DELETE EVENT"
+  })).data;
+  if (result.deleted !== true) throw new Error("The server did not confirm event deletion.");
+}
