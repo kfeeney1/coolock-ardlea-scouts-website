@@ -15,7 +15,7 @@ export async function handleEventDeletion(db, bucket, request) {
   if (!["inspect", "delete"].includes(action) || typeof eventId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(eventId)) {
     throw new HttpsError("invalid-argument", "Invalid event deletion request.");
   }
-  const eventRef = db.doc(`events/${eventId}`);
+  // Reject forged confirmations before performing any potentially expensive inventory.\n  // A fresh persisted revision is still checked after the inventory below.\n  if (action === "delete" && (typeof request.data?.confirmTitle !== "string"\n    || !request.data.confirmTitle.trim() || !Number.isSafeInteger(request.data?.revision)\n    || request.data.revision <= 0 || request.data?.confirmation !== "DELETE EVENT")) {\n    throw new HttpsError("failed-precondition", "Refresh the review and confirm the exact event title and revision.");\n  }\n  const eventRef = db.doc(`events/${eventId}`);
   const snapshot = await eventRef.get();
   if (!snapshot.exists) throw new HttpsError("not-found", "Event no longer exists.");
   const event = snapshot.data();
