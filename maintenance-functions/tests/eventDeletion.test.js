@@ -29,6 +29,7 @@ test("even clean-looking events cannot be deleted before external evidence recon
     assert.equal(path, "events/old-event");
     return {
       get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Old event", section: "Cubs", attendance: {}, consent: {} }) }),
+      listCollections: async () => [],
       collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
     };
   } };
@@ -50,6 +51,7 @@ test("inspection identifies hall and member audience evidence without allowing d
     assert.equal(path, "events/linked");
     return {
       get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Linked", section: "Cubs", hallResource: "group-hall", audience: { memberIds: ["member-1"] } }) }),
+      listCollections: async () => [],
       collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
     };
   } };
@@ -105,6 +107,7 @@ test("deletion refuses stale revisions, mismatched titles and absent deliberate 
     assert.equal(path, "events/event");
     return {
       get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Actual event", section: "Cubs" }) }),
+      listCollections: async () => [],
       collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
     };
   } };
@@ -126,6 +129,7 @@ test("gallery inventory reports exact small counts and bounded larger counts", a
     assert.equal(path, "events/gallery");
     return {
       get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Gallery", section: "Cubs" }) }),
+      listCollections: async () => [],
       collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
     };
   } };
@@ -153,6 +157,7 @@ test("inspection reports linked subcollection record counts without deleting any
     assert.equal(path, "events/linked-count");
     return {
       get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Linked", section: "Cubs" }) }),
+      listCollections: async () => [],
       collection: (name) => ({ limit: (count) => {
         assert.equal(count, 101);
         return { get: async () => ({ size: name === "audienceMembers" ? 2 : name === "programmes" ? 101 : 0 }) };
@@ -188,6 +193,7 @@ test("concurrent event edits invalidate inspection and deletion before confirmat
     assert.equal(path, "events/racing");
     return {
       get: async () => ({ exists: true, updateTime: { toMillis: () => ++reads === 1 ? 1794400000000 : 1794400000001 }, data: () => ({ title: "Racing event", section: "Cubs" }) }),
+      listCollections: async () => [],
       collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
     };
   } };
@@ -208,6 +214,7 @@ test("malformed persisted sections cannot escape gallery inventory scope", async
     assert.equal(path, "events/scoped");
     return {
       get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Scoped event", section }) }),
+      listCollections: async () => [],
       collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
     };
   } };
@@ -216,4 +223,20 @@ test("malformed persisted sections cannot escape gallery inventory scope", async
     await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action: "inspect", eventId: "scoped" } }), /Invalid event section/);
   }
   assert.equal(storageAccessed, false);
+});
+
+test("unknown nested event collections are surfaced as deletion blockers", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "publicEvents/extra" || path === "parentGalleryEvents/extra") return { get: async () => ({ exists: false }) };
+    assert.equal(path, "events/extra");
+    return {
+      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Extra", section: "Cubs" }) }),
+      listCollections: async () => [{ id: "unexpectedHistory" }],
+      collection: () => ({ limit: () => ({ get: async () => ({ size: 1 }) }) })
+    };
+  } };
+  const inspection = await handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action: "inspect", eventId: "extra" } });
+  assert.ok(inspection.blockers.includes("unrecognised event subcollection: unexpectedHistory"));
+  assert.equal(inspection.linked.unexpectedHistory.count, 1);
 });
