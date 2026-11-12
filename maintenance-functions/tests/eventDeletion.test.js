@@ -244,7 +244,7 @@ test("unknown nested event collections are surfaced as deletion blockers", async
 test("external consent responses are retained and reported as deletion blockers", async () => {
   const db = {
     collection(name) {
-      assert.ok(["eventConsentLinks", "eventConsentResponses"].includes(name));
+      assert.ok(["eventConsentLinks", "eventConsentResponses", "financeTransactions", "equipmentLoans", "equipmentIncidents"].includes(name));
       return { where(field, op, id) {
         assert.equal(field, "eventId"); assert.equal(op, "=="); assert.equal(id, "consented");
         return { limit: (count) => { assert.equal(count, 101); return { get: async () => ({ size: name === "eventConsentResponses" ? 2 : 1 }) }; } };
@@ -264,4 +264,31 @@ test("external consent responses are retained and reported as deletion blockers"
   const result = await handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action: "inspect", eventId: "consented" } });
   assert.ok(result.blockers.includes("eventConsentResponses (2 linked records)"));
   assert.ok(result.blockers.includes("eventConsentLinks (1 linked records)"));
+});
+
+test("financial and equipment references are reported without deletion", async () => {
+  const external = { financeTransactions: 1, equipmentLoans: 2, equipmentIncidents: 1 };
+  const db = {
+    collection(name) {
+      return { where(field, op, id) {
+        assert.equal(field, "eventId"); assert.equal(op, "=="); assert.equal(id, "linked");
+        return { limit: () => ({ get: async () => ({ size: external[name] ?? 0 }) }) };
+      } };
+    },
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/linked" || path === "parentGalleryEvents/linked") return { get: async () => ({ exists: false }) };
+      assert.equal(path, "events/linked");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Linked event", section: "Cubs" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const result = await handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action: "inspect", eventId: "linked" } });
+  for (const [name, count] of Object.entries(external)) {
+    assert.equal(result.linked[name].count, count);
+    assert.ok(result.blockers.some(blocker => blocker.startsWith(name + " (")));
+  }
 });
