@@ -75,9 +75,9 @@ export async function handleEventDeletion(db, bucket, request) {
   }
   if (Object.keys(event.attendance ?? {}).length || Object.keys(event.consent ?? {}).length) blockers.push("attendance/consent evidence");
   if (event.consentLinkToken) blockers.push("consent link");
-  // Consent links and submitted responses live outside events/{id}. Preserve
+  // Consent links, submitted responses and canonical consent applications live outside events/{id}. Preserve
   // safeguarding evidence and block deletion whenever either exists.
-  for (const collectionName of ["eventConsentLinks", "eventConsentResponses"]) {
+  for (const collectionName of ["eventConsentLinks", "eventConsentResponses", "consentApplications"]) {
     const matches = await db.collection(collectionName).where("eventId", "==", eventId).limit(101).get();
     const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
     linked[collectionName] = { count, truncated: count >= 101 };
