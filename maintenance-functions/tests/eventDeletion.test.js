@@ -83,7 +83,7 @@ test("nonexistent events cannot be deleted", async () => {
     return { get: async () => ({ exists: false }) };
   } };
   await assert.rejects(
-    handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "delete", eventId: "missing" } }),
+    handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "delete", eventId: "missing", confirmTitle: "Missing", revision: 1794400000000, confirmation: "DELETE EVENT" } }),
     /Event no longer exists/
   );
 });
@@ -180,7 +180,7 @@ test("inspection and deletion fail closed for missing persisted event titles", a
   } };
   const bucket = { getFiles: async () => { storageAccessed = true; return [[]]; } };
   for (const action of ["inspect", "delete"]) {
-    await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action, eventId: "untitled" } }), /Event title is missing/);
+    await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action, eventId: "untitled", ...(action === "delete" ? { confirmTitle: "Untitled", revision: 1794400000000, confirmation: "DELETE EVENT" } : {}) } }), /Event title is missing/);
   }
   assert.equal(storageAccessed, false);
 });
