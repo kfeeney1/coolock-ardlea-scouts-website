@@ -1,15 +1,19 @@
-import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
+import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from "@mui/material";
 import { doc, getDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { auth, db } from "../../firebase";
 import type { EventRecord } from "../../services/eventAdmin";
-import { inspectEventDeletion } from "../../services/eventDeletion";
+import { deleteEventAfterReview, inspectEventDeletion } from "../../services/eventDeletion";
 import type { EventDeletionPreflight } from "../../services/eventDeletion";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { formatSiteDate } from "../../services/siteDateFormat";
 
 export default function EventDeletionReview({ event }: { event: EventRecord }) {
+  const navigate = useNavigate();
   const [authorised, setAuthorised] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,6 +39,7 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
     setLoading(true);
     setError("");
     setPreflight(null);
+    setConfirmation("");
     try {
       setPreflight(await inspectEventDeletion(event));
     } catch (failure) {
@@ -44,10 +49,27 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
     }
   };
 
+  const remove = async () => {
+    if (!preflight || preflight.blockers.length || confirmation !== preflight.event.title || deleting) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteEventAfterReview(preflight, confirmation);
+      setOpen(false);
+      navigate("/leader/events", { replace: true });
+    } catch (failure) {
+      setError(applicationErrorMessage(failure, "Unable to delete this event. No success was confirmed.", "EventDeletionReview"));
+      setPreflight(null);
+      setConfirmation("");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!authorised) return null;
   return <>
     <Button variant="outlined" color="error" onClick={() => void inspect()}>Review deletion</Button>
-    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm" aria-labelledby="event-deletion-review-title">
+    <Dialog open={open} onClose={() => { if (!deleting) setOpen(false); }} fullWidth maxWidth="sm" aria-labelledby="event-deletion-review-title">
       <DialogTitle id="event-deletion-review-title">Review event deletion</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5}>
@@ -57,12 +79,13 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
           {error && <Alert severity="error">{error}</Alert>}
           {preflight && <>
             <Typography>Gallery photos: {preflight.photoCountIsMinimum ? "More than 100 found (scan limited)" : `${preflight.photoCount} found in the checked gallery path`}</Typography>
-            <Alert severity="warning">Deletion is disabled until a trusted service can safely reconcile linked records.</Alert>
+            <Alert severity="warning">{preflight.blockers.length ? "Deletion is blocked until linked records can be safely reconciled." : "Deletion is permanent. Review the event details carefully before confirming."}</Alert>
             {preflight.blockers.map((blocker) => <Typography key={blocker} variant="body2">• {blocker}</Typography>)}
+            {preflight.blockers.length === 0 && <TextField fullWidth label="Type the exact event title to confirm" value={confirmation} onChange={e => setConfirmation(e.target.value)} disabled={deleting} autoComplete="off" /> }
           </>}
         </Stack>
       </DialogContent>
-      <DialogActions><Button onClick={() => setOpen(false)}>Close</Button></DialogActions>
+      <DialogActions><Button disabled={deleting} onClick={() => setOpen(false)}>Close</Button><Button color="error" variant="contained" disabled={!preflight || preflight.blockers.length > 0 || confirmation !== preflight.event.title || deleting || loading} onClick={() => void remove()}>{deleting ? "Deleting…" : "Delete event permanently"}</Button></DialogActions>
     </Dialog>
   </>;
 }
