@@ -448,3 +448,39 @@ test("gallery access grants outside the event document block deletion", async ()
     ...request, data: { action: "delete", eventId: "gallery-grants", confirmTitle: "Gallery grants", revision, confirmation: "DELETE EVENT" }
   }), /Deletion is blocked/);
 });
+
+
+test("canonical consent applications linked by eventId are retained as deletion blockers", async () => {
+  const revision = 1794400000000;
+  const db = {
+    collection(name) {
+      return { where(field, op, id) {
+        assert.equal(field, "eventId");
+        assert.equal(op, "==");
+        assert.equal(id, "consent-event");
+        return { limit(n) {
+          assert.equal(n, 101);
+          return { get: async () => ({ size: name === "consentApplications" ? 2 : 0 }) };
+        } };
+      } };
+    },
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/consent-event" || path === "parentGalleryEvents/consent-event") return { get: async () => ({ exists: false }) };
+      if (path === "eventGalleryAccess/consent-event") return { get: async () => ({ exists: false }), listCollections: async () => [] };
+      assert.equal(path, "events/consent-event");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Consent event", section: "Cubs" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const bucket = { getFiles: async () => [[]] };
+  const inspection = await handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action: "inspect", eventId: "consent-event" } });
+  assert.deepEqual(inspection.linked.consentApplications, { count: 2, truncated: false });
+  assert.ok(inspection.blockers.includes("consentApplications (2 linked records)"));
+  await assert.rejects(handleEventDeletion(db, bucket, {
+    auth: { uid: "root" }, data: { action: "delete", eventId: "consent-event", confirmTitle: "Consent event", revision, confirmation: "DELETE EVENT" }
+  }), /Deletion is blocked/);
+});
