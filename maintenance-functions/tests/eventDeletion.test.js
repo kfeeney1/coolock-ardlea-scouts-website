@@ -329,3 +329,18 @@ test("external calendar, invitation and notification evidence blocks deletion", 
     ...request, data: { action: "delete", eventId: "linked", confirmTitle: "Linked", revision: 1794400000000, confirmation: "DELETE EVENT" }
   }), /Deletion is blocked/);
 });
+
+
+test("malformed delete confirmation fails before reading the event or inventory", async () => {
+  const db = { doc(path) {
+    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    throw new Error("event lookup must not happen");
+  } };
+  for (const changes of [
+    { confirmation: "" }, { revision: "123" }, { revision: 0 }, { confirmTitle: "" }
+  ]) {
+    await assert.rejects(handleEventDeletion(db, { getFiles: () => { throw new Error("storage accessed"); } }, {
+      auth: { uid: "root" }, data: { action: "delete", eventId: "event", confirmTitle: "Event", revision: 123, confirmation: "DELETE EVENT", ...changes }
+    }), /Refresh the review and confirm/);
+  }
+});
