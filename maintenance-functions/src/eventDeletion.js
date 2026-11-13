@@ -70,7 +70,20 @@ export async function handleEventDeletion(db, bucket, request) {
   // Match the client gallery path normalisation: spaces in section labels become hyphens.
   // Otherwise a section such as "All Sections" would silently miss its photos.
   const gallerySection = event.section.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${gallerySection}/${eventId}/`, maxResults: 101 });
+  // Historical uploads may use the literal section label rather than the
+  // current normalised path. Inspect both namespaces before declaring a
+  // gallery empty. Deduplicate objects so the count is not inflated when
+  // the two prefixes coincide.
+  const galleryPrefixes = [...new Set([
+    `attachments/event-gallery/${gallerySection}/${eventId}/`,
+    `attachments/event-gallery/${event.section}/${eventId}/`
+  ])];
+  const galleryFiles = await Promise.all(galleryPrefixes.map(prefix =>
+    bucket.getFiles({ prefix, maxResults: 101 })
+  ));
+  const photos = [...new Map(galleryFiles.flatMap(([files]) =>
+    files.map(file => [file.name, file])
+  )).values()].slice(0, 101);
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
   // Even known collections can contain descendant documents beneath missing
   // direct parents. A zero direct-document count is not proof the subtree is empty.
