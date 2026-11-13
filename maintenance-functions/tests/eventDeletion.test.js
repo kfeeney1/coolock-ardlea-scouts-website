@@ -9,6 +9,9 @@ test("only active canonical Super Admin is authorised", () => {
     { active: true, role: "admin", sections: ["Group"] },
     { active: true, role: "leader", sections: ["Group"] },
     { active: true, role: "super-admin", sections: [] },
+    { active: true, role: "super-admin", sections: [""] },
+    { active: true, role: "super-admin", sections: ["Group", null] },
+    { active: true, role: "super-admin", sections: [" Group "] },
     { active: true, role: "super-admin", sections: ["Group"], section: "Group" },
     null
   ]) assert.equal(isCanonicalSuperAdmin(profile), false);
