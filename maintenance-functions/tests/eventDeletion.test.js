@@ -289,7 +289,7 @@ test("unknown nested event collections are surfaced as deletion blockers", async
     };
   } };
   const inspection = await handleEventDeletion(db, { getFiles: async () => [[]] }, { auth: { uid: "root" }, data: { action: "inspect", eventId: "extra" } });
-  assert.ok(inspection.blockers.includes("unrecognised event subcollection: unexpectedHistory"));
+  assert.ok(inspection.blockers.includes("event subcollection requires recursive inventory: unexpectedHistory"));
   assert.equal(inspection.linked.unexpectedHistory.count, 1);
 });
 
@@ -538,7 +538,7 @@ test("section-only audience evidence and unknown gallery access descendants bloc
   const bucket = { getFiles: async () => [[]] };
   const inspection = await handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action: "inspect", eventId: "section-only" } });
   assert.ok(inspection.blockers.includes("section audience evidence"));
-  assert.ok(inspection.blockers.includes("unrecognised gallery access subcollection: unexpected"));
+  assert.ok(inspection.blockers.includes("gallery access subcollection requires recursive inventory: unexpected"));
   await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: {
     action: "delete", eventId: "section-only", confirmTitle: "Section only", revision, confirmation: "DELETE EVENT"
   } }), /Deletion is blocked/);
@@ -566,4 +566,27 @@ test("stale revision and title confirmations never trigger linked-record or Stor
     } }), /Refresh the review and confirm/);
   }
   assert.equal(eventReads, 2);
+});
+
+
+test("known event child collection with no direct documents still requires recursive inventory", async () => {
+  const db = {
+    collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }),
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }) };
+      if (path === "publicEvents/nested" || path === "parentGalleryEvents/nested") return { get: async () => ({ exists: false }) };
+      if (path === "eventGalleryAccess/nested") return { get: async () => ({ exists: false }), listCollections: async () => [] };
+      assert.equal(path, "events/nested");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Nested", section: "Cubs" }) }),
+        listCollections: async () => [{ id: "audienceMembers" }],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const inspection = await handleEventDeletion(db, { getFiles: async () => [[]] }, {
+    auth: { uid: "root" }, data: { action: "inspect", eventId: "nested" }
+  });
+  assert.equal(inspection.linked.audienceMembers.count, 0);
+  assert.ok(inspection.blockers.includes("event subcollection requires recursive inventory: audienceMembers"));
 });
