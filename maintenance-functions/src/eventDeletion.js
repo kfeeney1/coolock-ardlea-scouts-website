@@ -180,6 +180,10 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
     transaction.create(auditRef, {
       eventId, title, section, actorUid, revision,
       outcome: "deleted", retainedReferences: [],
+      removedProjections: [
+        ...(publicSnapshot.exists ? ["publicEvents"] : []),
+        ...(parentSnapshot.exists ? ["parentGalleryEvents"] : [])
+      ],
       deletedAt: new Date()
     });
     // Projections are event-keyed, derived records. Remove them atomically
