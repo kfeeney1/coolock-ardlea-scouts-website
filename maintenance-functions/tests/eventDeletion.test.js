@@ -714,3 +714,30 @@ test("clean-event finalisation denies revoked Super Admin inside transaction wit
   }), /Super Admin access required/);
   assert.equal(writes, 0);
 });
+
+
+test("clean-event finalisation removes public and parent projections in the same audited transaction", async () => {
+  const revision = 1794400000000;
+  const writes = [];
+  const db = {
+    doc: path => ({ path }),
+    runTransaction: async callback => callback({
+      get: async ref => {
+        if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
+        if (ref.path === "events/clean") return { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) };
+        if (ref.path === "publicEvents/clean" || ref.path === "parentGalleryEvents/clean") return { exists: true };
+        return { exists: false };
+      },
+      create: (ref) => writes.push(["create", ref.path]),
+      delete: ref => writes.push(["delete", ref.path])
+    })
+  };
+  const result = await commitCleanEventDeletion(db, { eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root" });
+  assert.equal(result.deleted, true);
+  assert.deepEqual(writes, [
+    ["create", "eventDeletionAudits/clean"],
+    ["delete", "publicEvents/clean"],
+    ["delete", "parentGalleryEvents/clean"],
+    ["delete", "events/clean"]
+  ]);
+});
