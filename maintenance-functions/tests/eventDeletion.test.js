@@ -484,3 +484,30 @@ test("canonical consent applications linked by eventId are retained as deletion 
     auth: { uid: "root" }, data: { action: "delete", eventId: "consent-event", confirmTitle: "Consent event", revision, confirmation: "DELETE EVENT" }
   }), /Deletion is blocked/);
 });
+
+
+test("gallery inventory uses the same section path normalisation as gallery uploads", async () => {
+  const revision = 1794400000000;
+  const db = {
+    collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }),
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/all-sections" || path === "parentGalleryEvents/all-sections") return { get: async () => ({ exists: false }) };
+      if (path === "eventGalleryAccess/all-sections") return { get: async () => ({ exists: false }), listCollections: async () => [] };
+      assert.equal(path, "events/all-sections");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "All sections event", section: "All Sections" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const bucket = { getFiles: async ({ prefix, maxResults }) => {
+    assert.equal(prefix, "attachments/event-gallery/All-Sections/all-sections/");
+    assert.equal(maxResults, 101);
+    return [[{ name: "photo" }]];
+  } };
+  const inspection = await handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action: "inspect", eventId: "all-sections" } });
+  assert.equal(inspection.photoCount, 1);
+  assert.ok(inspection.blockers.includes("gallery photos (1 found)"));
+});
