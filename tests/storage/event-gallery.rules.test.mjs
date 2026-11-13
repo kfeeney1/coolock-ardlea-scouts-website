@@ -15,7 +15,7 @@ async function seedDocuments(entries) {
 }
 
 async function uploadGalleryPhoto(section, eventId) {
-  await seedDocuments([["adminUsers/leader-gallery", { active: true, role: "leader", sections: [section] }]]);
+  await seedDocuments([["adminUsers/leader-gallery", { active: true, role: "leader", sections: [section] }], [`events/${eventId}`, { section, startDate: "2026-09-12" }]]);
   const storage = testEnv.authenticatedContext("leader-gallery", { email: "leader@example.com" }).storage();
   const photo = ref(storage, `attachments/event-gallery/${section}/${eventId}/photo-1/photo.jpg`);
   await assertSucceeds(uploadBytes(photo, new Uint8Array([1, 2, 3]), {
