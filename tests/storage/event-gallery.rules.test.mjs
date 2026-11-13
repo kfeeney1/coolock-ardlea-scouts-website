@@ -132,3 +132,26 @@ test("unapproved parents and unauthenticated users remain denied", async () => {
   await assertFails(getMetadata(ref(testEnv.authenticatedContext("parent-pending").storage(), path)));
   await assertFails(getMetadata(ref(testEnv.unauthenticatedContext().storage(), path)));
 });
+
+test("gallery uploads require a matching existing event and reject deletion-locked events", async () => {
+  await seedDocuments([["adminUsers/leader-gallery", { active: true, role: "leader", sections: ["Cubs", "Scouts"] }]]);
+  const storage = testEnv.authenticatedContext("leader-gallery").storage();
+  const metadata = (eventId, section) => ({
+    contentType: "image/jpeg",
+    customMetadata: { ownerType: "event-gallery", ownerId: eventId, section, uploadedBy: "leader-gallery" },
+  });
+  const photo = (eventId, section) => ref(storage, `attachments/event-gallery/${section}/${eventId}/photo-1/photo.jpg`);
+
+  // No canonical event: deny uploads rather than creating orphaned gallery objects.
+  await assertFails(uploadBytes(photo("missing-event", "Cubs"), new Uint8Array([1]), metadata("missing-event", "Cubs")));
+
+  await seedDocuments([["events/event-locked", { section: "Cubs", deletionState: "pending" }]]);
+  await assertFails(uploadBytes(photo("event-locked", "Cubs"), new Uint8Array([1]), metadata("event-locked", "Cubs")));
+
+  // A real event cannot be used to bypass the lock through another section's gallery prefix.
+  await seedDocuments([["events/event-cross-section", { section: "Scouts" }]]);
+  await assertFails(uploadBytes(photo("event-cross-section", "Cubs"), new Uint8Array([1]), metadata("event-cross-section", "Cubs")));
+
+  await seedDocuments([["events/event-open", { section: "Cubs" }]]);
+  await assertSucceeds(uploadBytes(photo("event-open", "Cubs"), new Uint8Array([1]), metadata("event-open", "Cubs")));
+});
