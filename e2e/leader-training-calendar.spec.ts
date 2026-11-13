@@ -50,7 +50,10 @@ test("all categories opt in, persist, coexist with meetings and renew a single c
       await page.getByRole("switch", {name: "Show renewal on group calendar", exact: true}).check();
       await page.getByRole("button", {name: "Save record", exact: true}).click();
       await expect(page.getByRole("alert").filter({hasText: "Record an expiry"}).first()).toBeVisible();
-      await page.getByRole("textbox", {name: "Expiry / lapse date", exact: true}).fill("15-06-2040");
+      const expiry = page.getByRole("article", {name: category, exact: true }).getByRole("textbox", {name: "Expiry / lapse date", exact: true });
+      await expiry.fill("15-06-2040");
+      await expiry.press("Tab");
+      await expect(expiry).toHaveValue("15-06-2040");
       await save(page);
     }
     await calendar(page); await expect(reminders(page, "2040-06-15")).toHaveCount(3);
