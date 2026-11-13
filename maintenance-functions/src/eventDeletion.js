@@ -62,7 +62,9 @@ export async function handleEventDeletion(db, bucket, request) {
   const gallerySection = event.section.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${gallerySection}/${eventId}/`, maxResults: 101 });
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
-  const blockers = discoveredNames.filter(name => !knownChildren.includes(name)).map(name => `unrecognised event subcollection: ${name}`);
+  // Even known collections can contain descendant documents beneath missing
+  // direct parents. A zero direct-document count is not proof the subtree is empty.
+  const blockers = discoveredNames.map(name => `event subcollection requires recursive inventory: ${name}`);
   blockers.push(...Object.entries(linked).filter(([, evidence]) => evidence.count > 0).map(([name, evidence]) => `${name} (${evidence.truncated ? "more than 100" : evidence.count} linked records)`));
   if (photos.length) blockers.push(`gallery photos (${photos.length >= 101 ? "more than 100" : photos.length} found)`);
   if (event.hallResource || event.hallInterval || event.hallRevision) blockers.push("hall booking association");
@@ -78,7 +80,7 @@ export async function handleEventDeletion(db, bucket, request) {
   for (const child of galleryAccessCollections) {
     // A collection can contain deeper descendants even if its direct documents
     // are currently absent. Never silently ignore an unexpected collection.
-    if (child.id !== "parents") blockers.push(`unrecognised gallery access subcollection: ${child.id}`);
+    blockers.push(`gallery access subcollection requires recursive inventory: ${child.id}`);
     const matches = await child.limit(101).get();
     const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
     linked["eventGalleryAccess/" + child.id] = { count, truncated: count >= 101 };
