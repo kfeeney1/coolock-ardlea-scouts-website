@@ -73,12 +73,17 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
       <DialogTitle id="event-deletion-review-title">Review event deletion</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5}>
-          <Typography><strong>{event.title}</strong></Typography>
-          <Typography>{event.section} · {formatSiteDate(event.startDate)}{event.endDate !== event.startDate ? " to " + formatSiteDate(event.endDate) : ""}</Typography>
+          <Typography><strong>{preflight?.event.title ?? event.title}</strong></Typography>
+          <Typography>{preflight?.event.section ?? event.section} · {formatSiteDate(preflight?.event.startDate ?? event.startDate)}{(preflight?.event.endDate ?? event.endDate) !== (preflight?.event.startDate ?? event.startDate) ? " to " + formatSiteDate(preflight?.event.endDate ?? event.endDate) : ""}</Typography>
           {loading && <CircularProgress size={24} aria-label="Inspecting linked event data" />}
           {error && <Alert severity="error">{error}</Alert>}
           {preflight && <>
             <Typography>Gallery photos: {preflight.photoCountIsMinimum ? "More than 100 found (scan limited)" : `${preflight.photoCount} found in the checked gallery path`}</Typography>
+            <Typography variant="subtitle2">Linked records checked</Typography>
+            {Object.entries(preflight.linked).filter(([, evidence]) => evidence.count > 0).length === 0
+              ? <Typography variant="body2">No linked records found in the checked collections.</Typography>
+              : Object.entries(preflight.linked).filter(([, evidence]) => evidence.count > 0).map(([name, evidence]) =>
+                <Typography key={name} variant="body2">• {name}: {evidence.truncated ? "more than 100" : evidence.count} record(s)</Typography>)}
             <Alert severity="warning">{preflight.blockers.length ? "Deletion is blocked until linked records can be safely reconciled." : "Deletion is permanent. Review the event details carefully before confirming."}</Alert>
             {preflight.blockers.map((blocker) => <Typography key={blocker} variant="body2">• {blocker}</Typography>)}
             {preflight.blockers.length === 0 && <TextField fullWidth label="Type the exact event title to confirm" value={confirmation} onChange={e => setConfirmation(e.target.value)} disabled={deleting} autoComplete="off" /> }
