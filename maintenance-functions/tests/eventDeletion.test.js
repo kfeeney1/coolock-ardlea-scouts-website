@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isCanonicalSuperAdmin, handleEventDeletion, commitCleanEventDeletion } from "../src/eventDeletion.js";
+import { isCanonicalSuperAdmin, handleEventDeletion, commitCleanEventDeletion, EVENT_DELETION_EVIDENCE_COLLECTIONS } from "../src/eventDeletion.js";
 
 test("only active canonical Super Admin is authorised", () => {
   assert.equal(isCanonicalSuperAdmin({ active: true, role: "super-admin", sections: ["Group"] }), true);
@@ -941,4 +941,14 @@ test("clean-event audit retains past and closed event lifecycle metadata", async
   assert.deepEqual(audit.eventLifecycle, {
     status: "closed", startDate: "2025-01-01", endDate: "2025-01-02"
   });
+});
+
+test("review and finalisation share one complete external evidence inventory", () => {
+  assert.deepEqual([...EVENT_DELETION_EVIDENCE_COLLECTIONS], [
+    "eventConsentLinks", "eventConsentResponses", "consentApplications",
+    "financeTransactions", "equipmentLoans", "equipmentIncidents",
+    "eventInvitations", "eventNotifications", "calendarEntries"
+  ]);
+  assert.equal(new Set(EVENT_DELETION_EVIDENCE_COLLECTIONS).size, EVENT_DELETION_EVIDENCE_COLLECTIONS.length);
+  assert.equal(Object.isFrozen(EVENT_DELETION_EVIDENCE_COLLECTIONS), true);
 });
