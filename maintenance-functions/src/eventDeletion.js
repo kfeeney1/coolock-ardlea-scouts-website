@@ -52,7 +52,10 @@ export async function handleEventDeletion(db, bucket, request) {
   }
   // Bound the scan to avoid unbounded Storage listings. A full inventory is still
   // required before any destructive operation is ever enabled.
-  const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${event.section}/${eventId}/`, maxResults: 101 });
+  // Match the client gallery path normalisation: spaces in section labels become hyphens.
+  // Otherwise a section such as "All Sections" would silently miss its photos.
+  const gallerySection = event.section.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const [photos] = await bucket.getFiles({ prefix: `attachments/event-gallery/${gallerySection}/${eventId}/`, maxResults: 101 });
   const [publicProjection, parentProjection] = await Promise.all([db.doc("publicEvents/" + eventId).get(), db.doc("parentGalleryEvents/" + eventId).get()]);
   const blockers = discoveredNames.filter(name => !knownChildren.includes(name)).map(name => `unrecognised event subcollection: ${name}`);
   blockers.push(...Object.entries(linked).filter(([, evidence]) => evidence.count > 0).map(([name, evidence]) => `${name} (${evidence.truncated ? "more than 100" : evidence.count} linked records)`));
