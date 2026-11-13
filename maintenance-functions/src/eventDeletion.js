@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 
 // Every eventId-indexed evidence collection must be checked both at review
@@ -34,7 +36,16 @@ export async function handleEventDeletion(db, bucket, request) {
   }
   const eventRef = db.doc(`events/${eventId}`);
   const snapshot = await eventRef.get();
-  if (!snapshot.exists) throw new HttpsError("not-found", "Event no longer exists.");
+  if (!snapshot.exists) {
+    if (action === "delete") {
+      const audit = (await db.doc(`eventDeletionAudits/${eventId}`).get()).data();
+      if (audit?.outcome === "deleted" && audit.actorUid === request.auth.uid
+        && audit.title === request.data.confirmTitle && audit.revision === request.data.revision) {
+        return { eventId, deleted: true };
+      }
+    }
+    throw new HttpsError("not-found", "Event no longer exists.");
+  }
   const event = snapshot.data();
   // A deletion review must never present an incomplete or misleading title.
   // Validate persisted data before inspecting linked resources or returning it.
@@ -133,31 +144,46 @@ export async function handleEventDeletion(db, bucket, request) {
   if (!latest.exists || latest.updateTime?.toMillis?.() !== revision) {
     throw new HttpsError("failed-precondition", "Event changed during deletion review. Refresh and inspect again.");
   }
-  // Financial, calendar, notification and equipment records may refer to this event
-  // without being nested under it. Until every such reference has a verified
-  // index and preservation policy, server-side deletion MUST remain denied.
-  blockers.push("cross-collection evidence verification pending");
-  if (action === "inspect") {
-    return { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: Math.min(photos.length, 100), photoCountIsMinimum: photos.length > 100, linked, revision, blockers };
+  const review = { eventId, title: event.title, section: event.section, startDate: event.startDate, endDate: event.endDate, photoCount: Math.min(photos.length, 100), photoCountIsMinimum: photos.length > 100, linked, revision, blockers };
+  if (action === "inspect") return review;
+  if (blockers.length) throw new HttpsError("failed-precondition", "Deletion is blocked by linked records or retained evidence.");
+
+  const actorUid = request.auth.uid;
+  const lockId = randomUUID();
+  await db.runTransaction(async transaction => {
+    const current = await transaction.get(eventRef);
+    if (!current.exists || !current.updateTime.isEqual(snapshot.updateTime)) {
+      throw new HttpsError("failed-precondition", "Event changed since deletion review.");
+    }
+    if (current.data().deletionState && !(current.data().deletionState.expiresAt <= Date.now())) {
+      throw new HttpsError("aborted", "Another deletion is in progress.");
+    }
+    transaction.update(eventRef, { deletionState: { lockId, expiresAt: Date.now() + 120_000 } });
+  });
+
+  try {
+    const lockedReview = await handleEventDeletion(db, bucket, {
+      auth: request.auth, data: { action: "inspect", eventId }
+    });
+    if (lockedReview.blockers.length) {
+      throw new HttpsError("failed-precondition", "Deletion is blocked by linked records or retained evidence.");
+    }
+    return await commitCleanEventDeletion(db, {
+      eventId, title: event.title, section: event.section, revision: lockedReview.revision,
+      confirmedRevision: revision, actorUid, lockId
+    });
+  } catch (error) {
+    await db.runTransaction(async transaction => {
+      const current = await transaction.get(eventRef);
+      if (current.data()?.deletionState?.lockId === lockId) {
+        transaction.update(eventRef, { deletionState: FieldValue.delete() });
+      }
+    });
+    throw error;
   }
-  // The eventual write path must require a fresh, exact, deliberate confirmation.
-  // This validation does not grant deletion: all requests still fail closed below.
-  if (request.data?.confirmTitle !== event.title || request.data?.revision !== revision
-    || request.data?.confirmation !== "DELETE EVENT") {
-    throw new HttpsError("failed-precondition", "Refresh the review and confirm the exact event title and revision.");
-  }
-  throw new HttpsError("failed-precondition", "Deletion is blocked until all event references can be safely reconciled.");
 }
 
-
-/**
- * Atomic finalisation primitive for a fully reconciled, dependency-free event.
- * Deliberately not called by handleEventDeletion until SW-598 verifies all
- * external reference schemas and SW-601 defines recovery for Storage cleanup.
- * Keeping the audit and canonical deletion in one transaction prevents a
- * successful deletion without a durable audit record.
- */
-export async function commitCleanEventDeletion(db, { eventId, title, section, revision, actorUid, retainedReferences = [] }) {
+export async function commitCleanEventDeletion(db, { eventId, title, section, revision, actorUid, lockId, confirmedRevision = revision, retainedReferences = [] }) {
   if (typeof eventId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(eventId)
     || typeof actorUid !== "string" || !actorUid
     || typeof title !== "string" || !title.trim()
@@ -204,6 +230,9 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
     if (auditSnapshot.exists) throw new HttpsError("already-exists", "Event deletion already recorded.");
     if (!eventSnapshot.exists) throw new HttpsError("not-found", "Event no longer exists.");
     const actual = eventSnapshot.data();
+    if (lockId && (actual?.deletionState?.lockId !== lockId || actual.deletionState.expiresAt <= Date.now())) {
+      throw new HttpsError("aborted", "Event deletion lock expired or changed.");
+    }
     if (actual?.title !== title || actual?.section !== section
       || eventSnapshot.updateTime?.toMillis?.() !== revision) {
       throw new HttpsError("failed-precondition", "Event changed since deletion review.");
@@ -252,7 +281,7 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
       }
     }
     transaction.create(auditRef, {
-      eventId, title, section, actorUid, revision,
+      eventId, title, section, actorUid, revision: confirmedRevision,
       // Preserve the event lifecycle and dates for post-deletion accountability.
       // These are metadata, not sensitive attendance or consent responses.
       eventLifecycle: {

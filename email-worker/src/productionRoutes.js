@@ -359,6 +359,9 @@ export async function handleEventAudienceSave(request, env, body) {
     privilegedDocument(env, "events", eventId),
     operation === "update" ? listDocumentsWithToken(env, token, `events/${encodeURIComponent(eventId)}/audienceMembers`) : Promise.resolve([])
   ]);
+  if (currentEvent?.fields?.deletionState?.mapValue) {
+    return json(request, env, 409, { ok: false, error: "Event deletion is in progress." });
+  }
   if (operation === "update" && !currentEvent) return json(request, env, 404, { ok: false, error: "Event not found." });
   let currentMembershipDocuments = updateMembershipDocuments;
   if (operation === "create" && currentEvent) {

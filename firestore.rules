@@ -1085,7 +1085,9 @@ service cloud.firestore {
         && _writeData.status in ["draft", "open", "closed", "completed"]
         && validVersion3EventAudience(_writeData);
       }
-      allow create: if _validateWrite19(request.resource.data);
+      allow create: if _validateWrite19(request.resource.data)
+        && !request.resource.data.keys().hasAny(["deletionState"])
+        && !exists(/databases/$(database)/documents/eventDeletionAudits/$(eventId));
       // Trusted backend deletion lock: clients cannot modify a locked event.
       // deletionState is not in the client update allowlist below.
       allow update: if resource.data.get("deletionState", "") == ""
@@ -1324,8 +1326,11 @@ service cloud.firestore {
         && _writeData.endDate is string && _writeData.active is bool
         && _writeData.audienceMemberIds is list && _writeData.audienceVersion in [2, 3];
       }
-      allow create: if _validateWrite30(request.resource.data);
+      allow create: if _validateWrite30(request.resource.data)
+        && eventAllowsClientWrites(request.resource.data.eventId);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && eventAllowsClientWrites(resource.data.eventId)
+        && request.resource.data.eventId == resource.data.eventId
         && (resource.data.audienceVersion != 3 || request.resource.data.audienceVersion == 3)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
       allow delete: if false;
@@ -1341,7 +1346,8 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.active == true
         && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId;
       }
-      allow create: if _validateWrite32(request.resource.data);
+      allow create: if _validateWrite32(request.resource.data)
+        && eventAllowsClientWrites(request.resource.data.eventId);
       allow read: if isAdmin();
       allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["processingStatus", "matchedMemberId", "processedBy", "processedAt"])
         && request.resource.data.processingStatus in ["matched", "ignored"] && request.resource.data.processedBy == request.auth.uid;

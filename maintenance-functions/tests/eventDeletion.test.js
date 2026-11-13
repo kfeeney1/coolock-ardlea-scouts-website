@@ -29,26 +29,58 @@ test("crafted requests from non-Super Admin are denied before event lookup", asy
   await assert.rejects(handleEventDeletion(db, {}, { auth: { uid: "attacker" }, data: { action: "delete", eventId: "test-event" } }), /Super Admin access required/);
 });
 
-test("even clean-looking events cannot be deleted before external evidence reconciliation", async () => {
-  const db = { collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }), doc(path) {
-    if (path.startsWith("eventGalleryAccess/")) return {
-      get: async () => ({ exists: false }),
-      listCollections: async () => []
-    };
-    if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
-    if (path === "publicEvents/old-event" || path === "parentGalleryEvents/old-event") return { get: async () => ({ exists: false }) };
-    assert.equal(path, "events/old-event");
-    return {
-      get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Old event", section: "Cubs", attendance: {}, consent: {} }) }),
+test("callable deletes a clean closed event and its projections, then acknowledges a retry", async () => {
+  const revision = 1794400000000;
+  const documents = new Map([
+    ["adminUsers/root", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["events/old-event", { title: "Old event", section: "Cubs", status: "closed", attendance: {}, consent: {} }],
+    ["publicEvents/old-event", {}],
+    ["parentGalleryEvents/old-event", {}]
+  ]);
+  let eventRevision = revision;
+  const empty = { empty: true, size: 0, get: async () => empty };
+  const collection = { where: () => collection, limit: () => empty };
+  const db = {
+    collection: () => collection,
+    doc: path => ({
+      path,
+      get: async () => {
+        const data = documents.get(path);
+        const millis = eventRevision;
+        return { exists: !!data, data: () => data, updateTime: {
+          toMillis: () => millis, isEqual: other => millis === other.toMillis()
+        } };
+      },
       listCollections: async () => [],
-      collection: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) })
-    };
-  } };
+      collection: () => collection
+    }),
+    runTransaction: async work => {
+      const writes = [];
+      const result = await work({
+        get: ref => ref.get(),
+        update: (ref, fields) => writes.push(() => {
+          documents.set(ref.path, { ...documents.get(ref.path), ...fields });
+          eventRevision += 1;
+        }),
+        create: (ref, data) => writes.push(() => documents.set(ref.path, data)),
+        delete: ref => writes.push(() => documents.delete(ref.path))
+      });
+      for (const write of writes) write();
+      return result;
+    }
+  };
   const bucket = { getFiles: async () => [[]] };
-  const auth = { auth: { uid: "root" }, data: { action: "delete", eventId: "old-event", confirmTitle: "Old event", revision: 1794400000000, confirmation: "DELETE EVENT" } };
-  await assert.rejects(handleEventDeletion(db, bucket, auth), /Deletion is blocked/);
-  const inspection = await handleEventDeletion(db, bucket, { ...auth, data: { ...auth.data, action: "inspect" } });
-  assert.ok(inspection.blockers.includes("cross-collection evidence verification pending"));
+  const auth = { auth: { uid: "root" }, data: { action: "delete", eventId: "old-event", confirmTitle: "Old event", revision, confirmation: "DELETE EVENT" } };
+  assert.deepEqual(await handleEventDeletion(db, bucket, auth), { eventId: "old-event", deleted: true });
+  for (const path of ["events/old-event", "publicEvents/old-event", "parentGalleryEvents/old-event"]) {
+    assert.equal(documents.has(path), false);
+  }
+  const audit = documents.get("eventDeletionAudits/old-event");
+  assert.equal(audit.eventLifecycle.status, "closed");
+  assert.equal(audit.actorUid, "root");
+  assert.equal(audit.revision, revision);
+  assert.deepEqual(await handleEventDeletion(db, bucket, auth), { eventId: "old-event", deleted: true });
+  assert.equal(documents.get("eventDeletionAudits/old-event"), audit);
 });
 
 test("unauthenticated deletion is denied without any database access", async () => {
@@ -102,6 +134,7 @@ test("nonexistent events cannot be deleted", async () => {
       listCollections: async () => []
     };
     if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    if (path === "eventDeletionAudits/missing") return { get: async () => ({ data: () => undefined }) };
     assert.equal(path, "events/missing");
     return { get: async () => ({ exists: false }) };
   } };
@@ -150,7 +183,6 @@ test("deletion refuses stale revisions, mismatched titles and absent deliberate 
       /Refresh the review and confirm/
     );
   }
-  await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: base }), /Deletion is blocked/);
 });
 
 test("gallery inventory reports exact small counts and bounded larger counts", async () => {
