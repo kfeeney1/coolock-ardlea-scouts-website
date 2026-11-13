@@ -672,6 +672,7 @@ test("clean-event finalisation atomically writes audit and deletes canonical eve
   assert.equal(writes[0][1], "eventDeletionAudits/clean");
   assert.equal(writes[0][2].actorUid, "root");
   assert.equal(writes[0][2].outcome, "deleted");
+  assert.deepEqual(writes[0][2].eventLifecycle, { status: null, startDate: null, endDate: null });
   assert.deepEqual(writes[0][2].removedProjections, []);
   assert.equal(writes[1][1], "events/clean");
 });
@@ -914,4 +915,30 @@ test("clean-event finalisation refuses orphaned gallery grants beneath missing r
     eventId: "clean", title: "Clean", section: "Cubs", revision: 1794400000000, actorUid: "root"
   }), /gallery access descendants must be reconciled/);
   assert.equal(transactions, 0);
+});
+
+test("clean-event audit retains past and closed event lifecycle metadata", async () => {
+  const revision = 1794400000000;
+  let audit;
+  const db = {
+    doc: path => ({ path, listCollections: async () => [], collection: name => ({ limit: () => ({ kind: "referenceQuery", name }) }) }),
+    collection: name => ({ where: () => ({ limit: () => ({ kind: "referenceQuery", name }) }) }),
+    runTransaction: async callback => callback({
+      get: async ref => {
+        if (ref.kind === "referenceQuery") return { empty: true, size: 0 };
+        if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
+        if (ref.path === "events/closed") return {
+          exists: true, updateTime: { toMillis: () => revision },
+          data: () => ({ title: "Closed", section: "Cubs", status: "closed", startDate: "2025-01-01", endDate: "2025-01-02" })
+        };
+        return { exists: false };
+      },
+      create: (ref, data) => { if (ref.path === "eventDeletionAudits/closed") audit = data; },
+      delete: () => {}
+    })
+  };
+  await commitCleanEventDeletion(db, { eventId: "closed", title: "Closed", section: "Cubs", revision, actorUid: "root" });
+  assert.deepEqual(audit.eventLifecycle, {
+    status: "closed", startDate: "2025-01-01", endDate: "2025-01-02"
+  });
 });
