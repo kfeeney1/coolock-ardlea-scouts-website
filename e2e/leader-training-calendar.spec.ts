@@ -50,7 +50,9 @@ test("all categories opt in, persist, coexist with meetings and renew a single c
       await page.getByRole("switch", {name: "Show renewal on group calendar", exact: true}).check();
       await page.getByRole("button", {name: "Save record", exact: true}).click();
       await expect(page.getByRole("alert").filter({hasText: "Record an expiry"}).first()).toBeVisible();
-      const expiry = page.getByRole("article", {name: category, exact: true }).getByRole("textbox", {name: "Expiry / lapse date", exact: true });
+      // The editor is rendered in a modal, not inside the category article.
+      // Scope to the visible dialog rather than a non-existent descendant.
+      const expiry = page.getByRole("textbox", {name: "Expiry / lapse date", exact: true });
       await expiry.fill("15-06-2040");
       await expiry.press("Tab");
       await expect(expiry).toHaveValue("15-06-2040");
