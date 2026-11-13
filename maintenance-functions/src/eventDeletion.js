@@ -238,6 +238,13 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
     }
     transaction.create(auditRef, {
       eventId, title, section, actorUid, revision,
+      // Preserve the event lifecycle and dates for post-deletion accountability.
+      // These are metadata, not sensitive attendance or consent responses.
+      eventLifecycle: {
+        status: typeof actual.status === "string" ? actual.status : null,
+        startDate: actual.startDate ?? null,
+        endDate: actual.endDate ?? null
+      },
       outcome: "deleted", retainedReferences: [],
       removedProjections: [
         ...(publicSnapshot.exists ? ["publicEvents"] : []),
