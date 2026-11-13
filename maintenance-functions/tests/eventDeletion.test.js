@@ -767,3 +767,42 @@ test("clean-event finalisation refuses a gallery access root added after inspect
   }), /gallery access must be reconciled/);
   assert.equal(writes, 0);
 });
+
+
+test("clean-event transaction refuses embedded safeguarding, audience and hall evidence", async () => {
+  const revision = 1794400000000;
+  const evidenceCases = [
+    { attendance: { member: true } },
+    { consent: { member: true } },
+    { consentLinkToken: "token" },
+    { hallResource: "hall" },
+    { hallInterval: "interval" },
+    { hallRevision: 1 },
+    { audience: { sectionIds: ["Cubs"], memberIds: [], resolvedMemberIds: [] } },
+    { audience: { sectionIds: [], memberIds: ["member"], resolvedMemberIds: [] } },
+    { audience: { sectionIds: [], memberIds: [], resolvedMemberIds: ["member"] } },
+    { audience: { memberIds: [] } }
+  ];
+  for (const evidence of evidenceCases) {
+    let writes = 0;
+    const db = {
+      doc: path => ({ path }),
+      runTransaction: async callback => callback({
+        get: async ref => {
+          if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
+          if (ref.path === "events/clean") return {
+            exists: true, updateTime: { toMillis: () => revision },
+            data: () => ({ title: "Clean", section: "Cubs", ...evidence })
+          };
+          return { exists: false };
+        },
+        create: () => { writes++; },
+        delete: () => { writes++; }
+      })
+    };
+    await assert.rejects(commitCleanEventDeletion(db, {
+      eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root"
+    }), /retained safeguarding, audience or booking evidence/);
+    assert.equal(writes, 0);
+  }
+});
