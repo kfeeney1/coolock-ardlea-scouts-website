@@ -729,7 +729,10 @@ test("clean-event finalisation removes public and parent projections in the same
         if (ref.path === "publicEvents/clean" || ref.path === "parentGalleryEvents/clean") return { exists: true };
         return { exists: false };
       },
-      create: (ref, data) => {\n        assert.deepEqual(data.removedProjections, ["publicEvents", "parentGalleryEvents"]);\n        writes.push(["create", ref.path]);\n      },
+      create: (ref, data) => {
+        assert.deepEqual(data.removedProjections, ["publicEvents", "parentGalleryEvents"]);
+        writes.push(["create", ref.path]);
+      },
       delete: ref => writes.push(["delete", ref.path])
     })
   };
