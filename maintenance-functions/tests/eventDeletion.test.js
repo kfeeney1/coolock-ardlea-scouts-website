@@ -654,7 +654,9 @@ test("clean-event finalisation atomically writes audit and deletes canonical eve
     doc: path => ({ path }),
     runTransaction: async callback => {
       const transaction = {
-        get: async ref => ref.path === "adminUsers/root"\n          ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }\n          : ref.path === "events/clean"
+        get: async ref => ref.path === "adminUsers/root"
+          ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }
+          : ref.path === "events/clean"
           ? { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) }
           : { exists: false },
         create: (ref, data) => writes.push(["create", ref.path, data]),
@@ -677,7 +679,9 @@ test("clean-event finalisation rejects stale events and retained references with
   const db = {
     doc: path => ({ path }),
     runTransaction: async callback => callback({
-      get: async ref => ref.path === "adminUsers/root"\n          ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }\n          : ref.path === "events/clean"
+      get: async ref => ref.path === "adminUsers/root"
+          ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }
+          : ref.path === "events/clean"
         ? { exists: true, updateTime: { toMillis: () => 12 }, data: () => ({ title: "Clean", section: "Cubs" }) }
         : { exists: false },
       create: () => { writes++; },
