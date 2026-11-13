@@ -505,13 +505,18 @@ test("gallery inventory uses the same section path normalisation as gallery uplo
       };
     }
   };
+  const inspectedPrefixes = [];
   const bucket = { getFiles: async ({ prefix, maxResults }) => {
-    assert.equal(prefix, "attachments/event-gallery/All-Sections/all-sections/");
+    inspectedPrefixes.push(prefix);
     assert.equal(maxResults, 101);
-    return [[{ name: "photo" }]];
+    return prefix.includes("/All Sections/") ? [[{ name: "legacy-photo" }]] : [[]];
   } };
   const inspection = await handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action: "inspect", eventId: "all-sections" } });
   assert.equal(inspection.photoCount, 1);
+  assert.deepEqual(inspectedPrefixes, [
+    "attachments/event-gallery/All-Sections/all-sections/",
+    "attachments/event-gallery/All Sections/all-sections/"
+  ]);
   assert.ok(inspection.blockers.includes("gallery photos (1 found)"));
 });
 
