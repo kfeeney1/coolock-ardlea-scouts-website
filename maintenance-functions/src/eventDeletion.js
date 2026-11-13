@@ -161,6 +161,14 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
   const publicRef = db.doc(`publicEvents/${eventId}`);
   const parentRef = db.doc(`parentGalleryEvents/${eventId}`);
   const galleryAccessRef = db.doc(`eventGalleryAccess/${eventId}`);
+  // A missing gallery access root does not prove its child grants are absent.
+  // Firestore permits orphaned descendants; never finalise such an event.
+  // This is a fail-closed precondition, not a replacement for the full
+  // recursive inventory and concurrent-write protections in SW-598.
+  const galleryAccessChildren = await galleryAccessRef.listCollections();
+  if (galleryAccessChildren.length > 0) {
+    throw new HttpsError("failed-precondition", "Event gallery access descendants must be reconciled before deletion.");
+  }
   return db.runTransaction(async transaction => {
     // Recheck the actor inside the same transaction as deletion: an earlier
     // callable authorisation can become stale if Super Admin is revoked.
