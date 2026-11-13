@@ -158,11 +158,14 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
   const eventRef = db.doc(`events/${eventId}`);
   const auditRef = db.doc(`eventDeletionAudits/${eventId}`);
   const actorRef = db.doc(`adminUsers/${actorUid}`);
+  const publicRef = db.doc(`publicEvents/${eventId}`);
+  const parentRef = db.doc(`parentGalleryEvents/${eventId}`);
   return db.runTransaction(async transaction => {
     // Recheck the actor inside the same transaction as deletion: an earlier
     // callable authorisation can become stale if Super Admin is revoked.
-    const [eventSnapshot, auditSnapshot, actorSnapshot] = await Promise.all([
-      transaction.get(eventRef), transaction.get(auditRef), transaction.get(actorRef)
+    const [eventSnapshot, auditSnapshot, actorSnapshot, publicSnapshot, parentSnapshot] = await Promise.all([
+      transaction.get(eventRef), transaction.get(auditRef), transaction.get(actorRef),
+      transaction.get(publicRef), transaction.get(parentRef)
     ]);
     if (!isCanonicalSuperAdmin(actorSnapshot.data())) {
       throw new HttpsError("permission-denied", "Super Admin access required.");
@@ -179,6 +182,10 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
       outcome: "deleted", retainedReferences: [],
       deletedAt: new Date()
     });
+    // Projections are event-keyed, derived records. Remove them atomically
+    // with the canonical event so no public/parent-facing ghost event remains.
+    if (publicSnapshot.exists) transaction.delete(publicRef);
+    if (parentSnapshot.exists) transaction.delete(parentRef);
     transaction.delete(eventRef);
     return { eventId, deleted: true };
   });
