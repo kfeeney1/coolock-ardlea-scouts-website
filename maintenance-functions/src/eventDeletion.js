@@ -218,6 +218,16 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
         throw new HttpsError("failed-precondition", `Retained ${collectionName} evidence prevents event deletion.`);
       }
     }
+    // Nested event records may be created after inspection. Recheck known
+    // event-owned collections inside the same transaction before finalising.
+    // Unknown descendants still require the recursive inventory in SW-598.
+    for (const childName of ["audienceMembers", "programmeAccess", "programmes", "leaderAttendance"]) {
+      const childQuery = eventRef.collection(childName).limit(1);
+      const children = await transaction.get(childQuery);
+      if (!children.empty && (children.size ?? children.docs?.length ?? 1) > 0) {
+        throw new HttpsError("failed-precondition", `Retained event ${childName} records prevent deletion.`);
+      }
+    }
     transaction.create(auditRef, {
       eventId, title, section, actorUid, revision,
       outcome: "deleted", retainedReferences: [],
