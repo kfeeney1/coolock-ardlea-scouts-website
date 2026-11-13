@@ -543,3 +543,27 @@ test("section-only audience evidence and unknown gallery access descendants bloc
     action: "delete", eventId: "section-only", confirmTitle: "Section only", revision, confirmation: "DELETE EVENT"
   } }), /Deletion is blocked/);
 });
+
+
+test("stale revision and title confirmations never trigger linked-record or Storage inventory", async () => {
+  let eventReads = 0;
+  const db = {
+    collection: () => { throw new Error("external collection inventory must not run"); },
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      assert.equal(path, "events/old-event");
+      return { get: async () => {
+        eventReads += 1;
+        return { exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Actual title", section: "Cubs" }) };
+      }, listCollections: () => { throw new Error("nested inventory must not run"); } };
+    }
+  };
+  const bucket = { getFiles: () => { throw new Error("Storage inventory must not run"); } };
+  for (const changes of [{ revision: 1794399999999 }, { confirmTitle: "Incorrect title" }]) {
+    await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: {
+      action: "delete", eventId: "old-event", confirmTitle: "Actual title", revision: 1794400000000,
+      confirmation: "DELETE EVENT", ...changes
+    } }), /Refresh the review and confirm/);
+  }
+  assert.equal(eventReads, 2);
+});
