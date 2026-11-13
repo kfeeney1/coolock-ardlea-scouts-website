@@ -511,3 +511,35 @@ test("gallery inventory uses the same section path normalisation as gallery uplo
   assert.equal(inspection.photoCount, 1);
   assert.ok(inspection.blockers.includes("gallery photos (1 found)"));
 });
+
+
+test("section-only audience evidence and unknown gallery access descendants block deletion", async () => {
+  const revision = 1794400000000;
+  const db = {
+    collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) }) }),
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/section-only" || path === "parentGalleryEvents/section-only") return { get: async () => ({ exists: false }) };
+      if (path === "eventGalleryAccess/section-only") return {
+        get: async () => ({ exists: false }),
+        listCollections: async () => [{ id: "unexpected", limit: () => ({ get: async () => ({ size: 0 }) }) }]
+      };
+      assert.equal(path, "events/section-only");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => revision }, data: () => ({
+          title: "Section only", section: "Cubs",
+          audience: { version: 3, mode: "sections", sectionIds: ["Cubs"], memberIds: [], resolvedMemberIds: [] }
+        }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const bucket = { getFiles: async () => [[]] };
+  const inspection = await handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: { action: "inspect", eventId: "section-only" } });
+  assert.ok(inspection.blockers.includes("section audience evidence"));
+  assert.ok(inspection.blockers.includes("unrecognised gallery access subcollection: unexpected"));
+  await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: {
+    action: "delete", eventId: "section-only", confirmTitle: "Section only", revision, confirmation: "DELETE EVENT"
+  } }), /Deletion is blocked/);
+});
