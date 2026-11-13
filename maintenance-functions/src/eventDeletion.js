@@ -70,8 +70,12 @@ export async function handleEventDeletion(db, bucket, request) {
   if (photos.length) blockers.push(`gallery photos (${photos.length >= 101 ? "more than 100" : photos.length} found)`);
   if (event.hallResource || event.hallInterval || event.hallRevision) blockers.push("hall booking association");
   if (event.audience?.resolvedMemberIds?.length || event.audience?.memberIds?.length) blockers.push("member audience evidence");
-  if (publicProjection.exists) blockers.push("public event projection");
-  if (parentProjection.exists) blockers.push("parent gallery projection");
+  // These two projections are derived event-keyed documents, not retained
+  // safeguarding evidence. commitCleanEventDeletion removes both atomically
+  // with the canonical event and records their removal in the audit. They
+  // must not be reported as independent blockers for an otherwise clean event.
+  linked.publicEvents = { count: publicProjection.exists ? 1 : 0, truncated: false };
+  linked.parentGalleryEvents = { count: parentProjection.exists ? 1 : 0, truncated: false };
   // Parent gallery grants live under an independent event-keyed root.
   // Inspect both the root and its child collections so grants cannot be orphaned.
   const galleryAccessRef = db.doc("eventGalleryAccess/" + eventId);
