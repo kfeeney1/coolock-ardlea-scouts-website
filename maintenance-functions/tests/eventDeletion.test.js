@@ -671,6 +671,7 @@ test("clean-event finalisation atomically writes audit and deletes canonical eve
   assert.equal(writes[0][1], "eventDeletionAudits/clean");
   assert.equal(writes[0][2].actorUid, "root");
   assert.equal(writes[0][2].outcome, "deleted");
+  assert.deepEqual(writes[0][2].removedProjections, []);
   assert.equal(writes[1][1], "events/clean");
 });
 
@@ -728,7 +729,7 @@ test("clean-event finalisation removes public and parent projections in the same
         if (ref.path === "publicEvents/clean" || ref.path === "parentGalleryEvents/clean") return { exists: true };
         return { exists: false };
       },
-      create: (ref) => writes.push(["create", ref.path]),
+      create: (ref, data) => {\n        assert.deepEqual(data.removedProjections, ["publicEvents", "parentGalleryEvents"]);\n        writes.push(["create", ref.path]);\n      },
       delete: ref => writes.push(["delete", ref.path])
     })
   };
