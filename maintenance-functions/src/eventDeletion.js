@@ -204,11 +204,18 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
     // Consent evidence may be written independently after the initial review.
     // Read these eventId-indexed queries inside the same transaction, so a
     // concurrent consent write cannot silently escape finalisation.
-    for (const collectionName of ["eventConsentLinks", "eventConsentResponses", "consentApplications"]) {
+    // Retain operational and communication records rather than orphaning them.
+    // Every indexed collection is rechecked within the final transaction,
+    // not only during the earlier inspection.
+    for (const collectionName of [
+      "eventConsentLinks", "eventConsentResponses", "consentApplications",
+      "financeTransactions", "equipmentLoans", "equipmentIncidents",
+      "eventInvitations", "eventNotifications", "calendarEntries"
+    ]) {
       const query = db.collection(collectionName).where("eventId", "==", eventId).limit(1);
       const matches = await transaction.get(query);
       if (!matches.empty && (matches.size ?? matches.docs?.length ?? 1) > 0) {
-        throw new HttpsError("failed-precondition", "Retained consent evidence prevents event deletion.");
+        throw new HttpsError("failed-precondition", `Retained ${collectionName} evidence prevents event deletion.`);
       }
     }
     transaction.create(auditRef, {
