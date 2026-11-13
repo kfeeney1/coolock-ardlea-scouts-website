@@ -181,6 +181,26 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
       || eventSnapshot.updateTime?.toMillis?.() !== revision) {
       throw new HttpsError("failed-precondition", "Event changed since deletion review.");
     }
+    // Do not trust the caller's retainedReferences=[] claim. Revalidate
+    // safeguarding, audience and booking evidence from the transaction snapshot.
+    const embeddedEvidence = Boolean(
+      actual?.hallResource || actual?.hallInterval || actual?.hallRevision
+      || actual?.consentLinkToken
+      || (actual?.attendance && Object.keys(actual.attendance).length)
+      || (actual?.consent && Object.keys(actual.consent).length)
+      || (actual?.audience && (
+        typeof actual.audience !== "object" || Array.isArray(actual.audience)
+        || !Array.isArray(actual.audience.sectionIds)
+        || !Array.isArray(actual.audience.memberIds)
+        || !Array.isArray(actual.audience.resolvedMemberIds)
+        || actual.audience.sectionIds.length
+        || actual.audience.memberIds.length
+        || actual.audience.resolvedMemberIds.length
+      ))
+    );
+    if (embeddedEvidence) {
+      throw new HttpsError("failed-precondition", "Event has retained safeguarding, audience or booking evidence.");
+    }
     transaction.create(auditRef, {
       eventId, title, section, actorUid, revision,
       outcome: "deleted", retainedReferences: [],
