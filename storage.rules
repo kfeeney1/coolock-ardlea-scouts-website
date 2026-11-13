@@ -146,7 +146,12 @@ service firebase.storage {
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
     function validEventGalleryWrite(section, eventId) {
-      return canAccessGallerySection(section) && request.resource != null
+      // A gallery upload must not outlive its event or race with deletion.
+      // Only the trusted backend may set deletionState on the event.
+      return canAccessGallerySection(section)
+        && firestore.exists(/databases/(default)/documents/events/$(eventId))
+        && firestore.get(/databases/(default)/documents/events/$(eventId)).data.get("deletionState", "") == ""
+        && request.resource != null
         && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType in ["image/jpeg", "image/png", "image/webp"]
         && request.resource.metadata.ownerType == "event-gallery"
