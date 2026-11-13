@@ -2,7 +2,7 @@ import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/
 import app, { appEnvironment } from "../firebase";
 import type { EventRecord } from "./eventAdmin";
 
-export type EventDeletionPreflight = { event: EventRecord; photoCount: number; photoCountIsMinimum: boolean; revision: number; blockers: string[] };
+export type EventDeletionPreflight = { event: EventRecord; photoCount: number; photoCountIsMinimum: boolean; linked: Record<string, { count: number; truncated: boolean }>; revision: number; blockers: string[] };
 
 type InspectionResponse = {
   eventId: string;
@@ -12,6 +12,7 @@ type InspectionResponse = {
   endDate: string;
   photoCount: number;
   photoCountIsMinimum: boolean;
+  linked: Record<string, { count: number; truncated: boolean }>;
   revision: number;
   blockers: string[];
 };
@@ -39,10 +40,18 @@ export async function inspectEventDeletion(event: EventRecord): Promise<EventDel
     || result.section !== event.section || result.startDate !== event.startDate || result.endDate !== event.endDate) {
     throw new Error("Event details changed. Refresh before reviewing deletion.");
   }
+  if (!result.linked || typeof result.linked !== "object" || Array.isArray(result.linked)
+    || Object.values(result.linked).some((entry) => !entry || !Number.isSafeInteger(entry.count)
+      || entry.count < 0 || typeof entry.truncated !== "boolean")) {
+    throw new Error("Deletion review did not include a valid linked-record inventory.");
+  }
+  if (!Array.isArray(result.blockers) || result.blockers.some((item) => typeof item !== "string")) {
+    throw new Error("Deletion review did not include a valid blocker list.");
+  }
   if (!Number.isSafeInteger(result.revision) || result.revision <= 0) {
     throw new Error("Deletion review did not include a trusted event revision.");
   }
-  return { event, photoCount: result.photoCount, photoCountIsMinimum: result.photoCountIsMinimum, revision: result.revision, blockers: result.blockers };
+  return { event, photoCount: result.photoCount, photoCountIsMinimum: result.photoCountIsMinimum, linked: result.linked, revision: result.revision, blockers: result.blockers };
 }
 
 /** Destructive requests are always re-authorised by the trusted callable. */
