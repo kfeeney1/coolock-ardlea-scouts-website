@@ -157,10 +157,16 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
   }
   const eventRef = db.doc(`events/${eventId}`);
   const auditRef = db.doc(`eventDeletionAudits/${eventId}`);
+  const actorRef = db.doc(`adminUsers/${actorUid}`);
   return db.runTransaction(async transaction => {
-    const [eventSnapshot, auditSnapshot] = await Promise.all([
-      transaction.get(eventRef), transaction.get(auditRef)
+    // Recheck the actor inside the same transaction as deletion: an earlier
+    // callable authorisation can become stale if Super Admin is revoked.
+    const [eventSnapshot, auditSnapshot, actorSnapshot] = await Promise.all([
+      transaction.get(eventRef), transaction.get(auditRef), transaction.get(actorRef)
     ]);
+    if (!isCanonicalSuperAdmin(actorSnapshot.data())) {
+      throw new HttpsError("permission-denied", "Super Admin access required.");
+    }
     if (auditSnapshot.exists) throw new HttpsError("already-exists", "Event deletion already recorded.");
     if (!eventSnapshot.exists) throw new HttpsError("not-found", "Event no longer exists.");
     const actual = eventSnapshot.data();
