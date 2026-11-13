@@ -651,7 +651,7 @@ test("clean-event finalisation atomically writes audit and deletes canonical eve
   const revision = 1794400000000;
   const writes = [];
   const db = {
-    doc: path => ({ path }),
+    doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => {
       const transaction = {
@@ -679,7 +679,7 @@ test("clean-event finalisation atomically writes audit and deletes canonical eve
 test("clean-event finalisation rejects stale events and retained references without writes", async () => {
   let writes = 0;
   const db = {
-    doc: path => ({ path }),
+    doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
       get: async ref => ref.kind === "consentQuery" ? { empty: true, size: 0 } : ref.path === "adminUsers/root"
@@ -701,7 +701,7 @@ test("clean-event finalisation rejects stale events and retained references with
 test("clean-event finalisation denies revoked Super Admin inside transaction without writes", async () => {
   let writes = 0;
   const db = {
-    doc: path => ({ path }),
+    doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
       get: async ref => ref.kind === "consentQuery" ? { empty: true, size: 0 } : ref.path === "adminUsers/root"
@@ -724,7 +724,7 @@ test("clean-event finalisation removes public and parent projections in the same
   const revision = 1794400000000;
   const writes = [];
   const db = {
-    doc: path => ({ path }),
+    doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
       get: async ref => {
@@ -756,7 +756,7 @@ test("clean-event finalisation refuses a gallery access root added after inspect
   const revision = 1794400000000;
   let writes = 0;
   const db = {
-    doc: path => ({ path }),
+    doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
       get: async ref => {
@@ -793,7 +793,7 @@ test("clean-event transaction refuses embedded safeguarding, audience and hall e
   for (const evidence of evidenceCases) {
     let writes = 0;
     const db = {
-      doc: path => ({ path }),
+      doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
       runTransaction: async callback => callback({
         get: async ref => {
@@ -822,7 +822,7 @@ test("clean-event transaction blocks independent consent responses without write
   const revision = 1794400000000;
   let writes = 0;
   const db = {
-    doc: path => ({ path }),
+    doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     collection: name => ({ where: (field, op, id) => {
       assert.deepEqual([field, op, id], ["eventId", "==", "clean"]);
       return { limit: count => {
@@ -855,7 +855,7 @@ test("clean-event transaction refuses financial and equipment references", async
   for (const retained of ["financeTransactions", "equipmentLoans", "equipmentIncidents", "eventInvitations", "eventNotifications", "calendarEntries"]) {
     let writes = 0;
     const db = {
-      doc: path => ({ path }),
+      doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
       collection: name => ({ where: () => ({ limit: () => ({ kind: "referenceQuery", name }) }) }),
       runTransaction: async callback => callback({
         get: async ref => {
@@ -871,6 +871,32 @@ test("clean-event transaction refuses financial and equipment references", async
     await assert.rejects(commitCleanEventDeletion(db, {
       eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root"
     }), new RegExp("Retained " + retained + " evidence"));
+    assert.equal(writes, 0);
+  }
+});
+
+test("clean-event transaction blocks event-owned child records added after inspection", async () => {
+  const revision = 1794400000000;
+  for (const retained of ["audienceMembers", "programmeAccess", "programmes", "leaderAttendance"]) {
+    let writes = 0;
+    const db = {
+      doc: path => ({ path, collection: name => ({ limit: () => ({ kind: "childQuery", name }) }) }),
+      collection: name => ({ where: () => ({ limit: () => ({ kind: "externalQuery", name }) }) }),
+      runTransaction: async callback => callback({
+        get: async ref => {
+          if (ref.kind === "externalQuery") return { empty: true, size: 0 };
+          if (ref.kind === "childQuery") return { empty: ref.name !== retained, size: ref.name === retained ? 1 : 0 };
+          if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
+          if (ref.path === "events/clean") return { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) };
+          return { exists: false };
+        },
+        create: () => { writes++; },
+        delete: () => { writes++; }
+      })
+    };
+    await assert.rejects(commitCleanEventDeletion(db, {
+      eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root"
+    }), new RegExp("Retained event " + retained + " records"));
     assert.equal(writes, 0);
   }
 });
