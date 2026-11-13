@@ -137,3 +137,43 @@ export async function handleEventDeletion(db, bucket, request) {
   }
   throw new HttpsError("failed-precondition", "Deletion is blocked until all event references can be safely reconciled.");
 }
+
+
+/**
+ * Atomic finalisation primitive for a fully reconciled, dependency-free event.
+ * Deliberately not called by handleEventDeletion until SW-598 verifies all
+ * external reference schemas and SW-601 defines recovery for Storage cleanup.
+ * Keeping the audit and canonical deletion in one transaction prevents a
+ * successful deletion without a durable audit record.
+ */
+export async function commitCleanEventDeletion(db, { eventId, title, section, revision, actorUid, retainedReferences = [] }) {
+  if (typeof eventId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(eventId)
+    || typeof actorUid !== "string" || !actorUid
+    || typeof title !== "string" || !title.trim()
+    || typeof section !== "string" || !section.trim()
+    || !Number.isSafeInteger(revision) || revision <= 0
+    || !Array.isArray(retainedReferences) || retainedReferences.length !== 0) {
+    throw new HttpsError("failed-precondition", "Clean event deletion requires verified identity and no retained references.");
+  }
+  const eventRef = db.doc(`events/${eventId}`);
+  const auditRef = db.doc(`eventDeletionAudits/${eventId}`);
+  return db.runTransaction(async transaction => {
+    const [eventSnapshot, auditSnapshot] = await Promise.all([
+      transaction.get(eventRef), transaction.get(auditRef)
+    ]);
+    if (auditSnapshot.exists) throw new HttpsError("already-exists", "Event deletion already recorded.");
+    if (!eventSnapshot.exists) throw new HttpsError("not-found", "Event no longer exists.");
+    const actual = eventSnapshot.data();
+    if (actual?.title !== title || actual?.section !== section
+      || eventSnapshot.updateTime?.toMillis?.() !== revision) {
+      throw new HttpsError("failed-precondition", "Event changed since deletion review.");
+    }
+    transaction.create(auditRef, {
+      eventId, title, section, actorUid, revision,
+      outcome: "deleted", retainedReferences: [],
+      deletedAt: new Date()
+    });
+    transaction.delete(eventRef);
+    return { eventId, deleted: true };
+  });
+}
