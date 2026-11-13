@@ -654,7 +654,7 @@ test("clean-event finalisation atomically writes audit and deletes canonical eve
     doc: path => ({ path }),
     runTransaction: async callback => {
       const transaction = {
-        get: async ref => ref.path === "events/clean"
+        get: async ref => ref.path === "adminUsers/root"\n          ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }\n          : ref.path === "events/clean"
           ? { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) }
           : { exists: false },
         create: (ref, data) => writes.push(["create", ref.path, data]),
@@ -677,7 +677,7 @@ test("clean-event finalisation rejects stale events and retained references with
   const db = {
     doc: path => ({ path }),
     runTransaction: async callback => callback({
-      get: async ref => ref.path === "events/clean"
+      get: async ref => ref.path === "adminUsers/root"\n          ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }\n          : ref.path === "events/clean"
         ? { exists: true, updateTime: { toMillis: () => 12 }, data: () => ({ title: "Clean", section: "Cubs" }) }
         : { exists: false },
       create: () => { writes++; },
@@ -687,5 +687,26 @@ test("clean-event finalisation rejects stale events and retained references with
   const request = { eventId: "clean", title: "Clean", section: "Cubs", revision: 13, actorUid: "root" };
   await assert.rejects(commitCleanEventDeletion(db, request), /Event changed/);
   await assert.rejects(commitCleanEventDeletion(db, { ...request, retainedReferences: ["consent"] }), /no retained references/);
+  assert.equal(writes, 0);
+});
+
+
+test("clean-event finalisation denies revoked Super Admin inside transaction without writes", async () => {
+  let writes = 0;
+  const db = {
+    doc: path => ({ path }),
+    runTransaction: async callback => callback({
+      get: async ref => ref.path === "adminUsers/root"
+        ? { exists: true, data: () => ({ active: false, role: "super-admin", sections: ["Cubs"] }) }
+        : ref.path === "events/clean"
+          ? { exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Clean", section: "Cubs" }) }
+          : { exists: false },
+      create: () => { writes++; },
+      delete: () => { writes++; }
+    })
+  };
+  await assert.rejects(commitCleanEventDeletion(db, {
+    eventId: "clean", title: "Clean", section: "Cubs", revision: 1794400000000, actorUid: "root"
+  }), /Super Admin access required/);
   assert.equal(writes, 0);
 });
