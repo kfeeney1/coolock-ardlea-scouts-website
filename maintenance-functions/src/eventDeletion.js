@@ -35,6 +35,11 @@ export async function handleEventDeletion(db, bucket, request) {
   if (!Number.isSafeInteger(revision) || revision <= 0) {
     throw new HttpsError("failed-precondition", "Event revision unavailable; deletion review cannot be trusted.");
   }
+  // Reject stale or mistitled confirmations before any external inventory reads.
+  // The second revision read below still detects edits during the inventory.
+  if (action === "delete" && (request.data.confirmTitle !== event.title || request.data.revision !== revision)) {
+    throw new HttpsError("failed-precondition", "Refresh the review and confirm the exact event title and revision.");
+  }
   if (typeof event.section !== "string" || event.section.trim() !== event.section
     || !/^[A-Za-z0-9][A-Za-z0-9 _-]{0,127}$/.test(event.section)) {
     throw new HttpsError("failed-precondition", "Invalid event section.");
