@@ -593,3 +593,55 @@ test("known event child collection with no direct documents still requires recur
   assert.equal(inspection.linked.audienceMembers.count, 0);
   assert.ok(inspection.blockers.includes("event subcollection requires recursive inventory: audienceMembers"));
 });
+
+
+test("failed external inventory reads never produce a deletion review or deletion success", async () => {
+  const revision = 1794400000000;
+  const reads = [];
+  const db = {
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      if (path === "publicEvents/failure" || path === "parentGalleryEvents/failure") return { get: async () => ({ exists: false }) };
+      if (path === "eventGalleryAccess/failure") return { get: async () => ({ exists: false }), listCollections: async () => [] };
+      assert.equal(path, "events/failure");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Failure", section: "Cubs" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    },
+    collection(name) {
+      return { where: () => ({ limit: () => ({ get: async () => {
+        reads.push(name);
+        if (name === "financeTransactions") throw new Error("simulated Firestore read failure");
+        return { size: 0 };
+      } }) }) };
+    }
+  };
+  const bucket = { getFiles: async () => [[]] };
+  for (const action of ["inspect", "delete"]) {
+    const data = { action, eventId: "failure", confirmTitle: "Failure", revision, confirmation: "DELETE EVENT" };
+    await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data }), /simulated Firestore read failure/);
+  }
+  assert.ok(reads.includes("financeTransactions"));
+});
+
+test("Storage inventory failure prevents both review and deletion", async () => {
+  const db = {
+    doc(path) {
+      if (path === "adminUsers/root") return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+      assert.equal(path, "events/failure");
+      return {
+        get: async () => ({ exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Failure", section: "Cubs" }) }),
+        listCollections: async () => [],
+        collection: () => ({ limit: () => ({ get: async () => ({ size: 0 }) }) })
+      };
+    }
+  };
+  const bucket = { getFiles: async () => { throw new Error("simulated Storage listing failure"); } };
+  for (const action of ["inspect", "delete"]) {
+    await assert.rejects(handleEventDeletion(db, bucket, { auth: { uid: "root" }, data: {
+      action, eventId: "failure", confirmTitle: "Failure", revision: 1794400000000, confirmation: "DELETE EVENT"
+    } }), /simulated Storage listing failure/);
+  }
+});
