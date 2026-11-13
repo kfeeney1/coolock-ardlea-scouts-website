@@ -201,6 +201,16 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
     if (embeddedEvidence) {
       throw new HttpsError("failed-precondition", "Event has retained safeguarding, audience or booking evidence.");
     }
+    // Consent evidence may be written independently after the initial review.
+    // Read these eventId-indexed queries inside the same transaction, so a
+    // concurrent consent write cannot silently escape finalisation.
+    for (const collectionName of ["eventConsentLinks", "eventConsentResponses", "consentApplications"]) {
+      const query = db.collection(collectionName).where("eventId", "==", eventId).limit(1);
+      const matches = await transaction.get(query);
+      if (!matches.empty && (matches.size ?? matches.docs?.length ?? 1) > 0) {
+        throw new HttpsError("failed-precondition", "Retained consent evidence prevents event deletion.");
+      }
+    }
     transaction.create(auditRef, {
       eventId, title, section, actorUid, revision,
       outcome: "deleted", retainedReferences: [],
