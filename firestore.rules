@@ -1086,7 +1086,10 @@ service cloud.firestore {
         && validVersion3EventAudience(_writeData);
       }
       allow create: if _validateWrite19(request.resource.data);
-      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+      // Trusted backend deletion lock: clients cannot modify a locked event.
+      // deletionState is not in the client update allowlist below.
+      allow update: if resource.data.get("deletionState", "") == ""
+        && isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && (resource.data.get("hallResource", "") != "group-hall"
           || !request.resource.data.diff(resource.data).affectedKeys().hasAny(["startDate", "endDate", "section"]))
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
