@@ -745,3 +745,25 @@ test("clean-event finalisation removes public and parent projections in the same
     ["delete", "events/clean"]
   ]);
 });
+
+
+test("clean-event finalisation refuses a gallery access root added after inspection", async () => {
+  const revision = 1794400000000;
+  let writes = 0;
+  const db = {
+    doc: path => ({ path }),
+    runTransaction: async callback => callback({
+      get: async ref => {
+        if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
+        if (ref.path === "events/clean") return { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) };
+        return { exists: ref.path === "eventGalleryAccess/clean" };
+      },
+      create: () => { writes++; },
+      delete: () => { writes++; }
+    })
+  };
+  await assert.rejects(commitCleanEventDeletion(db, {
+    eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root"
+  }), /gallery access must be reconciled/);
+  assert.equal(writes, 0);
+});
