@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isCanonicalSuperAdmin, handleEventDeletion } from "../src/eventDeletion.js";
+import { isCanonicalSuperAdmin, handleEventDeletion, commitCleanEventDeletion } from "../src/eventDeletion.js";
 
 test("only active canonical Super Admin is authorised", () => {
   assert.equal(isCanonicalSuperAdmin({ active: true, role: "super-admin", sections: ["Group"] }), true);
@@ -644,4 +644,48 @@ test("Storage inventory failure prevents both review and deletion", async () => 
       action, eventId: "failure", confirmTitle: "Failure", revision: 1794400000000, confirmation: "DELETE EVENT"
     } }), /simulated Storage listing failure/);
   }
+});
+
+
+test("clean-event finalisation atomically writes audit and deletes canonical event", async () => {
+  const revision = 1794400000000;
+  const writes = [];
+  const db = {
+    doc: path => ({ path }),
+    runTransaction: async callback => {
+      const transaction = {
+        get: async ref => ref.path === "events/clean"
+          ? { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) }
+          : { exists: false },
+        create: (ref, data) => writes.push(["create", ref.path, data]),
+        delete: ref => writes.push(["delete", ref.path])
+      };
+      return callback(transaction);
+    }
+  };
+  const result = await commitCleanEventDeletion(db, { eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root" });
+  assert.deepEqual(result, { eventId: "clean", deleted: true });
+  assert.equal(writes.length, 2);
+  assert.equal(writes[0][1], "eventDeletionAudits/clean");
+  assert.equal(writes[0][2].actorUid, "root");
+  assert.equal(writes[0][2].outcome, "deleted");
+  assert.equal(writes[1][1], "events/clean");
+});
+
+test("clean-event finalisation rejects stale events and retained references without writes", async () => {
+  let writes = 0;
+  const db = {
+    doc: path => ({ path }),
+    runTransaction: async callback => callback({
+      get: async ref => ref.path === "events/clean"
+        ? { exists: true, updateTime: { toMillis: () => 12 }, data: () => ({ title: "Clean", section: "Cubs" }) }
+        : { exists: false },
+      create: () => { writes++; },
+      delete: () => { writes++; }
+    })
+  };
+  const request = { eventId: "clean", title: "Clean", section: "Cubs", revision: 13, actorUid: "root" };
+  await assert.rejects(commitCleanEventDeletion(db, request), /Event changed/);
+  await assert.rejects(commitCleanEventDeletion(db, { ...request, retainedReferences: ["consent"] }), /no retained references/);
+  assert.equal(writes, 0);
 });
