@@ -846,6 +846,31 @@ test("clean-event transaction blocks independent consent responses without write
   };
   await assert.rejects(commitCleanEventDeletion(db, {
     eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root"
-  }), /Retained consent evidence/);
+  }), /Retained eventConsentResponses evidence/);
   assert.equal(writes, 0);
+});
+
+test("clean-event transaction refuses financial and equipment references", async () => {
+  const revision = 1794400000000;
+  for (const retained of ["financeTransactions", "equipmentLoans", "equipmentIncidents", "eventInvitations", "eventNotifications", "calendarEntries"]) {
+    let writes = 0;
+    const db = {
+      doc: path => ({ path }),
+      collection: name => ({ where: () => ({ limit: () => ({ kind: "referenceQuery", name }) }) }),
+      runTransaction: async callback => callback({
+        get: async ref => {
+          if (ref.kind === "referenceQuery") return { empty: ref.name !== retained, size: ref.name === retained ? 1 : 0 };
+          if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
+          if (ref.path === "events/clean") return { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) };
+          return { exists: false };
+        },
+        create: () => { writes++; },
+        delete: () => { writes++; }
+      })
+    };
+    await assert.rejects(commitCleanEventDeletion(db, {
+      eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root"
+    }), new RegExp("Retained " + retained + " evidence"));
+    assert.equal(writes, 0);
+  }
 });
