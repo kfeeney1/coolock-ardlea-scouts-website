@@ -71,11 +71,18 @@ export async function handleEventDeletion(db, bucket, request) {
   if (galleryAccessRoot.exists) blockers.push("event gallery access root");
   const galleryAccessCollections = await galleryAccessRef.listCollections();
   for (const child of galleryAccessCollections) {
+    // A collection can contain deeper descendants even if its direct documents
+    // are currently absent. Never silently ignore an unexpected collection.
+    if (child.id !== "parents") blockers.push(`unrecognised gallery access subcollection: ${child.id}`);
     const matches = await child.limit(101).get();
     const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
     linked["eventGalleryAccess/" + child.id] = { count, truncated: count >= 101 };
     if (count > 0) blockers.push(`event gallery access ${child.id} (${count >= 101 ? "more than 100" : count} linked records)`);
   }
+  if (event.audience && (typeof event.audience !== "object" || Array.isArray(event.audience)
+    || !Array.isArray(event.audience.sectionIds) || !Array.isArray(event.audience.memberIds)
+    || !Array.isArray(event.audience.resolvedMemberIds))) blockers.push("unrecognised audience structure");
+  if (Array.isArray(event.audience?.sectionIds) && event.audience.sectionIds.length) blockers.push("section audience evidence");
   if (Object.keys(event.attendance ?? {}).length || Object.keys(event.consent ?? {}).length) blockers.push("attendance/consent evidence");
   if (event.consentLinkToken) blockers.push("consent link");
   // Consent links, submitted responses and canonical consent applications live outside events/{id}. Preserve
