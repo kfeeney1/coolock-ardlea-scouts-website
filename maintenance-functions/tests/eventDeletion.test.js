@@ -952,3 +952,19 @@ test("review and finalisation share one complete external evidence inventory", (
   assert.equal(new Set(EVENT_DELETION_EVIDENCE_COLLECTIONS).size, EVENT_DELETION_EVIDENCE_COLLECTIONS.length);
   assert.equal(Object.isFrozen(EVENT_DELETION_EVIDENCE_COLLECTIONS), true);
 });
+
+test("clean-event finalisation refuses unknown event descendants before transaction", async () => {
+  let transactions = 0;
+  const db = {
+    doc: path => ({
+      path,
+      listCollections: async () => path === "events/clean" ? [{ id: "customEvidence" }] : []
+    }),
+    runTransaction: async () => { transactions++; }
+  };
+  await assert.rejects(commitCleanEventDeletion(db, {
+    eventId: "clean", title: "Clean", section: "Cubs",
+    revision: 1794400000000, actorUid: "root"
+  }), /Event descendants must be reconciled/);
+  assert.equal(transactions, 0);
+});
