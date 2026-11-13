@@ -1,5 +1,14 @@
 import { HttpsError } from "firebase-functions/v2/https";
 
+// Every eventId-indexed evidence collection must be checked both at review
+// time and again in the final transaction. Keep this inventory in one place
+// so new dependency categories cannot silently drift between the two paths.
+export const EVENT_DELETION_EVIDENCE_COLLECTIONS = Object.freeze([
+  "eventConsentLinks", "eventConsentResponses", "consentApplications",
+  "financeTransactions", "equipmentLoans", "equipmentIncidents",
+  "eventInvitations", "eventNotifications", "calendarEntries"
+]);
+
 export function isCanonicalSuperAdmin(profile) {
   return profile?.active === true && profile.role === "super-admin"
     && Array.isArray(profile.sections) && profile.sections.length > 0
@@ -97,24 +106,9 @@ export async function handleEventDeletion(db, bucket, request) {
   if (Array.isArray(event.audience?.sectionIds) && event.audience.sectionIds.length) blockers.push("section audience evidence");
   if (Object.keys(event.attendance ?? {}).length || Object.keys(event.consent ?? {}).length) blockers.push("attendance/consent evidence");
   if (event.consentLinkToken) blockers.push("consent link");
-  // Consent links, submitted responses and canonical consent applications live outside events/{id}. Preserve
-  // safeguarding evidence and block deletion whenever either exists.
-  for (const collectionName of ["eventConsentLinks", "eventConsentResponses", "consentApplications"]) {
-    const matches = await db.collection(collectionName).where("eventId", "==", eventId).limit(101).get();
-    const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
-    linked[collectionName] = { count, truncated: count >= 101 };
-    if (count > 0) blockers.push(`${collectionName} (${count >= 101 ? "more than 100" : count} linked records)`);
-  }
-  // Independently stored operational evidence is retained and blocks deletion.
-  for (const collectionName of ["financeTransactions", "equipmentLoans", "equipmentIncidents"]) {
-    const matches = await db.collection(collectionName).where("eventId", "==", eventId).limit(101).get();
-    const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
-    linked[collectionName] = { count, truncated: count >= 101 };
-    if (count > 0) blockers.push(`${collectionName} (${count >= 101 ? "more than 100" : count} linked records)`);
-  }
-  // Check independent calendar, invitation and notification projections. These
-  // records must be reconciled before the canonical event can be removed.
-  for (const collectionName of ["eventInvitations", "eventNotifications", "calendarEntries"]) {
+  // Preserve independent safeguarding, finance, equipment and communication
+  // evidence. Every collection is also checked inside the final transaction.
+  for (const collectionName of EVENT_DELETION_EVIDENCE_COLLECTIONS) {
     const matches = await db.collection(collectionName).where("eventId", "==", eventId).limit(101).get();
     const count = matches.size ?? matches.docs?.length ?? (matches.empty ? 0 : 1);
     linked[collectionName] = { count, truncated: count >= 101 };
@@ -219,11 +213,7 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
     // Retain operational and communication records rather than orphaning them.
     // Every indexed collection is rechecked within the final transaction,
     // not only during the earlier inspection.
-    for (const collectionName of [
-      "eventConsentLinks", "eventConsentResponses", "consentApplications",
-      "financeTransactions", "equipmentLoans", "equipmentIncidents",
-      "eventInvitations", "eventNotifications", "calendarEntries"
-    ]) {
+    for (const collectionName of EVENT_DELETION_EVIDENCE_COLLECTIONS) {
       const query = db.collection(collectionName).where("eventId", "==", eventId).limit(1);
       const matches = await transaction.get(query);
       if (!matches.empty && (matches.size ?? matches.docs?.length ?? 1) > 0) {
