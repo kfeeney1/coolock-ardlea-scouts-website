@@ -652,9 +652,10 @@ test("clean-event finalisation atomically writes audit and deletes canonical eve
   const writes = [];
   const db = {
     doc: path => ({ path }),
+    collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => {
       const transaction = {
-        get: async ref => ref.path === "adminUsers/root"
+        get: async ref => ref.kind === "consentQuery" ? { empty: true, size: 0 } : ref.path === "adminUsers/root"
           ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }
           : ref.path === "events/clean"
           ? { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) }
@@ -679,8 +680,9 @@ test("clean-event finalisation rejects stale events and retained references with
   let writes = 0;
   const db = {
     doc: path => ({ path }),
+    collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
-      get: async ref => ref.path === "adminUsers/root"
+      get: async ref => ref.kind === "consentQuery" ? { empty: true, size: 0 } : ref.path === "adminUsers/root"
           ? { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) }
           : ref.path === "events/clean"
         ? { exists: true, updateTime: { toMillis: () => 12 }, data: () => ({ title: "Clean", section: "Cubs" }) }
@@ -700,8 +702,9 @@ test("clean-event finalisation denies revoked Super Admin inside transaction wit
   let writes = 0;
   const db = {
     doc: path => ({ path }),
+    collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
-      get: async ref => ref.path === "adminUsers/root"
+      get: async ref => ref.kind === "consentQuery" ? { empty: true, size: 0 } : ref.path === "adminUsers/root"
         ? { exists: true, data: () => ({ active: false, role: "super-admin", sections: ["Cubs"] }) }
         : ref.path === "events/clean"
           ? { exists: true, updateTime: { toMillis: () => 1794400000000 }, data: () => ({ title: "Clean", section: "Cubs" }) }
@@ -722,8 +725,10 @@ test("clean-event finalisation removes public and parent projections in the same
   const writes = [];
   const db = {
     doc: path => ({ path }),
+    collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
       get: async ref => {
+        if (ref.kind === "consentQuery") return { empty: true, size: 0 };
         if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
         if (ref.path === "events/clean") return { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) };
         if (ref.path === "publicEvents/clean" || ref.path === "parentGalleryEvents/clean") return { exists: true };
@@ -752,8 +757,10 @@ test("clean-event finalisation refuses a gallery access root added after inspect
   let writes = 0;
   const db = {
     doc: path => ({ path }),
+    collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
     runTransaction: async callback => callback({
       get: async ref => {
+        if (ref.kind === "consentQuery") return { empty: true, size: 0 };
         if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
         if (ref.path === "events/clean") return { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) };
         return { exists: ref.path === "eventGalleryAccess/clean" };
@@ -787,8 +794,11 @@ test("clean-event transaction refuses embedded safeguarding, audience and hall e
     let writes = 0;
     const db = {
       doc: path => ({ path }),
+    collection: name => ({ where: () => ({ limit: () => ({ kind: "consentQuery", name }) }) }),
       runTransaction: async callback => callback({
         get: async ref => {
+          if (ref.kind === "consentQuery") return { empty: true, size: 0 };
+        if (ref.kind === "consentQuery") return { empty: true, size: 0 };
           if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
           if (ref.path === "events/clean") return {
             exists: true, updateTime: { toMillis: () => revision },
@@ -805,4 +815,37 @@ test("clean-event transaction refuses embedded safeguarding, audience and hall e
     }), /retained safeguarding, audience or booking evidence/);
     assert.equal(writes, 0);
   }
+});
+
+
+test("clean-event transaction blocks independent consent responses without writes", async () => {
+  const revision = 1794400000000;
+  let writes = 0;
+  const db = {
+    doc: path => ({ path }),
+    collection: name => ({ where: (field, op, id) => {
+      assert.deepEqual([field, op, id], ["eventId", "==", "clean"]);
+      return { limit: count => {
+        assert.equal(count, 1);
+        return { kind: "consentQuery", name };
+      } };
+    } }),
+    runTransaction: async callback => callback({
+      get: async ref => {
+        if (ref.kind === "consentQuery") return {
+          empty: ref.name !== "eventConsentResponses",
+          size: ref.name === "eventConsentResponses" ? 1 : 0
+        };
+        if (ref.path === "adminUsers/root") return { exists: true, data: () => ({ active: true, role: "super-admin", sections: ["Cubs"] }) };
+        if (ref.path === "events/clean") return { exists: true, updateTime: { toMillis: () => revision }, data: () => ({ title: "Clean", section: "Cubs" }) };
+        return { exists: false };
+      },
+      create: () => { writes++; },
+      delete: () => { writes++; }
+    })
+  };
+  await assert.rejects(commitCleanEventDeletion(db, {
+    eventId: "clean", title: "Clean", section: "Cubs", revision, actorUid: "root"
+  }), /Retained consent evidence/);
+  assert.equal(writes, 0);
 });
