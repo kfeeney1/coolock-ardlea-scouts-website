@@ -900,3 +900,18 @@ test("clean-event transaction blocks event-owned child records added after inspe
     assert.equal(writes, 0);
   }
 });
+
+test("clean-event finalisation refuses orphaned gallery grants beneath missing root", async () => {
+  let transactions = 0;
+  const db = {
+    doc: path => ({
+      path,
+      listCollections: async () => path === "eventGalleryAccess/clean" ? [{ id: "parents" }] : []
+    }),
+    runTransaction: async () => { transactions++; }
+  };
+  await assert.rejects(commitCleanEventDeletion(db, {
+    eventId: "clean", title: "Clean", section: "Cubs", revision: 1794400000000, actorUid: "root"
+  }), /gallery access descendants must be reconciled/);
+  assert.equal(transactions, 0);
+});
