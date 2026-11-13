@@ -163,6 +163,14 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
   // Firestore permits orphaned descendants; never finalise such an event.
   // This is a fail-closed precondition, not a replacement for the full
   // recursive inventory and concurrent-write protections in SW-598.
+  // Check every discovered event child collection, not just the four known
+  // names. Firestore does not cascade-delete descendants of a deleted document.
+  // A non-empty discovered collection, including one with orphaned nested
+  // descendants, must prevent finalisation until recursively reconciled.
+  const eventChildren = await eventRef.listCollections();
+  if (eventChildren.length > 0) {
+    throw new HttpsError("failed-precondition", "Event descendants must be reconciled before deletion.");
+  }
   const galleryAccessChildren = await galleryAccessRef.listCollections();
   if (galleryAccessChildren.length > 0) {
     throw new HttpsError("failed-precondition", "Event gallery access descendants must be reconciled before deletion.");
