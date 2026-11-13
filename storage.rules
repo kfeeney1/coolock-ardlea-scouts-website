@@ -150,6 +150,7 @@ service firebase.storage {
       // Only the trusted backend may set deletionState on the event.
       return canAccessGallerySection(section)
         && firestore.exists(/databases/(default)/documents/events/$(eventId))
+        && firestore.get(/databases/(default)/documents/events/$(eventId)).data.get("section", "") == section
         && firestore.get(/databases/(default)/documents/events/$(eventId)).data.get("deletionState", "") == ""
         && request.resource != null
         && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
