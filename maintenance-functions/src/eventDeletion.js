@@ -160,15 +160,19 @@ export async function commitCleanEventDeletion(db, { eventId, title, section, re
   const actorRef = db.doc(`adminUsers/${actorUid}`);
   const publicRef = db.doc(`publicEvents/${eventId}`);
   const parentRef = db.doc(`parentGalleryEvents/${eventId}`);
+  const galleryAccessRef = db.doc(`eventGalleryAccess/${eventId}`);
   return db.runTransaction(async transaction => {
     // Recheck the actor inside the same transaction as deletion: an earlier
     // callable authorisation can become stale if Super Admin is revoked.
-    const [eventSnapshot, auditSnapshot, actorSnapshot, publicSnapshot, parentSnapshot] = await Promise.all([
+    const [eventSnapshot, auditSnapshot, actorSnapshot, publicSnapshot, parentSnapshot, galleryAccessSnapshot] = await Promise.all([
       transaction.get(eventRef), transaction.get(auditRef), transaction.get(actorRef),
-      transaction.get(publicRef), transaction.get(parentRef)
+      transaction.get(publicRef), transaction.get(parentRef), transaction.get(galleryAccessRef)
     ]);
     if (!isCanonicalSuperAdmin(actorSnapshot.data())) {
       throw new HttpsError("permission-denied", "Super Admin access required.");
+    }
+    if (galleryAccessSnapshot.exists) {
+      throw new HttpsError("failed-precondition", "Event gallery access must be reconciled before deletion.");
     }
     if (auditSnapshot.exists) throw new HttpsError("already-exists", "Event deletion already recorded.");
     if (!eventSnapshot.exists) throw new HttpsError("not-found", "Event no longer exists.");
