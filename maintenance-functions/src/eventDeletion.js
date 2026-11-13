@@ -3,6 +3,7 @@ import { HttpsError } from "firebase-functions/v2/https";
 export function isCanonicalSuperAdmin(profile) {
   return profile?.active === true && profile.role === "super-admin"
     && Array.isArray(profile.sections) && profile.sections.length > 0
+    && profile.sections.every(section => typeof section === "string" && section.trim().length > 0 && section.trim() === section)
     && !Object.prototype.hasOwnProperty.call(profile, "section");
 }
 
