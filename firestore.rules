@@ -1324,10 +1324,10 @@ service cloud.firestore {
         && _writeData.eventId is string && _writeData.title is string
         && _writeData.eventType is string && _writeData.startDate is string
         && _writeData.endDate is string && _writeData.active is bool
-        && _writeData.audienceMemberIds is list && _writeData.audienceVersion in [2, 3];
+        && _writeData.audienceMemberIds is list && _writeData.audienceVersion in [2, 3]
+        && eventAllowsClientWrites(_writeData.eventId);
       }
-      allow create: if _validateWrite30(request.resource.data)
-        && eventAllowsClientWrites(request.resource.data.eventId);
+      allow create: if _validateWrite30(request.resource.data);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && eventAllowsClientWrites(resource.data.eventId)
         && request.resource.data.eventId == resource.data.eventId
