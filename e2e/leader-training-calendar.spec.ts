@@ -30,8 +30,16 @@ async function calendar(page: Page) {
 }
 const reminders = (page: Page, date: string) => page.locator(`[data-calendar-date="${date}"]`).getByRole("link", {name: /^Training renewal:/});
 async function save(page: Page) {
-  await page.getByRole("button", {name: "Save record", exact: true}).focus(); await page.keyboard.press("Enter");
-  await expect(page.getByText("Training record saved.", {exact: true})).toBeVisible();
+  await page.getByRole("button", {name: "Save record", exact: true}).click();
+  try {
+    await expect(page.getByText("Training record saved.", {exact: true})).toBeVisible();
+  } catch (failure) {
+    const alerts = await page.getByRole("alert").allTextContents();
+    const dates = await page.getByRole("textbox", {name: /(?:Completion \/ issue|Expiry \/ lapse) date/}).evaluateAll(inputs =>
+      inputs.map(input => ({name: input.getAttribute("name"), value: (input as HTMLInputElement).value, invalid: (input as HTMLInputElement).validationMessage}))
+    );
+    throw new Error(`Training save did not complete; alerts=${JSON.stringify(alerts)} dates=${JSON.stringify(dates)}; ${String(failure)}`);
+  }
 }
 test("all categories opt in, persist, coexist with meetings and renew a single canonical calendar entry", async ({page}) => {
   const f = await fixture();
@@ -42,7 +50,12 @@ test("all categories opt in, persist, coexist with meetings and renew a single c
       await page.getByRole("switch", {name: "Show renewal on group calendar", exact: true}).check();
       await page.getByRole("button", {name: "Save record", exact: true}).click();
       await expect(page.getByRole("alert").filter({hasText: "Record an expiry"}).first()).toBeVisible();
-      await page.getByRole("textbox", {name: "Expiry / lapse date", exact: true}).fill("15-06-2040");
+      // The editor is rendered in a modal, not inside the category article.
+      // Scope to the visible dialog rather than a non-existent descendant.
+      const expiry = page.getByRole("textbox", {name: "Expiry / lapse date", exact: true });
+      await expiry.fill("15-06-2040");
+      await expiry.press("Tab");
+      await expect(expiry).toHaveValue("15-06-2040");
       await save(page);
     }
     await calendar(page); await expect(reminders(page, "2040-06-15")).toHaveCount(3);

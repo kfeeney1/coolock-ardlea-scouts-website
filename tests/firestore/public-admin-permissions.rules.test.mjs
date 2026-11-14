@@ -86,6 +86,9 @@ test("public can list projections while authorized writes reject private fields"
 
 test("event consent links are public only while active and responses bind to that link", async () => {
   await seed([
+    ["events/event-1", { section: "Cubs", title: "Camp" }],
+    ["events/event-locked", { section: "Cubs", deletionState: { lockId: "test-lock" } }],
+    ["eventConsentLinks/locked-token", { active: true, eventId: "event-locked", section: "Cubs", title: "Locked camp" }],
     ["eventConsentLinks/active-token", { active: true, eventId: "event-1", section: "Cubs", title: "Camp" }],
     ["eventConsentLinks/closed-token", { active: false, eventId: "event-2", section: "Cubs", title: "Past camp" }],
   ]);
@@ -101,6 +104,9 @@ test("event consent links are public only while active and responses bind to tha
   };
   await assertSucceeds(setDoc(doc(publicDb, "eventConsentResponses/valid"), response));
   await assertFails(setDoc(doc(publicDb, "eventConsentResponses/wrong-event"), { ...response, eventId: "event-2" }));
+  await assertFails(setDoc(doc(publicDb, "eventConsentResponses/locked"), {
+    ...response, eventId: "event-locked", token: "locked-token",
+  }));
   await assertFails(getDocs(collection(publicDb, "eventConsentResponses")));
 });
 

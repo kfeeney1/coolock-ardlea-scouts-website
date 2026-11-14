@@ -1083,17 +1083,29 @@ service cloud.firestore {
         && _writeData.title is string && _writeData.eventType is string
         && validDateRange(_writeData.startDate, _writeData.endDate)
         && _writeData.status in ["draft", "open", "closed", "completed"]
-        && validVersion3EventAudience(_writeData);
+        && validVersion3EventAudience(_writeData)
+        && !_writeData.keys().hasAny(["deletionState"])
+        && !exists(/databases/$(database)/documents/eventDeletionAudits/$(eventId));
       }
       allow create: if _validateWrite19(request.resource.data);
-      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+      // Trusted backend deletion lock: clients cannot modify a locked event.
+      // deletionState is not in the client update allowlist below.
+      allow update: if resource.data.get("deletionState", "") == ""
+        && isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && (resource.data.get("hallResource", "") != "group-hall"
           || !request.resource.data.diff(resource.data).affectedKeys().hasAny(["startDate", "endDate", "section"]))
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
         && validDateRange(request.resource.data.startDate, request.resource.data.endDate)
         && (request.resource.data.audience == resource.data.audience || validVersion3EventAudience(request.resource.data))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "consentLinkToken", "audience", "attendance", "consent", "updatedAt", "updatedBy"]);
+      // SW-595: retain fail-closed deletion until trusted cleanup is atomic.
       allow delete: if false;
+    }
+
+    // A trusted deletion lock freezes nested client writes too.
+    function eventAllowsClientWrites(eventId) {
+      let eventPath = /databases/$(database)/documents/events/$(eventId);
+      return existsAfter(eventPath) && getAfter(eventPath).data.get("deletionState", "") == "";
     }
 
     match /events/{eventId}/audienceMembers/{memberId} {
@@ -1132,7 +1144,7 @@ service cloud.firestore {
         && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
         || (isApprovedParentForMember(memberId) && resource.data.memberId == memberId && resource.data.eventId == eventId);
-      allow create: if validEventAudienceMembership(eventId, memberId);
+      allow create: if eventAllowsClientWrites(eventId) && validEventAudienceMembership(eventId, memberId);
       function dateOnlyUpdate() {
         let source = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
         let data = request.resource.data;
@@ -1142,8 +1154,8 @@ service cloud.firestore {
           && data.programmeVisible == (source.status != "draft")
           && data.updatedAt == request.time && data.updatedBy == request.auth.uid;
       }
-      allow update: if dateOnlyUpdate() || validEventAudienceMembership(eventId, memberId);
-      allow delete: if isActiveLeader()
+      allow update: if eventAllowsClientWrites(eventId) && (dateOnlyUpdate() || validEventAudienceMembership(eventId, memberId));
+      allow delete: if eventAllowsClientWrites(eventId) && isActiveLeader()
         && exists(/databases/$(database)/documents/events/$(eventId))
         && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
     }
@@ -1151,11 +1163,11 @@ service cloud.firestore {
     match /events/{eventId}/programmeAccess/{parentUid} {
       allow get: if signedIn() && parentUid == request.auth.uid;
       allow list: if false;
-      allow create, update: if signedIn() && parentUid == request.auth.uid
+      allow create, update: if eventAllowsClientWrites(eventId) && signedIn() && parentUid == request.auth.uid
         && request.resource.data.keys().hasOnly(["memberId"])
         && isApprovedParentForMember(request.resource.data.memberId) && isActiveMember(request.resource.data.memberId)
         && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(request.resource.data.memberId));
-      allow delete: if signedIn() && parentUid == request.auth.uid;
+      allow delete: if eventAllowsClientWrites(eventId) && signedIn() && parentUid == request.auth.uid;
     }
 
     match /events/{eventId}/programmes/{programmeId} {
@@ -1187,7 +1199,7 @@ service cloud.firestore {
           && data.eventType == source.eventType && data.section == source.section && data.location == source.location
           && data.startDate == source.startDate && data.endDate == source.endDate && data.status == source.status;
       }
-      allow create, update: if validProgrammeWrite();
+      allow create, update: if eventAllowsClientWrites(eventId) && validProgrammeWrite();
       allow delete: if false;
     }
 
@@ -1198,9 +1210,9 @@ service cloud.firestore {
           && (hasSection(get(eventPath).data.section) || isGroupLeader());
       }
       allow get, list: if canReadEventAttendance();
-      allow create, update: if canReadEventAttendance()
+      allow create, update: if eventAllowsClientWrites(eventId) && canReadEventAttendance()
         && validLeaderAttendanceRecord(leaderUid);
-      allow delete: if canReadEventAttendance() && isActiveRegisteredLeader(leaderUid);
+      allow delete: if eventAllowsClientWrites(eventId) && canReadEventAttendance() && isActiveRegisteredLeader(leaderUid);
     }
 
     // Collection-group parent queries need a recursive match. The query itself
@@ -1312,10 +1324,13 @@ service cloud.firestore {
         && _writeData.eventId is string && _writeData.title is string
         && _writeData.eventType is string && _writeData.startDate is string
         && _writeData.endDate is string && _writeData.active is bool
-        && _writeData.audienceMemberIds is list && _writeData.audienceVersion in [2, 3];
+        && _writeData.audienceMemberIds is list && _writeData.audienceVersion in [2, 3]
+        && eventAllowsClientWrites(_writeData.eventId);
       }
       allow create: if _validateWrite30(request.resource.data);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && eventAllowsClientWrites(resource.data.eventId)
+        && request.resource.data.eventId == resource.data.eventId
         && (resource.data.audienceVersion != 3 || request.resource.data.audienceVersion == 3)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
       allow delete: if false;
@@ -1329,7 +1344,8 @@ service cloud.firestore {
         && _writeData.processingStatus == "new" && _writeData.submittedAt == request.time
         && exists(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token))
         && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.active == true
-        && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId;
+        && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId
+        && eventAllowsClientWrites(_writeData.eventId);
       }
       allow create: if _validateWrite32(request.resource.data);
       allow read: if isAdmin();

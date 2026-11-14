@@ -46,6 +46,7 @@ test("Deputy Group Leader can manage finance receipts across sections", async ()
 
 test("Deputy Group Leader can manage event galleries across sections", async () => {
   const storage = testEnv.authenticatedContext("dgl").storage();
+  await seed([["events/event-1", { section: "Scouts", startDate: "2026-09-12" }]]);
   const image = ref(storage, "attachments/event-gallery/Scouts/event-1/image-1/photo.jpg");
   await assertSucceeds(uploadBytes(image, new Uint8Array([1]), {
     contentType: "image/jpeg",

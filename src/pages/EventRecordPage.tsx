@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 
 import EventHallUse from "../components/hall/EventHallUse";
 import EventGalleryDialog from "../components/admin/EventGalleryDialog";
+import EventDeletionReview from "../components/admin/EventDeletionReview";
 import EventRosterDialog from "../components/admin/EventRosterDialog";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -234,6 +235,7 @@ export default function EventRecordPage() {
                         <Button variant="outlined" color="secondary" onClick={printRoster}>Report</Button>
                         <Button variant="outlined" color="secondary" onClick={exportRoster}>Export CSV</Button>
                         <Button component={Link} to={`/leader/events/${encodeURIComponent(event.id)}/edit`} variant="outlined" color="secondary" disabled={event.status === "completed"}>Edit Event</Button>
+                        <EventDeletionReview event={event} />
                     </Box>
                 </Paper>
 
