@@ -1344,10 +1344,10 @@ service cloud.firestore {
         && _writeData.processingStatus == "new" && _writeData.submittedAt == request.time
         && exists(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token))
         && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.active == true
-        && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId;
+        && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId
+        && eventAllowsClientWrites(_writeData.eventId);
       }
-      allow create: if _validateWrite32(request.resource.data)
-        && eventAllowsClientWrites(request.resource.data.eventId);
+      allow create: if _validateWrite32(request.resource.data);
       allow read: if isAdmin();
       allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["processingStatus", "matchedMemberId", "processedBy", "processedAt"])
         && request.resource.data.processingStatus in ["matched", "ignored"] && request.resource.data.processedBy == request.auth.uid;
