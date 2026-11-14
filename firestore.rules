@@ -1083,11 +1083,11 @@ service cloud.firestore {
         && _writeData.title is string && _writeData.eventType is string
         && validDateRange(_writeData.startDate, _writeData.endDate)
         && _writeData.status in ["draft", "open", "closed", "completed"]
-        && validVersion3EventAudience(_writeData);
-      }
-      allow create: if _validateWrite19(request.resource.data)
-        && !request.resource.data.keys().hasAny(["deletionState"])
+        && validVersion3EventAudience(_writeData)
+        && !_writeData.keys().hasAny(["deletionState"])
         && !exists(/databases/$(database)/documents/eventDeletionAudits/$(eventId));
+      }
+      allow create: if _validateWrite19(request.resource.data);
       // Trusted backend deletion lock: clients cannot modify a locked event.
       // deletionState is not in the client update allowlist below.
       allow update: if resource.data.get("deletionState", "") == ""
@@ -1105,7 +1105,7 @@ service cloud.firestore {
     // A trusted deletion lock freezes nested client writes too.
     function eventAllowsClientWrites(eventId) {
       let eventPath = /databases/$(database)/documents/events/$(eventId);
-      return exists(eventPath) && get(eventPath).data.get("deletionState", "") == "";
+      return existsAfter(eventPath) && getAfter(eventPath).data.get("deletionState", "") == "";
     }
 
     match /events/{eventId}/audienceMembers/{memberId} {
