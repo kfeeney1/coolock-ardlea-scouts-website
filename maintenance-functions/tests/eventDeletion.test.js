@@ -29,11 +29,12 @@ test("crafted requests from non-Super Admin are denied before event lookup", asy
   await assert.rejects(handleEventDeletion(db, {}, { auth: { uid: "attacker" }, data: { action: "delete", eventId: "test-event" } }), /Super Admin access required/);
 });
 
-test("callable deletes a clean closed event and its projections, then acknowledges a retry", async () => {
+for (const status of ["open", "closed", "planned", "cancelled"]) {
+  test(`callable deletes a clean ${status} event and its projections, then acknowledges a retry`, async () => {
   const revision = 1794400000000;
   const documents = new Map([
     ["adminUsers/root", { active: true, role: "super-admin", sections: ["Group"] }],
-    ["events/old-event", { title: "Old event", section: "Cubs", status: "closed", attendance: {}, consent: {} }],
+    ["events/old-event", { title: "Old event", section: "Cubs", status, attendance: {}, consent: {} }],
     ["publicEvents/old-event", {}],
     ["parentGalleryEvents/old-event", {}]
   ]);
@@ -76,13 +77,13 @@ test("callable deletes a clean closed event and its projections, then acknowledg
     assert.equal(documents.has(path), false);
   }
   const audit = documents.get("eventDeletionAudits/old-event");
-  assert.equal(audit.eventLifecycle.status, "closed");
+  assert.equal(audit.eventLifecycle.status, status);
   assert.equal(audit.actorUid, "root");
   assert.equal(audit.revision, revision);
   assert.deepEqual(await handleEventDeletion(db, bucket, auth), { eventId: "old-event", deleted: true });
   assert.equal(documents.get("eventDeletionAudits/old-event"), audit);
-});
-
+  });
+}
 test("unauthenticated deletion is denied without any database access", async () => {
   await assert.rejects(handleEventDeletion({ doc: () => { throw new Error("database accessed"); } }, {}, { data: { action: "delete", eventId: "test" } }), /Sign in as Super Admin/);
 });
