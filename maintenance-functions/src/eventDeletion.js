@@ -27,12 +27,12 @@ export async function handleEventDeletion(db, bucket, request) {
   // without requiring a workstation or exposing any member information.
   if (request.data?.action === "lookupApprovedTestEvents") {
     const targets = [
-      ["Cub County weekend", "2026-09-18", "2026-09-20"],
-      ["Test", "2026-09-22", "2026-09-23"],
-      ["Test", "2026-10-02", "2026-10-02"],
-      ["Test123", "2026-10-10", "2026-10-10"],
-      ["Twst12", "2026-10-15", "2026-10-15"],
-      ["Event123", "2056-10-12", "2056-10-12"]
+      ["Cub County weekend", "2026-09-18", "2026-09-20", "Cubs"],
+      ["Test", "2026-09-22", "2026-09-23", "Cubs"],
+      ["Test", "2026-10-02", "2026-10-02", "Cubs"],
+      ["Test123", "2026-10-10", "2026-10-10", "Cubs"],
+      ["Twst12", "2026-10-15", "2026-10-15", "Cubs"],
+      ["Event123", "2056-10-12", "2056-10-12", "Beavers"]
     ];
     const found = await Promise.all([...new Set(targets.map(([title]) => title))].map(async title =>
       (await db.collection("events").where("title", "==", title).get()).docs.map(doc => ({
@@ -43,10 +43,10 @@ export async function handleEventDeletion(db, bucket, request) {
       }))
     ));
     const candidates = found.flat();
-    const matches = targets.map(([title, startDate, endDate]) => {
-      const records = candidates.filter(item => item.title === title
+    const matches = targets.map(([title, startDate, endDate, section]) => {
+      const records = candidates.filter(item => item.title === title && item.section === section
         && item.startDate === startDate && (item.endDate || item.startDate) === endDate);
-      return { title, startDate, endDate, eventIds: records.map(item => item.eventId), ambiguous: records.length !== 1 };
+      return { title, startDate, endDate, section, eventIds: records.map(item => item.eventId), ambiguous: records.length !== 1 };
     });
     return { matches, allUnique: matches.every(item => !item.ambiguous)
       && new Set(matches.flatMap(item => item.eventIds)).size === 6 };
