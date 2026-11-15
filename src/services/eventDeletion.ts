@@ -67,3 +67,17 @@ export async function deleteEventAfterReview(preflight: EventDeletionPreflight, 
   })).data;
   if (result.deleted !== true) throw new Error("The server did not confirm event deletion.");
 }
+
+export type ApprovedTestEventMatch = { title: string; startDate: string; endDate: string; eventIds: string[]; ambiguous: boolean };
+
+export async function lookupApprovedTestEvents(): Promise<{ matches: ApprovedTestEventMatch[]; allUnique: boolean }> {
+  const callable = httpsCallable<{ action: "lookupApprovedTestEvents" }, { matches: ApprovedTestEventMatch[]; allUnique: boolean }>(
+    functions, "eventDeletion"
+  );
+  const response = (await callable({ action: "lookupApprovedTestEvents" })).data;
+  if (!Array.isArray(response.matches) || response.matches.length !== 6
+    || response.matches.some(match => !Array.isArray(match.eventIds) || typeof match.title !== "string")) {
+    throw new Error("The production test event lookup returned an invalid result.");
+  }
+  return response;
+}
