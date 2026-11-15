@@ -23,6 +23,34 @@ export async function handleEventDeletion(db, bucket, request) {
   const profile = (await db.doc(`adminUsers/${request.auth.uid}`).get()).data();
   if (!isCanonicalSuperAdmin(profile)) throw new HttpsError("permission-denied", "Super Admin access required.");
 
+  // Mobile-only owner workflow: resolve the six approved production test events
+  // without requiring a workstation or exposing any member information.
+  if (request.data?.action === "lookupApprovedTestEvents") {
+    const targets = [
+      ["Cub County weekend", "2026-09-18", "2026-09-20"],
+      ["Test", "2026-09-22", "2026-09-23"],
+      ["Test", "2026-10-02", "2026-10-02"],
+      ["Test123", "2026-10-10", "2026-10-10"],
+      ["Twst12", "2026-10-15", "2026-10-15"],
+      ["Event123", "2056-10-12", "2056-10-12"]
+    ];
+    const found = await Promise.all([...new Set(targets.map(([title]) => title))].map(async title =>
+      (await db.collection("events").where("title", "==", title).get()).docs.map(doc => ({
+        eventId: doc.id, ...(() => {
+          const data = doc.data();
+          return { title: data.title, startDate: data.startDate, endDate: data.endDate, section: data.section };
+        })()
+      }))
+    ));
+    const candidates = found.flat();
+    const matches = targets.map(([title, startDate, endDate]) => {
+      const records = candidates.filter(item => item.title === title
+        && item.startDate === startDate && (item.endDate || item.startDate) === endDate);
+      return { title, startDate, endDate, eventIds: records.map(item => item.eventId), ambiguous: records.length !== 1 };
+    });
+    return { matches, allUnique: matches.every(item => !item.ambiguous)
+      && new Set(matches.flatMap(item => item.eventIds)).size === 6 };
+  }
   const { action, eventId } = request.data ?? {};
   if (!["inspect", "delete"].includes(action) || typeof eventId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(eventId)) {
     throw new HttpsError("invalid-argument", "Invalid event deletion request.");
