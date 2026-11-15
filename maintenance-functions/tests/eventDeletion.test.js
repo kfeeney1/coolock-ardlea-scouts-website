@@ -1006,3 +1006,54 @@ test("clean-event finalisation refuses unknown event descendants before transact
   }), /Event descendants must be reconciled/);
   assert.equal(transactions, 0);
 });
+
+
+test("SW-595 mobile lookup identifies six approved test events without writes or member data", async () => {
+  const events = [
+    ["a", "Cub County weekend", "2026-09-18", "2026-09-20"],
+    ["b", "Test", "2026-09-22", "2026-09-23"],
+    ["c", "Test", "2026-10-02", "2026-10-02"],
+    ["d", "Test123", "2026-10-10", "2026-10-10"],
+    ["e", "Twst12", "2026-10-15", "2026-10-15"],
+    ["f", "Event123", "2056-10-12", "2056-10-12"],
+    ["g", "Test", "2026-11-15", "2026-11-15"]
+  ];
+  let queries = 0;
+  const db = {
+    doc(path) {
+      assert.equal(path, "adminUsers/root");
+      return { get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) };
+    },
+    collection(name) {
+      assert.equal(name, "events");
+      return { where(field, operator, title) {
+        assert.equal(field, "title");
+        assert.equal(operator, "==");
+        return { get: async () => {
+          queries++;
+          return { docs: events.filter(([, value]) => value === title).map(([id, value, startDate, endDate]) => ({
+            id, data: () => ({ title: value, startDate, endDate, attendance: { secret: "not for lookup" } })
+          })) };
+        } };
+      } };
+    }
+  };
+  const result = await handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "lookupApprovedTestEvents" } });
+  assert.equal(queries, 5);
+  assert.equal(result.allUnique, true);
+  assert.deepEqual(result.matches.map(item => item.eventIds), [["a"], ["b"], ["c"], ["d"], ["e"], ["f"]]);
+  assert.equal(JSON.stringify(result).includes("secret"), false);
+});
+
+test("SW-595 mobile lookup rejects unauthorised roles before querying events", async () => {
+  let queried = false;
+  const db = {
+    doc: () => ({ get: async () => ({ data: () => ({ active: true, role: "admin", sections: ["Group"] }) }) }),
+    collection: () => { queried = true; throw new Error("must not query events"); }
+  };
+  await assert.rejects(
+    handleEventDeletion(db, {}, { auth: { uid: "leader" }, data: { action: "lookupApprovedTestEvents" } }),
+    /Super Admin access required/
+  );
+  assert.equal(queried, false);
+});
