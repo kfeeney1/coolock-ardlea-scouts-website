@@ -91,7 +91,7 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
       {approvedMatches && <Alert severity="info">
         <Typography variant="subtitle2">Approved test events (read-only lookup)</Typography>
         {approvedMatches.map((match, index) => <Typography variant="body2" key={index}>
-          {match.title} · {formatSiteDate(match.startDate)} · {match.eventIds.length === 1 ? `ID: ${match.eventIds[0]}` : match.eventIds.length === 0 ? "Not found" : "Ambiguous: multiple matching IDs"}
+          {match.title} · {formatSiteDate(match.startDate)} · {match.eventIds.length === 1 ? <Button size="small" variant="outlined" onClick={() => navigate(`/leader/events/${encodeURIComponent(match.eventIds[0])}`)}>Open event</Button> : match.eventIds.length === 0 ? "Not found" : "Ambiguous: multiple matching IDs"}
         </Typography>)}
         <Typography variant="body2">No events have been deleted. Open each event to review its dependencies before deletion.</Typography>
       </Alert>}
