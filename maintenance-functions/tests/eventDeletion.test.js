@@ -1032,7 +1032,7 @@ test("SW-595 mobile lookup identifies six approved test events without writes or
         return { get: async () => {
           queries++;
           return { docs: events.filter(([, value]) => value === title).map(([id, value, startDate, endDate]) => ({
-            id, data: () => ({ title: value, startDate, endDate, attendance: { secret: "not for lookup" } })
+            id, data: () => ({ title: value, startDate, endDate, section: value === "Event123" ? "Beavers" : "Cubs", attendance: { secret: "not for lookup" } })
           })) };
         } };
       } };
@@ -1043,6 +1043,20 @@ test("SW-595 mobile lookup identifies six approved test events without writes or
   assert.equal(result.allUnique, true);
   assert.deepEqual(result.matches.map(item => item.eventIds), [["a"], ["b"], ["c"], ["d"], ["e"], ["f"]]);
   assert.equal(JSON.stringify(result).includes("secret"), false);
+});
+
+test("SW-595 mobile lookup refuses same-title same-date events from another section", async () => {
+  const db = {
+    doc: () => ({ get: async () => ({ data: () => ({ active: true, role: "super-admin", sections: ["Group"] }) }) }),
+    collection: () => ({ where: (_field, _op, title) => ({ get: async () => ({
+      docs: title === "Test123" ? [{ id: "wrong-section", data: () => ({
+        title: "Test123", startDate: "2026-10-10", endDate: "2026-10-10", section: "Beavers"
+      }) }] : []
+    }) }) })
+  };
+  const result = await handleEventDeletion(db, {}, { auth: { uid: "root" }, data: { action: "lookupApprovedTestEvents" } });
+  assert.deepEqual(result.matches[3].eventIds, []);
+  assert.equal(result.allUnique, false);
 });
 
 test("SW-595 mobile lookup rejects unauthorised roles before querying events", async () => {
