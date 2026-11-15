@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { auth, db } from "../../firebase";
 import type { EventRecord } from "../../services/eventAdmin";
-import { deleteEventAfterReview, inspectEventDeletion } from "../../services/eventDeletion";
-import type { EventDeletionPreflight } from "../../services/eventDeletion";
+import { deleteEventAfterReview, inspectEventDeletion, lookupApprovedTestEvents } from "../../services/eventDeletion";
+import type { ApprovedTestEventMatch, EventDeletionPreflight } from "../../services/eventDeletion";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { formatSiteDate } from "../../services/siteDateFormat";
 
@@ -18,6 +18,9 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [preflight, setPreflight] = useState<EventDeletionPreflight | null>(null);
+  const [approvedMatches, setApprovedMatches] = useState<ApprovedTestEventMatch[] | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -66,9 +69,33 @@ export default function EventDeletionReview({ event }: { event: EventRecord }) {
     }
   };
 
+  const lookup = async () => {
+    setLookupLoading(true);
+    setLookupError("");
+    try {
+      const response = await lookupApprovedTestEvents();
+      setApprovedMatches(response.matches);
+    } catch (failure) {
+      setLookupError(applicationErrorMessage(failure, "Unable to find the approved test events.", "EventDeletionReview"));
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
   if (!authorised) return null;
   return <>
-    <Button variant="outlined" color="error" onClick={() => void inspect()}>Review deletion</Button>
+    <Stack spacing={1} alignItems="flex-start">
+      <Button variant="outlined" color="error" onClick={() => void inspect()}>Review deletion</Button>
+      <Button variant="outlined" disabled={lookupLoading} onClick={() => void lookup()}>{lookupLoading ? "Finding test events…" : "Find six approved test events"}</Button>
+      {lookupError && <Alert severity="error">{lookupError}</Alert>}
+      {approvedMatches && <Alert severity="info">
+        <Typography variant="subtitle2">Approved test events (read-only lookup)</Typography>
+        {approvedMatches.map((match, index) => <Typography variant="body2" key={index}>
+          {match.title} · {match.startDate} · {match.eventIds.length === 1 ? `ID: ${match.eventIds[0]}` : match.eventIds.length === 0 ? "Not found" : "Ambiguous: multiple matching IDs"}
+        </Typography>)}
+        <Typography variant="body2">No events have been deleted. Open each event to review its dependencies before deletion.</Typography>
+      </Alert>}
+    </Stack>
     <Dialog open={open} onClose={() => { if (!deleting) setOpen(false); }} fullWidth maxWidth="sm" aria-labelledby="event-deletion-review-title">
       <DialogTitle id="event-deletion-review-title">Review event deletion</DialogTitle>
       <DialogContent>
