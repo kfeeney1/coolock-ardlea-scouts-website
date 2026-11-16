@@ -1084,6 +1084,7 @@ service cloud.firestore {
         && resource.data.get("hidden", false) != true);
       function _validateWrite19(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section) && _writeData.createdBy == request.auth.uid
+        && _writeData.get("hidden", false) != true
         && !_writeData.keys().hasAny(["hallResource", "hallInterval", "hallRevision"])
         && _writeData.title is string && _writeData.eventType is string
         && validDateRange(_writeData.startDate, _writeData.endDate)
