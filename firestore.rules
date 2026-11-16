@@ -1171,9 +1171,13 @@ service cloud.firestore {
     }
 
     match /events/{eventId}/programmeAccess/{parentUid} {
-      allow get: if signedIn() && parentUid == request.auth.uid;
+      allow get: if signedIn() && parentUid == request.auth.uid
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && get(/databases/$(database)/documents/events/$(eventId)).data.get("hidden", false) != true;
       allow list: if false;
       allow create, update: if signedIn() && parentUid == request.auth.uid
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && get(/databases/$(database)/documents/events/$(eventId)).data.get("hidden", false) != true
         && request.resource.data.keys().hasOnly(["memberId"])
         && isApprovedParentForMember(request.resource.data.memberId) && isActiveMember(request.resource.data.memberId)
         && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(request.resource.data.memberId));
@@ -1196,7 +1200,10 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId))
           && get(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId)).data.memberId == memberId;
       }
-      allow get: if signedIn() && safeProgramme(resource.data) && resource.data.status in ["open", "closed", "completed"]
+      allow get: if signedIn()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && sourceProgramme().get("hidden", false) != true
+        && safeProgramme(resource.data) && resource.data.status in ["open", "closed", "completed"]
         && parentProgrammeAudience();
       allow list: if false;
       function validProgrammeWrite() {
