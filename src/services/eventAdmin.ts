@@ -1,4 +1,5 @@
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
+import { canViewEventByVisibility } from "./eventVisibility.ts";
 import {
     collection,
     deleteDoc,
@@ -39,6 +40,7 @@ export type EventRecord = {
     hallInterval?: HallLocalInterval;
     hallRevision?: number;
     id: string;
+    hidden: boolean;
     title: string;
     description: string;
     eventType: string;
@@ -126,6 +128,7 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | 
 
     return {
         id: snapshot.id,
+        hidden: data.hidden === true,
         ...eventHallMetadata(data),
         title,
         description: stringValue(data, "description"),
@@ -230,7 +233,8 @@ export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
     // requested record when opening an editor. Unrelated audience queries must
     // not block this page or grow with the number of events in the group.
     const events = docs
-        .filter((snapshot) => eventId === undefined || snapshot.id === eventId)
+        .filter((snapshot) => (eventId === undefined || snapshot.id === eventId)
+            && canViewEventByVisibility(snapshot.data(), profile))
         .map(mapEvent)
         .filter((event): event is EventRecord => event !== null)
         .sort((a, b) => b.startDate.localeCompare(a.startDate));
