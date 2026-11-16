@@ -1137,16 +1137,23 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["eventId", "eventSection", "memberId", "scopeSection", "selectedBySection", "selectedIndividually", "startDate", "endDate", "programmeVisible", "updatedAt", "updatedBy"])
           && (!request.resource.data.keys().hasAny(["startDate", "endDate", "programmeVisible"]) || (request.resource.data.startDate == eventData.startDate && request.resource.data.endDate == eventData.endDate && request.resource.data.programmeVisible == (eventData.status != "draft")));
       }
-      allow get: if (isActiveLeader()
+      // Audience membership documents expose event participation. Deny access
+      // to hidden events, including direct parent document links.
+      function canReadAudienceForEvent() {
+        let eventPath = /databases/$(database)/documents/events/$(eventId);
+        return exists(eventPath)
+          && (isSuperAdmin() || get(eventPath).data.get("hidden", false) != true);
+      }
+      allow get: if canReadAudienceForEvent() && ((isActiveLeader()
         && exists(/databases/$(database)/documents/events/$(eventId))
         && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
-        || (isApprovedParentForMember(memberId) && isActiveMember(memberId));
-      allow list: if (isActiveLeader()
+        || (isApprovedParentForMember(memberId) && isActiveMember(memberId)));
+      allow list: if canReadAudienceForEvent() && ((isActiveLeader()
         && exists(/databases/$(database)/documents/events/$(eventId))
         && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
-        || (isApprovedParentForMember(memberId) && resource.data.memberId == memberId && resource.data.eventId == eventId);
+        || (isApprovedParentForMember(memberId) && resource.data.memberId == memberId && resource.data.eventId == eventId));
       allow create: if validEventAudienceMembership(eventId, memberId);
       function dateOnlyUpdate() {
         let source = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
