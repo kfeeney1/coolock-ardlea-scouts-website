@@ -17,6 +17,7 @@ import {
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { recordAuditEvent } from "./auditLog";
 import { canTransitionEventStatus, eventCloseOutIssues } from "./eventLifecycleLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { loadMembers } from "./memberAdmin";
