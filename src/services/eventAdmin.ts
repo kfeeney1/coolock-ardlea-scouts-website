@@ -1,5 +1,5 @@
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
-import { canViewEventByVisibility } from "./eventVisibility.ts";
+import { canViewEventByVisibility, isCanonicalEventVisibilityAdmin } from "./eventVisibility.ts";
 import {
     collection,
     deleteDoc,
@@ -210,6 +210,36 @@ async function syncEventProjections(eventId: string, input: EventInput): Promise
         syncPublicEvent(eventId, input),
         syncParentGalleryEvent(eventId, input)
     ]);
+}
+
+/** Change visibility without modifying invitations, consent, attendance or galleries.
+ * The Firestore rule is the authoritative permission check; this profile
+ * check only gives a clear error before the write.
+ */
+export async function setEventHidden(eventId: string, hidden: boolean): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new ServiceFailure("No signed-in Super Admin.", "auth/unauthenticated");
+    const profile = await getDoc(doc(db, "adminUsers", user.uid));
+    if (!profile.exists() || !isCanonicalEventVisibilityAdmin(profile.data())) {
+        throw new UserFacingError("Only Super Admin can change event visibility.");
+    }
+    const eventRef = doc(db, "events", eventId);
+    const event = await getDoc(eventRef);
+    if (!event.exists()) throw new UserFacingError("Event not found.");
+    if (event.data().hidden === hidden) return;
+    await updateDoc(eventRef, {
+        hidden,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+    });
+    await recordAuditEvent({
+        category: "event",
+        action: hidden ? "hide-event" : "show-event",
+        targetId: eventId,
+        targetLabel: typeof event.data().title === "string" ? event.data().title : eventId,
+        description: hidden ? "Event hidden from parents and ordinary leaders." : "Event restored to normal visibility.",
+        section: typeof event.data().section === "string" ? event.data().section : ""
+    });
 }
 
 export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
