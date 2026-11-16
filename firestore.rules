@@ -1075,8 +1075,13 @@ service cloud.firestore {
             && data.audience.resolvedMemberIds is list && data.audience.resolvedMemberIds.size() == 0);
       }
       // Parents read safe consent-link projections; raw event records can contain leader-only notes.
-      allow get: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section));
-      allow list: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section));
+      // A hidden event is private even when its URL or document ID is known.
+      // Client collection queries must exclude hidden documents before these
+      // list rules can be deployed; legacy documents default to visible.
+      allow get: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section)
+        && resource.data.get("hidden", false) != true);
+      allow list: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section)
+        && resource.data.get("hidden", false) != true);
       function _validateWrite19(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section) && _writeData.createdBy == request.auth.uid
         && !_writeData.keys().hasAny(["hallResource", "hallInterval", "hallRevision"])
@@ -1086,7 +1091,16 @@ service cloud.firestore {
         && validVersion3EventAudience(_writeData);
       }
       allow create: if _validateWrite19(request.resource.data);
-      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+      // Only Super Admin can change visibility; all other event fields remain
+      // immutable in this dedicated operation.
+      allow update: if isSuperAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["hidden", "updatedAt", "updatedBy"])
+        && request.resource.data.hidden is bool
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isActiveLeader() && resource.data.get("hidden", false) != true
+        && request.resource.data.get("hidden", false) != true
+        && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && (resource.data.get("hallResource", "") != "group-hall"
           || !request.resource.data.diff(resource.data).affectedKeys().hasAny(["startDate", "endDate", "section"]))
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
