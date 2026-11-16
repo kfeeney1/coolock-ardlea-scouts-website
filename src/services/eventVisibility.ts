@@ -10,12 +10,10 @@ export function isEventHidden(event: unknown): boolean {
 
 export function isCanonicalEventVisibilityAdmin(profile: unknown): boolean {
   if (!profile || typeof profile !== "object") return false;
-  const value = profile as { active?: unknown; role?: unknown; sections?: unknown; section?: unknown };
-  return value.active === true && value.role === "super-admin"
-    && Array.isArray(value.sections) && value.sections.length > 0
-    && value.sections.every((section: unknown) => typeof section === "string"
-      && section.trim().length > 0 && section.trim() === section)
-    && !Object.prototype.hasOwnProperty.call(value, "section");
+  const value = profile as { active?: unknown; role?: unknown };
+  // Mirror the authoritative Firestore isSuperAdmin() predicate. Do not
+  // require optional profile fields: legacy Super Admin accounts may omit them.
+  return value.active === true && value.role === "super-admin";
 }
 
 export function canViewEventByVisibility(event: unknown, profile: unknown): boolean {
