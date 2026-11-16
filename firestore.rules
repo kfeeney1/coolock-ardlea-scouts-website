@@ -1224,6 +1224,7 @@ service cloud.firestore {
       function canReadEventAttendance() {
         let eventPath = /databases/$(database)/documents/events/$(eventId);
         return exists(eventPath) && isActiveLeader()
+          && (isSuperAdmin() || get(eventPath).data.get("hidden", false) != true)
           && (hasSection(get(eventPath).data.section) || isGroupLeader());
       }
       allow get, list: if canReadEventAttendance();
