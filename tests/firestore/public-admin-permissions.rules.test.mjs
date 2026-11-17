@@ -106,6 +106,31 @@ test("event consent links are public only while active and responses bind to tha
   await assertFails(getDocs(collection(publicDb, "eventConsentResponses")));
 });
 
+test("leaders can load consent links for their visible event without reading hidden or out-of-scope events", async () => {
+  await seed([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/super", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["events/visible", { section: "Cubs" }],
+    ["events/hidden", { section: "Cubs", hidden: true }],
+    ["events/other", { section: "Scouts" }],
+    ["eventConsentLinks/visible", { eventId: "visible", section: "Cubs", active: true }],
+    ["eventConsentLinks/hidden", { eventId: "hidden", section: "Cubs", active: true }],
+    ["eventConsentLinks/other", { eventId: "other", section: "Scouts", active: false }],
+  ]);
+  const leaderDb = testEnv.authenticatedContext("leader-cubs").firestore();
+  const superDb = testEnv.authenticatedContext("super").firestore();
+  const links = (db, eventId, section) => getDocs(query(
+    collection(db, "eventConsentLinks"), where("eventId", "==", eventId), where("section", "==", section)
+  ));
+
+  await assertSucceeds(getDoc(doc(leaderDb, "events/visible")));
+  assert.deepEqual((await assertSucceeds(links(leaderDb, "visible", "Cubs"))).docs.map(item => item.id), ["visible"]);
+  await assertFails(getDoc(doc(leaderDb, "events/hidden")));
+  await assertFails(links(leaderDb, "hidden", "Cubs"));
+  await assertFails(links(leaderDb, "other", "Scouts"));
+  assert.deepEqual((await assertSucceeds(links(superDb, "hidden", "Cubs"))).docs.map(item => item.id), ["hidden"]);
+});
+
 test("session settings are readable when signed in but writable only by admins", async () => {
   await seed([
     ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
