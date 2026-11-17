@@ -1,6 +1,7 @@
 import { collection, collectionGroup, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "../firebase";
+import { loadUpcomingPublicEvents } from "./publicEvents";
 
 export type ParentEventConsentLink = {
     token: string;
@@ -58,6 +59,25 @@ function mapLegacyLink(id: string, data: Record<string, unknown>): ParentEventCo
     return link.eventId && link.title && link.startDate ? link : null;
 }
 
+async function queryParentConsentLinks(eventId: string, version: number, section?: string) {
+    try {
+        const links = await atParentEventOperation("Read event consent link projections", () => getDocs(query(
+            collection(db, "eventConsentLinks"),
+            where("eventId", "==", eventId),
+            where("active", "==", true),
+            where("audienceVersion", "==", version),
+            ...(section ? [where("section", "==", section)] : [])
+        )));
+        return links.docs
+            .map(item => mapLegacyLink(item.id, item.data()))
+            .filter((event): event is ParentEventConsentLink => event !== null && event.eventId === eventId);
+    } catch (error) {
+        // Candidate discovery can race a hide, audience change or transfer.
+        if ((error as ParentEventReadError).code === "permission-denied") return [];
+        throw error;
+    }
+}
+
 export async function loadParentEventConsentLinks(memberIds: string[], sections: string[] = []): Promise<ParentEventConsentLink[]> {
     const linkedMemberIds = [...new Set(memberIds.filter(Boolean))].slice(0, 8);
     if (linkedMemberIds.length === 0) return [];
@@ -80,39 +100,27 @@ export async function loadParentEventConsentLinks(memberIds: string[], sections:
     });
 
     const upcoming = new Date().toISOString().slice(0, 10);
-    const selectedEventGroups = await Promise.all([...audienceByEvent.entries()].map(async ([eventId, members]) => {
-        const links = await atParentEventOperation("Read selected event consent link projections", () => getDocs(query(
-            collection(db, "eventConsentLinks"),
-            where("eventId", "==", eventId),
-            where("active", "==", true),
-            where("audienceVersion", "==", 3)
-        )));
-        return links.docs.flatMap((item) => {
-            const event = mapLegacyLink(item.id, item.data() as Record<string, unknown>);
-            return event && event.eventId === eventId && event.consentRequired && event.startDate >= upcoming
-                ? [{ ...event, audienceMemberIds: [...members] }]
-                : [];
-        });
-    }));
+    const [selectedEventGroups, legacyEvents] = await Promise.all([
+        Promise.all([...audienceByEvent.entries()].map(async ([eventId, members]) => {
+            const links = await queryParentConsentLinks(eventId, 3);
+            return links.filter(event => event.consentRequired)
+                .map(event => ({ ...event, audienceMemberIds: [...members] }));
+        })),
+        (async () => {
+            // Legacy open section events publish a public schedule projection.
+            // Its ID is a lookup candidate only. The consent query checks the
+            // canonical event and the parent's current section authorization.
+            const legacySections = new Set([...sections, "Group", "All Sections"]);
+            const candidates = (await loadUpcomingPublicEvents()).filter(event => legacySections.has(event.section));
+            const links = await Promise.all(candidates.flatMap(event =>
+                [1, 2].map(version => queryParentConsentLinks(event.id, version, event.section))
+            ));
+            return links.flat();
+        })()
+    ]);
     const audienceEvents = selectedEventGroups.flat();
 
-    // Preserve access to consent links created before audience membership records
-    // were introduced. New v3 links keep their child IDs out of the public token doc.
-    const legacySections = [...new Set([...sections.filter(Boolean), "Group", "All Sections"])];
-    const legacySnapshots = legacySections.length ? await Promise.all([1, 2].map((version) => atParentEventOperation(
-        `Query legacy parent event links version ${version}`,
-        () => getDocs(query(
-            collection(db, "eventConsentLinks"),
-            where("active", "==", true),
-            where("audienceVersion", "==", version),
-            where("section", "in", legacySections)
-        ))
-    ))) : [];
-    const legacyEvents = legacySnapshots.flatMap((snapshot) => snapshot.docs
-        .map((item) => mapLegacyLink(item.id, item.data() as Record<string, unknown>)))
-        .filter((event): event is ParentEventConsentLink => Boolean(event));
-
-    return [...new Map([...audienceEvents.filter((event): event is ParentEventConsentLink => Boolean(event)), ...legacyEvents]
+    return [...new Map([...legacyEvents, ...audienceEvents]
         .filter((event) => event.startDate >= upcoming)
         .map((event) => [event.eventId, event])).values()]
         .sort((a, b) => a.startDate.localeCompare(b.startDate));

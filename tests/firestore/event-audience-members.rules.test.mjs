@@ -171,6 +171,7 @@ test("selected-event consent-link lists require a matching server-authorized aud
     ["members/member-cub-2", { status: "active", section: "Cubs", sections: ["Cubs"] }],
     ["members/member-scout", { status: "active", section: "Scouts", sections: ["Scouts"] }],
     ["events/event-1", eventRecord()],
+    ["events/event-legacy", { ...eventRecord(), hidden: false }],
     ["events/event-1/audienceMembers/member-cub", { ...membership("event-1", "member-cub", "Cubs"), selectedBySection: true, selectedIndividually: false }],
     ["events/event-1/audienceMembers/member-cub-2", { ...membership("event-1", "member-cub-2", "Cubs"), selectedBySection: true, selectedIndividually: false }],
     ["eventConsentLinks/link-1", {
@@ -218,16 +219,37 @@ test("selected-event consent-link lists require a matching server-authorized aud
     collection(parentDb, "eventConsentLinks"),
     where("active", "==", true),
     where("audienceVersion", "==", 2),
-    where("section", "in", ["Cubs", "Group", "All Sections"]),
+    where("section", "==", "Cubs"),
+    where("eventId", "==", "event-legacy"),
   )));
   if (legacyLinks.size !== 1 || legacyLinks.docs[0].id !== "link-legacy") throw new Error("Legacy parent event links remain available to the linked account.");
-  const unrelatedLegacyLinks = await assertSucceeds(getDocs(query(
+  await assertFails(getDocs(query(
     collection(otherDb, "eventConsentLinks"),
     where("active", "==", true),
     where("audienceVersion", "==", 2),
-    where("section", "in", ["Scouts"]),
+    where("section", "==", "Cubs"),
+    where("eventId", "==", "event-legacy"),
   )));
-  assert.equal(unrelatedLegacyLinks.size, 0);
+  await assertFails(getDocs(query(
+    collection(parentDb, "eventConsentLinks"),
+    where("active", "==", true),
+    where("audienceVersion", "==", 2),
+    where("section", "==", "Cubs"),
+  )));
+  await testEnv.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    await setDoc(doc(db, "events/event-legacy"), { hidden: true }, { merge: true });
+    await setDoc(doc(db, "events/event-1"), { hidden: true }, { merge: true });
+  });
+  for (const [eventId, version] of [["event-1", 3], ["event-legacy", 2]]) {
+    await assertFails(getDocs(query(
+      collection(parentDb, "eventConsentLinks"),
+      where("active", "==", true),
+      where("audienceVersion", "==", version),
+      where("section", "==", "Cubs"),
+      where("eventId", "==", eventId),
+    )));
+  }
   await assertFails(getDocs(query(
     collectionGroup(otherDb, "audienceMembers"),
     where("memberId", "in", ["member-cub"]),

@@ -1357,23 +1357,25 @@ service cloud.firestore {
       }
       // Consent links remain stored, but cannot expose or accept responses
       // for events hidden by Super Admin.
-      function eventVisibleToRequester(eventId) {
+      function consentEventIsVisible(eventId) {
         let eventPath = /databases/$(database)/documents/events/$(eventId);
         return eventId is string && exists(eventPath)
-          && (isSuperAdmin() || get(eventPath).data.get("hidden", false) != true);
+          && get(eventPath).data.get("hidden", false) != true;
       }
-      allow get: if isSuperAdmin() || (eventVisibleToRequester(resource.data.get("eventId", ""))
+      allow get: if isSuperAdmin() || (consentEventIsVisible(resource.data.get("eventId", ""))
         && ((isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true));
-      allow list: if isSuperAdmin() || (
-        ((isActiveLeader() && hasSection(resource.data.section))
-        || (resource.data.active == true
-          && resource.data.get("audienceVersion", 2) in [1, 2]
-          && isApprovedParentForSection(resource.data.section))
-        || (resource.data.active == true
-          && resource.data.audienceVersion == 3
-          && resource.data.eventId is string
-          && isApprovedParentForEventRecord(resource.data.eventId)))
-        && eventVisibleToRequester(resource.data.get("eventId", "")));
+      // List callers bind an event ID in the query so Rules can read its visibility.
+      allow list: if resource.data.audienceVersion == 3
+        && resource.data.active == true
+        && consentEventIsVisible(resource.data.eventId)
+        && isApprovedParentForEventRecord(resource.data.eventId);
+      allow list: if isSuperAdmin();
+      allow list: if isActiveLeader() && hasSection(resource.data.section)
+        && consentEventIsVisible(resource.data.eventId);
+      allow list: if resource.data.audienceVersion in [1, 2]
+        && resource.data.active == true
+        && isApprovedParentForSection(resource.data.section)
+        && consentEventIsVisible(resource.data.eventId);
       function _validateWrite30(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section)
         && _writeData.createdBy == request.auth.uid
