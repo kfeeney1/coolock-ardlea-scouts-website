@@ -5,7 +5,7 @@ import { useConfirmEventLeave } from "../../hooks/useConfirmEventLeave";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { saveLeaderTraining } from "../../services/leaderTraining";
-import { trainingDatesError, trainingLabels, type LeaderTrainingRecord, type TrainingCategory, type TrainingDates } from "../../services/leaderTrainingLogic";
+import { trainingDateFieldErrors, trainingDatesError, trainingLabels, type LeaderTrainingRecord, type TrainingCategory, type TrainingDates } from "../../services/leaderTrainingLogic";
 
 export default function LeaderTrainingEditor({ leaderUid, category, initial, renewal, onSaved, onCancel }: {
   leaderUid: string; category: TrainingCategory; initial?: LeaderTrainingRecord; renewal: boolean; onSaved: () => void; onCancel: () => void;
@@ -19,6 +19,7 @@ export default function LeaderTrainingEditor({ leaderUid, category, initial, ren
   const [cancelOpen, setCancelOpen] = useState(false);
   const lock = useRef(false);
   const root = useRef<HTMLFormElement>(null);
+  const fieldErrors = trainingDateFieldErrors(form);
   const dirty = Object.values(invalid).some(Boolean) || JSON.stringify(form) !== JSON.stringify(baseline);
   const save = async () => {
     if (lock.current) return false;
@@ -38,7 +39,7 @@ export default function LeaderTrainingEditor({ leaderUid, category, initial, ren
     {error && <Alert severity="error">{error}</Alert>}
     {validation && <Alert severity="error">{validation}</Alert>}
     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-      {([['completedDate', 'Completion / issue date'], ['expiryDate', 'Expiry / lapse date']] as const).map(([field, label]) => <DatePickerField key={field} fullWidth autoFocus={field === "completedDate"} name={field} label={label} value={form[field]} disabled={saving} onChange={event => { setForm(previous => ({ ...previous, [field]: event.target.value })); setInvalid(previous => ({ ...previous, [field]: false })); }} onInputValidityChange={valid => { const input = root.current?.elements.namedItem(field) as HTMLInputElement | null; setInvalid(previous => ({ ...previous, [field]: !valid && Boolean(input?.value.trim()) })); }} error={invalid[field] || Boolean(validation)} helperText={invalid[field] ? "Enter a real date as DD-MM-YYYY." : validation || " "} />)}
+      {([['completedDate', 'Completion / issue date'], ['expiryDate', 'Expiry / lapse date']] as const).map(([field, label]) => <DatePickerField key={field} fullWidth autoFocus={field === "completedDate"} name={field} label={label} value={form[field]} disabled={saving} onChange={event => { setForm(previous => ({ ...previous, [field]: event.target.value })); setInvalid(previous => ({ ...previous, [field]: false })); }} onInputValidityChange={valid => { const input = root.current?.elements.namedItem(field) as HTMLInputElement | null; setInvalid(previous => ({ ...previous, [field]: !valid && Boolean(input?.value.trim()) })); }} error={invalid[field] || Boolean(validation && fieldErrors[field])} helperText={invalid[field] ? "Enter a real date as DD-MM-YYYY." : validation && fieldErrors[field] || " "} />)}
     </Stack>
     <FormControlLabel sx={{ minHeight: 44 }} control={<Switch checked={form.showOnCalendar === true} disabled={saving} onChange={event => setForm(previous => ({ ...previous, showOnCalendar: event.target.checked }))} />} label="Show renewal on group calendar" />
     <Stack direction="row" spacing={1}><Button type="submit" variant="contained" color="secondary" disabled={saving} sx={{ minHeight: 44 }}>{saving ? "Saving…" : "Save record"}</Button><Button disabled={saving} onClick={() => dirty ? setCancelOpen(true) : cancel()} sx={{ minHeight: 44 }}>Cancel</Button></Stack>

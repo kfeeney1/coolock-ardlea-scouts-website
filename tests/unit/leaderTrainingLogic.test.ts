@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { trainingCategories, trainingDatesError, trainingStatus } from "../../src/services/leaderTrainingLogic.ts";
+import { trainingCategories, trainingDateFieldErrors, trainingDatesError, trainingStatus } from "../../src/services/leaderTrainingLogic.ts";
 
 test("all training categories handle empty, partial and explicit dates without assumed renewal periods", () => {
   assert.equal(trainingCategories.length, 3);
@@ -31,4 +31,15 @@ test("validation rejects invalid calendar dates, timestamps and reversed orderin
 test("calendar opt-in requires an explicit lapse date, but completion may remain incomplete", () => {
   assert.ok(trainingDatesError({completedDate: "2026-01-01", expiryDate: "", showOnCalendar: true}));
   assert.equal(trainingDatesError({completedDate: "", expiryDate: "2026-10-24", showOnCalendar: true}), "");
+});
+
+
+test("missing calendar expiry marks only expiry while invalid completion remains independently identified", () => {
+  assert.deepEqual(trainingDateFieldErrors({completedDate: "", expiryDate: "", showOnCalendar: true}), {
+    expiryDate: "Record an expiry / lapse date to show the renewal on the calendar."
+  });
+  assert.deepEqual(trainingDateFieldErrors({completedDate: "invalid", expiryDate: "", showOnCalendar: true}), {
+    completedDate: "Enter a valid completion / issue date."
+  });
+  assert.deepEqual(trainingDateFieldErrors({completedDate: "", expiryDate: "2040-06-15", showOnCalendar: true}), {});
 });
