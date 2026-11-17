@@ -1,3 +1,5 @@
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../firebase";
 import { readEventDocuments } from "./eventDiscovery";
 
 export type ParentEventConsentLink = {
@@ -95,4 +97,18 @@ export async function loadParentEventConsentLinks(memberIds: string[], sections:
         .filter((event) => event.startDate >= upcoming)
         .map((event) => [event.eventId, event])).values()]
         .sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+
+/** Recheck displayed consent records when source Rules revoke a retained link. */
+export function watchParentEventChanges(events: ParentEventConsentLink[], changed: () => void) {
+    const stops = events.map(event => {
+        let first = true;
+        return onSnapshot(doc(db, "eventConsentLinks", event.token), {includeMetadataChanges: true}, snapshot => {
+            if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+            if (first && snapshot.exists()) {first = false; return;}
+            changed();
+        }, changed);
+    });
+    return () => stops.forEach(stop => stop());
 }

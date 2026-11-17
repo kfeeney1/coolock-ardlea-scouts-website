@@ -5,6 +5,7 @@ import {
     doc,
     getDoc,
     getDocs,
+    onSnapshot,
     query,
     serverTimestamp,
     setDoc,
@@ -212,6 +213,14 @@ export async function loadPublicEventLink(token: string): Promise<PublicEventLin
     const snapshot = await getDoc(doc(db, "eventConsentLinks", token));
     if (!snapshot.exists()) return null;
     return mapLink(snapshot.id, snapshot.data());
+}
+
+export function watchPublicEventLink(token: string, next: (event: PublicEventLink | null) => void, failed: (error: unknown) => void) {
+    return onSnapshot(doc(db, "eventConsentLinks", token), {includeMetadataChanges: true}, snapshot => {
+        if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+            next(snapshot.exists() ? mapLink(snapshot.id, snapshot.data()) : null);
+        }
+    }, failed);
 }
 
 export async function submitEventConsentResponse(input: SubmitEventConsentInput): Promise<string> {

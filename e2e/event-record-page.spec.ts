@@ -284,12 +284,37 @@ test("Super Admin hides and restores an event while ordinary admins lose record 
   const title = `TEST visibility ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
   await page.getByRole("textbox", {name: /^Start date/}).fill("2099-05-10");
+  await page.getByRole("combobox", {name: "Section", exact: true}).click();
+  await page.getByRole("option", {name: "Beavers", exact: true}).click();
+  await page.getByRole("combobox", {name: "Status", exact: true}).click();
+  await page.getByRole("option", {name: "Open", exact: true}).click();
+  await page.getByRole("switch", {name: "Event consent required"}).check();
   await page.getByRole("button", {name: "Create Event", exact: true}).click();
   await expect(page.getByRole("heading", {name: title, exact: true})).toBeVisible();
   const eventUrl = page.url();
   const eventId = new URL(eventUrl).pathname.split("/").pop()!;
   const originalAudience = await persistedAudienceMemberIds(eventId);
-  const ordinaryContext = await browser.newContext();
+  await page.getByRole("link", {name: "Manage Consent", exact: true}).click();
+  await page.getByRole("button", {name: "Create Parent Link", exact: true}).click();
+  await expect(page.getByRole("alert").filter({hasText: "Parent consent link is ready."})).toBeVisible();
+  const project = process.env.VITE_FIREBASE_PROJECT_ID || "demo-coolock-ardlea-scouts";
+  const record = await fetch(`http://127.0.0.1:8080/v1/projects/${project}/databases/(default)/documents/events/${eventId}`,
+    {headers: {Authorization: "Bearer owner"}});
+  expect(record.ok).toBe(true);
+  const consentToken = (await record.json()).fields.consentLinkToken.stringValue;
+  await page.goto(eventUrl);
+  const parentContext = await browser.newContext({baseURL: new URL(eventUrl).origin, viewport: page.viewportSize() || undefined});
+  const parentPage = await parentContext.newPage();
+  await parentPage.goto("/parent");
+  await parentPage.getByLabel("Email", {exact: true}).fill(process.env.E2E_PARENT_EMAIL || "test.beaver.parent1@example.com");
+  await parentPage.getByLabel("Password", {exact: true}).fill(password!);
+  await parentPage.getByRole("button", {name: "Sign In", exact: true}).click();
+  await expect(parentPage.locator("#parent-event-consent").getByText(title, {exact: true})).toBeVisible();
+  const consentPage = await parentContext.newPage();
+  await consentPage.goto(`/event-consent/${consentToken}`);
+  await expect(consentPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
+
+  const ordinaryContext = await browser.newContext({baseURL: new URL(eventUrl).origin, viewport: page.viewportSize() || undefined});
   const ordinaryPage = await ordinaryContext.newPage();
   try {
     await loginAsLeader(ordinaryPage, {email: adminEmail, password: password!});
@@ -301,6 +326,9 @@ test("Super Admin hides and restores an event while ordinary admins lose record 
     await expect(confirmation).toContainText(title);
     await confirmation.getByRole("button", {name: "Hide Event", exact: true}).click();
     await expect(page.getByTestId("event-hidden-banner")).toBeVisible();
+    await expect(parentPage.getByText(title, {exact: true})).toHaveCount(0);
+    await expect(consentPage.getByRole("heading", {name: title, exact: true})).toHaveCount(0);
+
     await page.reload();
     await expect(page.getByTestId("event-hidden-banner")).toBeVisible();
     await expect(ordinaryPage.getByRole("heading", {name: "Event Record", exact: true})).toBeVisible();
@@ -319,7 +347,12 @@ test("Super Admin hides and restores an event while ordinary admins lose record 
     await ordinaryPage.goto(eventUrl);
     await expect(ordinaryPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
     expect(await persistedAudienceMemberIds(eventId)).toEqual(originalAudience);
+    await parentPage.reload();
+    await expect(parentPage.locator("#parent-event-consent").getByText(title, {exact: true})).toBeVisible();
+    await consentPage.reload();
+    await expect(consentPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
   } finally {
     await ordinaryContext.close();
+    await parentContext.close();
   }
 });

@@ -96,12 +96,18 @@ test("hide and restore remove all existing projections while preserving records 
     await assertSucceeds(batch.commit());
   };
   await toggle(true, "hide");
+  const responseRef = doc(env.unauthenticatedContext().firestore(), "eventConsentResponses/new-visible");
+  const consentResponse = {token: "visible", eventId: "visible", childName: "Synthetic child", dateOfBirth: "2018-01-01",
+    parentName: "Synthetic parent", attendance: "attending", consentGiven: true, emergencyDetailsConfirmed: true,
+    medicalDetailsChanged: false, processingStatus: "new", submittedAt: serverTimestamp()};
+  await assertFails(setDoc(responseRef, consentResponse));
   for (const collection of ["publicEvents", "parentGalleryEvents", "eventConsentLinks"]) {
     assert.equal((await discover("parent", collection)).some(path => path.endsWith("/visible")), false);
     await assertFails(getDoc(doc(env.authenticatedContext("parent").firestore(), collection, "visible")));
   }
   assert.equal((await discover("parent", "audienceMembers")).some(path => path.includes("/visible/")), false);
   await toggle(false, "restore");
+  await assertSucceeds(setDoc(responseRef, consentResponse));
   for (const collection of ["publicEvents", "parentGalleryEvents", "eventConsentLinks"]) {
     assert.equal((await discover("parent", collection)).some(path => path.endsWith("/visible")), true);
   }
