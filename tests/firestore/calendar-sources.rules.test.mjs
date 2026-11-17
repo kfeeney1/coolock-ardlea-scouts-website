@@ -25,7 +25,8 @@ const events = (db, root, section) => query(collection(db, root), where("section
 test("month-scoped canonical leader queries retain section boundaries", async () => {
   const db = env.authenticatedContext("calendar-source-leader").firestore();
   await assertSucceeds(getDocs(meetings(db, "weeklyMeetings", "Scouts")));
-  await assertSucceeds(getDocs(events(db, "events", "Scouts")));
+  await assertFails(getDocs(events(db, "events", "Scouts")));
+  await assertSucceeds(getDoc(doc(db, "events/calendar-source-event")));
   await assertFails(getDocs(meetings(db, "weeklyMeetings", "Beavers")));
   await assertFails(getDocs(events(db, "events", "Beavers")));
   await assertFails(getDocs(collection(db, "events")));

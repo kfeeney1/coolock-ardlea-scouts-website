@@ -16,16 +16,22 @@ export async function discoverEventPaths(collection: EventDiscoveryCollection, f
   });
   if (!endpoint) throw new ServiceFailure("Event backend is not configured.", "backend/service-not-configured");
   const user = auth.currentUser;
-  const result = await requestBackend<{ok: boolean; paths: string[]}>(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(user ? {Authorization: `Bearer ${await user.getIdToken()}`} : {}) },
-    body: JSON.stringify({operation: "read", collection, filters})
-  });
-  if (result?.ok !== true || !Array.isArray(result.paths) || result.paths.some(path => typeof path !== "string"
-    || (collection === "audienceMembers" ? !/^events\/[^/]+\/audienceMembers\/[^/]+$/.test(path) : !path.startsWith(`${collection}/`) || path.split("/").length !== 2))) {
-    throw new ServiceFailure("Event discovery returned an invalid response.", "backend/invalid-response");
-  }
-  return result.paths;
+  const paths: string[] = [];
+  let cursor: unknown = null;
+  do {
+    const result: {ok: boolean; paths: string[]; cursor?: unknown} = await requestBackend(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(user ? {Authorization: `Bearer ${await user.getIdToken()}`} : {}) },
+      body: JSON.stringify({operation: "read", collection, filters, cursor})
+    });
+    if (result?.ok !== true || !Array.isArray(result.paths) || result.paths.some(path => typeof path !== "string"
+      || (collection === "audienceMembers" ? !/^events\/[^/]+\/audienceMembers\/[^/]+$/.test(path) : !path.startsWith(`${collection}/`) || path.split("/").length !== 2))) {
+      throw new ServiceFailure("Event discovery returned an invalid response.", "backend/invalid-response");
+    }
+    paths.push(...result.paths);
+    cursor = result.cursor || null;
+  } while (cursor);
+  return [...new Set(paths)];
 }
 
 export async function readEventDocuments(collection: EventDiscoveryCollection, filters: EventDiscoveryFilter[] = []) {

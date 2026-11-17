@@ -1,7 +1,7 @@
 // Privileged queries discover candidates only. Every returned path is checked
 // with the caller's Firebase token and the deployed document Rules.
 const collections = new Set(["events", "publicEvents", "parentGalleryEvents", "audienceMembers", "eventConsentLinks", "eventConsentResponses", "auditLog"]);
-const fields = new Set(["eventId", "memberId", "section", "status", "active", "audienceVersion", "programmeVisible", "startDate", "endDate"]);
+const fields = new Set(["eventId", "memberId", "targetId", "section", "status", "active", "audienceVersion", "programmeVisible", "startDate", "endDate"]);
 const operators = { "==": "EQUAL", ">=": "GREATER_THAN_OR_EQUAL", "<=": "LESS_THAN_OR_EQUAL", "<": "LESS_THAN", ">": "GREATER_THAN", in: "IN" };
 const string = (document, field) => document?.fields?.[field]?.stringValue || "";
 const boolean = (document, field) => document?.fields?.[field]?.booleanValue === true;
@@ -27,7 +27,7 @@ function structuredQuery(body) {
       from: [{ collectionId: body.collection, allDescendants: body.collection === "audienceMembers" }],
       ...(filters.length ? { where: { compositeFilter: { op: "AND", filters } } } : {}),
       orderBy: [...inequalityFields, "__name__"].map(fieldPath => ({field: {fieldPath}, direction: "ASCENDING"})),
-      limit: 200
+      limit: 100
     };
   } catch { return null; }
 }
@@ -47,14 +47,26 @@ function sourceId(path, document, collection) {
     ? path.split("/").at(-1) : string(document, "eventId");
 }
 
-async function parentCanDiscoverLink(base, token, parent, link, eventId) {
+async function batchRead(base, paths, token) {
+  const documents = `${base.split("/v1/")[1]}/`;
+  const response = await fetch(`${base}:batchGet`, {
+    method: "POST", headers: {"Content-Type": "application/json", ...(token ? {Authorization: `Bearer ${token}`} : {})},
+    body: JSON.stringify({documents: paths.map(path => documents + path)})
+  });
+  if ([401, 403].includes(response.status)) return null;
+  if (!response.ok) throw new Error("Event batch authorization failed.");
+  return new Map((await response.json()).flatMap(row => row.found
+    ? [[row.found.name.split("/documents/")[1], row.found]] : []));
+}
+
+async function parentCanDiscoverLink(parent, link, eventId, evidence) {
   if (string(parent, "status") !== "approved" || !boolean(link, "active")) return false;
   const version = Number(link.fields?.audienceVersion?.integerValue || 2);
   for (const memberId of strings(parent, "memberIds").slice(0, 8)) {
-    const member = await read(base, `members/${memberId}`, token);
+    const member = evidence.get(`members/${memberId}`);
     if (string(member, "status") !== "active") continue;
     if (version === 3) {
-      const membership = await read(base, `events/${eventId}/audienceMembers/${memberId}`, token);
+      const membership = evidence.get(`events/${eventId}/audienceMembers/${memberId}`);
       if (string(membership, "memberId") === memberId && string(membership, "eventId") === eventId) return true;
     } else if ([1, 2].includes(version)) {
       const section = string(link, "section");
@@ -93,39 +105,75 @@ export async function discoverEventDocuments(request, body, { base, serviceToken
 
   const superAdmin = boolean(leader, "active") && string(leader, "role") === "super-admin"
     && strings(leader, "sections").length > 0 && !Object.hasOwn(leader?.fields || {}, "section");
+  const accessToken = await serviceToken();
   const sourceCache = new Map();
-  const source = async eventId => {
-    if (!eventId || eventId.includes("/")) return null;
-    if (!sourceCache.has(eventId)) sourceCache.set(eventId, read(base, `events/${eventId}`, await serviceToken()));
-    return sourceCache.get(eventId);
-  };
   const paths = [];
-  let cursor;
+  let cursor = body.cursor || null;
+  if (cursor && (!Array.isArray(cursor) || cursor.length !== query.orderBy.length
+    || JSON.stringify(cursor).length > 4096)) return respond(400, {ok: false});
+  let more;
   do {
     const response = await fetch(`${base}:runQuery`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${await serviceToken()}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ structuredQuery: { ...query, ...(cursor ? { startAt: { values: cursor, before: false } } : {}) } })
     });
     if (!response.ok) throw new Error("Event candidate query failed.");
     const rows = (await response.json()).flatMap(row => row.document ? [row.document] : []);
+    const sourceIds = [...new Set(rows.map(candidate => sourceId(candidate.name, candidate, body.collection)).filter(id => id && !id.includes("/")))];
+    const evidencePaths = sourceIds.map(id => `events/${id}`);
+    if (body.collection === "eventConsentLinks" && string(parent, "status") === "approved") {
+      const memberIds = strings(parent, "memberIds").slice(0, 8);
+      evidencePaths.push(...memberIds.map(id => `members/${id}`),
+        ...sourceIds.flatMap(id => memberIds.map(memberId => `events/${id}/audienceMembers/${memberId}`)));
+    }
+    const evidence = new Map();
+    const missing = evidencePaths.filter(path => !sourceCache.has(path));
+    for (let index = 0; index < missing.length; index += 100) {
+      const batch = await batchRead(base, missing.slice(index, index + 100), accessToken);
+      if (!batch) throw new Error("Event source authorization failed.");
+      for (const path of missing.slice(index, index + 100)) sourceCache.set(path, batch.get(path) || null);
+    }
+    for (const path of evidencePaths) if (sourceCache.get(path)) evidence.set(path, sourceCache.get(path));
+    const leaderEvents = new Set();
+    const canonicalLeader = boolean(leader, "active") && ["leader", "admin", "super-admin"].includes(string(leader, "role"))
+      && strings(leader, "sections").length > 0 && !Object.hasOwn(leader?.fields || {}, "section");
+    if (body.collection === "eventConsentLinks" && canonicalLeader) {
+      for (let index = 0; index < sourceIds.length; index += 8) {
+        const ids = sourceIds.slice(index, index + 8);
+        const authorized = await batchRead(base, ids.map(id => `events/${id}`), token);
+        for (const id of ids) if (authorized ? authorized.has(`events/${id}`) : await read(base, `events/${id}`, token)) leaderEvents.add(id);
+      }
+    }
+    const candidates = [];
     for (const candidate of rows) {
       const path = candidate.name.split("/documents/")[1];
       const eventId = sourceId(path, candidate, body.collection);
-      const event = await source(eventId);
-      const unrelatedAudit = body.collection === "auditLog" && eventId === null;
+      const event = sourceCache.get(`events/${eventId}`);
+      const unrelatedAudit = body.collection === "auditLog" && (eventId === null || !event);
       if (!unrelatedAudit && (!event || (boolean(event, "hidden") && !superAdmin))) continue;
-      // An active public token grants direct-link access, but discovery still
-      // requires leader source access or an approved parent's exact audience.
-      if (body.collection === "eventConsentLinks") {
-        const permittedSource = await read(base, `events/${eventId}`, token);
-        if (!permittedSource && !(await parentCanDiscoverLink(base, token, parent, candidate, eventId))) continue;
-      }
-      if (await read(base, path, token)) paths.push(path);
+      if (body.collection === "eventConsentLinks" && !leaderEvents.has(eventId)
+        && !(await parentCanDiscoverLink(parent, candidate, eventId, evidence))) continue;
+      candidates.push(candidate);
     }
-    const last = rows.at(-1);
-    cursor = rows.length === query.limit ? query.orderBy.map(order => order.field.fieldPath === "__name__"
+    let lastAuthorized = null;
+    for (let index = 0; index < candidates.length; index += 8) {
+      const group = candidates.slice(index, index + 8);
+      const groupPaths = group.map(candidate => candidate.name.split("/documents/")[1]);
+      const authorized = await batchRead(base, groupPaths, token);
+      for (const candidate of group) {
+        const path = candidate.name.split("/documents/")[1];
+        const allowed = authorized ? authorized.has(path) : Boolean(await read(base, path, token));
+        if (allowed) {paths.push(path); lastAuthorized = candidate;}
+      }
+    }
+    more = rows.length === query.limit;
+    // Only a record the caller can read may be used as a client cursor.
+    // Pages containing hidden records alone are traversed on the server.
+    const last = lastAuthorized || rows.at(-1);
+    cursor = more && last ? query.orderBy.map(order => order.field.fieldPath === "__name__"
       ? {referenceValue: last.name} : last.fields[order.field.fieldPath]) : null;
+    if (lastAuthorized || !more) break;
   } while (cursor);
-  return respond(200, { ok: true, paths });
+  return respond(200, { ok: true, paths, cursor: more ? cursor : null });
 }

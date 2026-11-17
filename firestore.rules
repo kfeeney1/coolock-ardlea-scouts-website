@@ -1089,8 +1089,9 @@ service cloud.firestore {
       // list rules can be deployed; legacy documents default to visible.
       allow get: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section)
         && resource.data.get("hidden", false) != true);
-      allow list: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section)
-        && resource.data.get("hidden", false) != true);
+      // Ordinary discovery uses server-authorized document paths so an
+      // optional legacy field can never make an unconstrained list permissive.
+      allow list: if isSuperAdmin();
       function _validateWrite19(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section) && _writeData.createdBy == request.auth.uid
         && _writeData.get("hidden", false) != true
@@ -2571,8 +2572,11 @@ service cloud.firestore {
     }
 
     match /auditLog/{entryId} {
-      allow get, list: if (isAdmin() || isGroupLeaderOrSecretary())
-        && (!(resource.data.category in ["event", "event-consent"]) || visibleEvent(resource.data.targetId));
+      allow list: if false;
+      allow get: if (isAdmin() || isGroupLeaderOrSecretary())
+        && (!(resource.data.get("category", "") in ["event", "event-consent"])
+          || !exists(/databases/$(database)/documents/events/$(resource.data.targetId))
+          || visibleEvent(resource.data.targetId));
       function _validateWrite76(_writeData) {
         return isActiveLeader()
         && _writeData.actorUid == request.auth.uid

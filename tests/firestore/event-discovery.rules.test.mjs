@@ -36,6 +36,9 @@ beforeEach(async () => {
   await seed([
     ["adminUsers/super", {active: true, role: "super-admin", sections: ["Group"]}],
     ["adminUsers/admin", {active: true, role: "admin", sections: ["Group"]}],
+    ["adminUsers/group-leader", {active: true, role: "leader", sections: ["Group"]}],
+    ["organisationLeadership/group-leader", {active: true, scoutingRole: "Group Leader"}],
+    ["auditLog/historical", {category: "event", targetId: "removed-event", targetLabel: "Historical"}],
     ["adminUsers/cubs", {active: true, role: "leader", sections: ["Cubs"]}],
     ["parentAccounts/parent", {status: "approved", memberIds: ["child"]}],
     ["parentAccounts/other", {status: "approved", memberIds: ["other-child"]}],
@@ -62,11 +65,13 @@ beforeEach(async () => {
 after(async () => env.cleanup());
 
 test("visible discovery preserves legacy records and excludes hidden sources from every role boundary", async () => {
+  await assertFails(getDocs(collection(env.authenticatedContext("admin").firestore(), "events")));
   assert.deepEqual(await discover("cubs", "events"), ["events/legacy", "events/unprojected", "events/visible"]);
   assert.deepEqual(await discover("admin", "events"), ["events/legacy", "events/scouts", "events/unprojected", "events/visible"]);
   assert.equal((await discover("super", "events")).includes("events/hidden"), true);
   assert.deepEqual(await discover("parent", "events"), []);
-  assert.deepEqual(await discover("admin", "auditLog"), ["auditLog/legacy", "auditLog/visible"]);
+  assert.deepEqual(await discover("admin", "auditLog"), ["auditLog/historical", "auditLog/legacy", "auditLog/visible"]);
+  assert.deepEqual(await discover("group-leader", "auditLog"), ["auditLog/historical", "auditLog/legacy", "auditLog/visible"]);
   assert.deepEqual(await discover("admin", "eventConsentResponses"), ["eventConsentResponses/legacy", "eventConsentResponses/visible"]);
   assert.deepEqual(await discover("parent", "eventConsentResponses"), []);
   assert.deepEqual(await discover(null, "publicEvents"), ["publicEvents/legacy", "publicEvents/visible"]);
@@ -108,4 +113,34 @@ test("discovery rejects arbitrary collections, invalid filters, anonymous privat
   assert.equal((await call({collection: "events", filters: [["leaderNotes", "==", "private"]]})).status, 400);
   assert.equal((await call({collection: "events", filters: []})).status, 401);
   assert.equal((await call({collection: "events", filters: []}, "Bearer invalid")).status, 401);
+});
+
+test("discovery pages large mixed event sets without dropping visible records or exposing hidden cursor IDs", async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const batch = writeBatch(ctx.firestore());
+    for (let index = 0; index < 125; index++) {
+      const id = `paged-${String(index).padStart(3, "0")}`;
+      batch.set(doc(ctx.firestore(), "events", id), {...projection(id), section: "Scouts", hidden: index % 4 === 3});
+    }
+    await batch.commit();
+  });
+  const paths = [];
+  let cursor = null;
+  let pages = 0;
+  do {
+    const response = await discoverEventDocuments(new Request("https://worker.test", {
+      headers: {Authorization: `Bearer ${token("admin")}`}
+    }), {collection: "events", filters: [["section", "==", "Scouts"], ["startDate", ">=", "2099-01-01"]], cursor},
+    {base, serviceToken: async () => "owner"});
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    paths.push(...result.paths);
+    cursor = result.cursor;
+    if (cursor) assert.equal(result.paths.some(path => cursor.at(-1).referenceValue.endsWith(path)), true);
+    pages++;
+  } while (cursor);
+  const expected = Array.from({length: 125}, (_, index) => index).filter(index => index % 4 !== 3)
+    .map(index => `events/paged-${String(index).padStart(3, "0")}`);
+  assert.deepEqual(paths.filter(path => path.startsWith("events/paged-")), expected);
+  assert.equal(pages, 2);
 });
