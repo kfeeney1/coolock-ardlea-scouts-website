@@ -360,6 +360,7 @@ export async function handleEventAudienceSave(request, env, body) {
     operation === "update" ? listDocumentsWithToken(env, token, `events/${encodeURIComponent(eventId)}/audienceMembers`) : Promise.resolve([])
   ]);
   if (operation === "update" && !currentEvent) return json(request, env, 404, { ok: false, error: "Event not found." });
+  if (fieldBoolean(currentEvent, "hidden")) return json(request, env, 404, { ok: false, error: "Event not found." });
   let currentMembershipDocuments = updateMembershipDocuments;
   if (operation === "create" && currentEvent) {
     currentMembershipDocuments = await listDocumentsWithToken(env, token, `events/${encodeURIComponent(eventId)}/audienceMembers`);
@@ -769,6 +770,7 @@ async function handleEventNotification(request, env, body) {
   const first = await authenticatedLeaderMember(request, env, memberIds[0]);
   if (!first) return json(request, env, 403, { ok: false, error: "Active leader access required." });
   const event = await getDocumentWithToken(env, first.token, "events", eventId);
+  if (fieldBoolean(event, "hidden")) return json(request, env, 409, { ok: false, error: "An open event is required." });
   const link = await getDocumentWithToken(env, first.token, "eventConsentLinks", consentToken);
   if (!event || fieldString(event, "status") !== "open") return json(request, env, 409, { ok: false, error: "An open event is required." });
   if (!link || fieldString(link, "eventId") !== eventId || !fieldBoolean(link, "active")) return json(request, env, 409, { ok: false, error: "An active consent link for this event is required." });
@@ -823,7 +825,7 @@ async function handleEventConsentProcessed(request, env, body) {
   if (!authorised) return json(request, env, 403, { ok: false, error: "Active leader access required." });
   if (fieldString(authorised.member, "status") !== "active") return json(request, env, 200, { ok: true, skipped: true });
   const event = await getDocumentWithToken(env, authorised.token, "events", eventId);
-  if (!event) return json(request, env, 403, { ok: false, error: "Event unavailable for this leader." });
+  if (!event || fieldBoolean(event, "hidden")) return json(request, env, 403, { ok: false, error: "Event unavailable for this leader." });
   const recipients = await authoritativeParentRecipients(env, memberId);
   if (!recipients.length) return json(request, env, 200, { ok: true, skipped: true });
   const memberName = fieldString(authorised.member, "displayName") || "your linked member";

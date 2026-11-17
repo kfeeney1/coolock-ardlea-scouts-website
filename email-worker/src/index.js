@@ -148,7 +148,7 @@ async function handleEventNotification(request, env, body) {
 
   const event = await getDocument(env, leader.token, "events", eventId);
   if (!event) return json(request, env, 403, { ok: false, error: "Event unavailable for this leader." });
-  if (fieldString(event, "status") !== "open") return json(request, env, 409, { ok: false, error: "Only open events can send parent notifications." });
+  if (fieldBoolean(event, "hidden") || fieldString(event, "status") !== "open") return json(request, env, 409, { ok: false, error: "Only open events can send parent notifications." });
 
   const link = await getDocument(env, leader.token, "eventConsentLinks", consentToken);
   if (!link || fieldString(link, "eventId") !== eventId || !fieldBoolean(link, "active")) return json(request, env, 409, { ok: false, error: "An active consent link for this event is required." });

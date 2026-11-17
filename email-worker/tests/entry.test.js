@@ -80,6 +80,7 @@ test("SW-106 event notification API checks persisted audience membership for eve
   const privatePem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
   const sent = [];
   const firestoreUrls = [];
+  let hidden = false;
   const parentFixture = {
     name: "projects/test-project/databases/(default)/documents/parentAccounts/parent-1",
     fields: {
@@ -96,7 +97,7 @@ test("SW-106 event notification API checks persisted audience membership for eve
       firestoreUrls.push(url);
       if (url.endsWith("/adminUsers/leader-1")) return Response.json({ fields: { active: { booleanValue: true }, role: { stringValue: "admin" } } });
       if (url.endsWith("/events/event-1")) return Response.json({ fields: {
-        status: { stringValue: "open" }, title: { stringValue: "Selected event" },
+        status: { stringValue: "open" }, title: { stringValue: "Selected event" }, hidden: { booleanValue: hidden },
         startDate: { stringValue: "2099-06-10" }, endDate: { stringValue: "2099-06-10" },
         audience: { mapValue: { fields: { version: { integerValue: "3" }, mode: { stringValue: "members" } } } }
       } });
@@ -125,18 +126,24 @@ test("SW-106 event notification API checks persisted audience membership for eve
       FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem, RESEND_API_KEY: "test-resend-key", ADMIN_EMAILS: ""
     };
     const token = `header.${btoa(JSON.stringify({ sub: "leader-1", user_id: "leader-1", email: "leader@example.com" })).replaceAll("=", "")}.signature`;
-    const request = new Request("https://email.example.test/event-notification", {
+    const request = () => new Request("https://email.example.test/event-notification", {
       method: "POST",
       headers: { Origin: "https://coolockardleascouts.ie", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ eventId: "event-1", consentToken: "link-1", kind: "notice", memberIds: ["member-selected", "member-outside"] })
     });
-    const response = await entry.fetch(request, env);
+    const response = await entry.fetch(request(), env);
     const result = await response.json();
     assert.equal(response.status, 200, JSON.stringify(result));
     assert.deepEqual(result, { ok: true, sent: 0, skipped: 2 }, JSON.stringify(firestoreUrls));
     assert.equal(sent.length, 0);
     assert.ok(firestoreUrls.some((url) => url.endsWith("/events/event-1/audienceMembers/member-selected")));
     assert.ok(firestoreUrls.some((url) => url.endsWith("/events/event-1/audienceMembers/member-outside")));
+    firestoreUrls.length = 0;
+    hidden = true;
+    const hiddenResponse = await entry.fetch(request(), env);
+    assert.equal(hiddenResponse.status, 409);
+    assert.equal(sent.length, 0);
+    assert.equal(firestoreUrls.some((url) => url.includes("/eventConsentLinks/")), false);
   } finally {
     globalThis.fetch = originalFetch;
   }
