@@ -1061,6 +1061,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    function visibleEvent(eventId) {
+      let path = /databases/$(database)/documents/events/$(eventId);
+      return exists(path) && (isSuperAdmin() || get(path).data.get("hidden", false) != true);
+    }
+    function writableVisibleEvent(eventId) {
+      let path = /databases/$(database)/documents/events/$(eventId);
+      return existsAfter(path) && getAfter(path).data.get("hidden", false) != true;
+    }
+
     match /events/{eventId} {
       function validVersion3EventAudience(data) {
         return !data.keys().hasAny(["audience"])
@@ -1140,7 +1149,7 @@ service cloud.firestore {
         let eventData = getAfter(eventPath).data;
         let memberData = get(memberPath).data;
         return isActiveLeader()
-          && existsAfter(eventPath)
+          && existsAfter(eventPath) && eventData.get("hidden", false) != true
           && eventData.audience is map && eventData.audience.version == 3
           && hasSection(eventData.section)
           && request.resource.data.eventId == eventId
@@ -1181,13 +1190,13 @@ service cloud.firestore {
         let source = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
         let data = request.resource.data;
         return data.diff(resource.data).affectedKeys().hasOnly(["startDate", "endDate", "programmeVisible", "updatedAt", "updatedBy"])
-          && isActiveLeader() && hasSection(source.section)
+          && isActiveLeader() && source.get("hidden", false) != true && hasSection(source.section)
           && data.startDate == source.startDate && data.endDate == source.endDate
           && data.programmeVisible == (source.status != "draft")
           && data.updatedAt == request.time && data.updatedBy == request.auth.uid;
       }
       allow update: if dateOnlyUpdate() || validEventAudienceMembership(eventId, memberId);
-      allow delete: if isActiveLeader()
+      allow delete: if isActiveLeader() && visibleEvent(eventId)
         && exists(/databases/$(database)/documents/events/$(eventId))
         && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
     }
@@ -1224,14 +1233,14 @@ service cloud.firestore {
       }
       allow get: if signedIn()
         && exists(/databases/$(database)/documents/events/$(eventId))
-        && sourceProgramme().get("hidden", false) != true
+        && (isSuperAdmin() || sourceProgramme().get("hidden", false) != true)
         && safeProgramme(resource.data) && resource.data.status in ["open", "closed", "completed"]
         && parentProgrammeAudience();
       allow list: if false;
       function validProgrammeWrite() {
         let source = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
         let data = request.resource.data;
-        return isActiveLeader() && hasSection(source.section) && programmeId == "parent"
+        return isActiveLeader() && source.get("hidden", false) != true && hasSection(source.section) && programmeId == "parent"
           && data.eventId == eventId
           && data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status"])
           && data.title == source.title && data.description == source.description
@@ -1258,7 +1267,8 @@ service cloud.firestore {
     // Collection-group parent queries need a recursive match. The query itself
     // constrains memberId to the approved parent's linked children.
     match /{path=**}/audienceMembers/{memberId} {
-      allow list: if resource.data.get("eventId", "") is string
+      allow list: if visibleEvent(resource.data.get("eventId", ""))
+        && resource.data.get("eventId", "") is string
         && resource.data.get("memberId", "") is string
         && isApprovedParentForMember(resource.data.get("memberId", ""));
     }
@@ -1269,10 +1279,10 @@ service cloud.firestore {
         && resource.data.title is string && resource.data.eventType is string
         && resource.data.section is string && resource.data.startDate is string && resource.data.endDate is string;
       }
-      allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent();
-      allow list: if true;
+      allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent() && visibleEvent(eventId);
+      allow list: if false;
       function _validateWrite26(_writeData) {
-        return isActiveLeader()
+        return writableVisibleEvent(eventId) && isActiveLeader()
         && canAccessEventSection(_writeData.section)
         && _writeData.eventId == eventId
         && _writeData.title is string && _writeData.eventType is string
@@ -1281,7 +1291,7 @@ service cloud.firestore {
       }
       allow create: if _validateWrite26(request.resource.data);
       function _validateWrite27(_writeData) {
-        return isActiveLeader()
+        return writableVisibleEvent(eventId) && isActiveLeader()
         && canAccessEventSection(resource.data.section)
         && canAccessEventSection(_writeData.section)
         && _writeData.eventId == eventId
@@ -1290,20 +1300,19 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
       }
       allow update: if _validateWrite27(request.resource.data);
-      allow delete: if isActiveLeader()
+      allow delete: if isActiveLeader() && visibleEvent(eventId)
         && exists(/databases/$(database)/documents/events/$(eventId))
         && (isAdmin() || canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section));
     }
 
     match /parentGalleryEvents/{eventId} {
-      allow get: if resource.data.eventId == eventId
+      allow get: if visibleEvent(eventId) && resource.data.eventId == eventId
         && resource.data.section is string
         && resource.data.status in ["open", "closed", "completed"]
         && isApprovedParentForSection(resource.data.section);
-      allow list: if resource.data.section is string
-        && isApprovedParentForSection(resource.data.section);
+      allow list: if false;
       function _validateWrite28(_writeData) {
-        return isActiveLeader()
+        return writableVisibleEvent(eventId) && isActiveLeader()
         && canAccessEventSection(_writeData.section)
         && _writeData.eventId == eventId
         && _writeData.status in ["open", "closed", "completed"]
@@ -1315,7 +1324,7 @@ service cloud.firestore {
       }
       allow create: if _validateWrite28(request.resource.data);
       function _validateWrite29(_writeData) {
-        return isActiveLeader()
+        return writableVisibleEvent(eventId) && isActiveLeader()
         && canAccessEventSection(resource.data.section)
         && canAccessEventSection(_writeData.section)
         && _writeData.eventId == eventId
@@ -1327,7 +1336,7 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
       }
       allow update: if _validateWrite29(request.resource.data);
-      allow delete: if isActiveLeader()
+      allow delete: if isActiveLeader() && visibleEvent(eventId)
         && exists(/databases/$(database)/documents/events/$(eventId))
         && (isAdmin() || canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section));
     }
@@ -1377,7 +1386,7 @@ service cloud.firestore {
         && isApprovedParentForSection(resource.data.section)
         && consentEventIsVisible(resource.data.eventId);
       function _validateWrite30(_writeData) {
-        return isActiveLeader() && hasSection(_writeData.section)
+        return writableVisibleEvent(_writeData.eventId) && isActiveLeader() && hasSection(_writeData.section)
         && _writeData.createdBy == request.auth.uid
         && _writeData.eventId is string && _writeData.title is string
         && _writeData.eventType is string && _writeData.startDate is string
@@ -1385,7 +1394,8 @@ service cloud.firestore {
         && _writeData.audienceMemberIds is list && _writeData.audienceVersion in [2, 3];
       }
       allow create: if _validateWrite30(request.resource.data);
-      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+      allow update: if writableVisibleEvent(resource.data.eventId) && request.resource.data.eventId == resource.data.eventId
+        && isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && (resource.data.audienceVersion != 3 || request.resource.data.audienceVersion == 3)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
       allow delete: if false;
@@ -1404,8 +1414,8 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/events/$(_writeData.eventId)).data.get("hidden", false) != true;
       }
       allow create: if _validateWrite32(request.resource.data);
-      allow read: if isAdmin();
-      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["processingStatus", "matchedMemberId", "processedBy", "processedAt"])
+      allow get, list: if isAdmin() && visibleEvent(resource.data.eventId);
+      allow update: if isAdmin() && visibleEvent(resource.data.eventId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["processingStatus", "matchedMemberId", "processedBy", "processedAt"])
         && request.resource.data.processingStatus in ["matched", "ignored"] && request.resource.data.processedBy == request.auth.uid;
       allow delete: if false;
     }
@@ -2561,7 +2571,8 @@ service cloud.firestore {
     }
 
     match /auditLog/{entryId} {
-      allow get, list: if isAdmin() || isGroupLeaderOrSecretary();
+      allow get, list: if (isAdmin() || isGroupLeaderOrSecretary())
+        && (!(resource.data.category in ["event", "event-consent"]) || visibleEvent(resource.data.targetId));
       function _validateWrite76(_writeData) {
         return isActiveLeader()
         && _writeData.actorUid == request.auth.uid

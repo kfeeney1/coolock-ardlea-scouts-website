@@ -33,7 +33,8 @@ test("month-scoped canonical leader queries retain section boundaries", async ()
 test("parent month queries use current child sections and safe programmes; raw private records remain denied", async () => {
   const db = env.authenticatedContext("calendar-source-parent").firestore();
   await assertSucceeds(getDocs(meetings(db, "parentWeeklyMeetings", "Scouts")));
-  await assertSucceeds(getDocs(events(db, "parentGalleryEvents", "Scouts")));
+  await assertFails(getDocs(events(db, "parentGalleryEvents", "Scouts")));
+  await assertSucceeds(getDoc(doc(db, "parentGalleryEvents/calendar-source-event")));
   await assertFails(getDocs(meetings(db, "parentWeeklyMeetings", "Beavers")));
   for (const root of ["events", "weeklyMeetings"]) await assertFails(getDoc(doc(db, root, root === "events" ? "calendar-source-event" : "calendar-source-meeting")));
   await env.withSecurityRulesDisabled(async ctx => {await setDoc(doc(ctx.firestore(), "members/calendar-source-child"), {status: "inactive", section: "Scouts", sections: ["Scouts"]});});
@@ -87,7 +88,7 @@ test("audience date reschedules and safe programme writes commit with source and
   await assertSucceeds(batch.commit());
   await assertFails(updateDoc(row, {scopeSection: "Cubs"}));
   const parent = env.authenticatedContext("calendar-atomic-parent").firestore();
-  await assertSucceeds(getDocs(query(collectionGroup(parent, "audienceMembers"), where("memberId", "==", child), where("programmeVisible", "==", true), where("startDate", ">=", "2026-11-01"), where("startDate", "<=", "2026-11-30"))));
+  await assertSucceeds(getDocs(query(collectionGroup(parent, "audienceMembers"), where("memberId", "==", child), where("eventId", "==", id), where("programmeVisible", "==", true), where("startDate", ">=", "2026-11-01"), where("startDate", "<=", "2026-11-30"))));
   await assertSucceeds(setDoc(doc(parent, "events", id, "programmeAccess", "calendar-atomic-parent"), {memberId: child}));
   await assertSucceeds(getDoc(doc(parent, target.path)));
   await assertSucceeds(deleteDoc(row));

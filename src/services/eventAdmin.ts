@@ -1,3 +1,4 @@
+import { readEventDocuments } from "./eventDiscovery";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { canViewEventByVisibility, isCanonicalEventVisibilityAdmin } from "./eventVisibility.ts";
 import {
@@ -6,7 +7,6 @@ import {
     doc,
     getDoc,
     getDocs,
-    orderBy,
     query,
     runTransaction,
     serverTimestamp,
@@ -260,12 +260,12 @@ export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
     const docs = eventId
         ? [await getDoc(doc(db, "events", eventId))].filter((snapshot) => snapshot.exists())
         : isAdmin
-          ? (await getDocs(query(collection(db, "events"), orderBy("startDate", "desc")))).docs
+          ? await readEventDocuments("events")
           : (await Promise.all(
               normalizeLeaderSections(profile).map((section) =>
-                  getDocs(query(collection(db, "events"), where("section", "==", section)))
+                  readEventDocuments("events", [["section", "==", section]])
               )
-            )).flatMap((snapshot) => snapshot.docs);
+            )).flat();
 
     // Keep the existing profile/section query boundary, but hydrate only the
     // requested record when opening an editor. Unrelated audience queries must

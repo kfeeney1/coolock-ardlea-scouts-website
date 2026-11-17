@@ -1,3 +1,4 @@
+import { watchEventDocuments, type EventDiscoveryCollection, type EventDiscoveryFilter } from "./eventDiscovery";
 import { watchParentEventProgrammes } from "./watchParentEventProgrammes";
 import { collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, where, type QueryConstraint } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -50,7 +51,14 @@ export function watchCalendarSources(sources: CalendarSource[], month: string, n
     const constraints: QueryConstraint[][] = meeting
       ? [[where("meetingDate", ">=", from), where("meetingDate", "<=", through)]]
       : [[where("startDate", ">=", from), where("startDate", "<=", through)], [where("startDate", "<", from), where("endDate", ">=", from), orderBy("startDate"), orderBy("endDate")]];
-    return constraints.map(range => ({collection: source.collection, target: query(collection(db, source.collection), where("section", "==", section), ...range)}));
+    const eventRanges: EventDiscoveryFilter[][] = [
+      [["startDate", ">=", from], ["startDate", "<=", through]],
+      [["startDate", "<", from], ["endDate", ">=", from]]
+    ];
+    return constraints.map((range, index) => ({collection: source.collection,
+      target: query(collection(db, source.collection), where("section", "==", section), ...range),
+      eventFilters: [["section", "==", section], ...eventRanges[index]] as EventDiscoveryFilter[]
+    }));
   }));
   const parentSource = sources.find(source => source.collection === "eventProgrammes");
   const total = channels.length + (parentSource ? 1 : 0);
@@ -62,11 +70,20 @@ export function watchCalendarSources(sources: CalendarSource[], month: string, n
     [...results.keys()].sort((a, b) => a - b).forEach(index => results.get(index)!.forEach(entry => {if (!unique.has(entry.id)) unique.set(entry.id, entry);}));
     next([...unique.values()]);
   };
-  const stops = channels.map((channel, index) => onSnapshot(channel.target, {includeMetadataChanges: true}, snapshot => {
-    if (!active || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
-    results.set(index, snapshot.docs.flatMap(item => {const entry = calendarSourceEntry(channel.collection, item.id, item.data()); return entry ? [entry] : [];}));
-    publish();
-  }, () => {if (active) {active = false; results.clear(); failed();}}));
+  const stops = channels.map((channel, index) => {
+    const update = (documents: {id: string; data: () => Record<string, unknown>}[]) => {
+      if (!active) return;
+      results.set(index, documents.flatMap(item => {const entry = calendarSourceEntry(channel.collection, item.id, item.data()); return entry ? [entry] : [];}));
+      publish();
+    };
+    const failure = () => {if (active) {active = false; results.clear(); failed();}};
+    if (["events", "publicEvents", "parentGalleryEvents"].includes(channel.collection)) {
+      return watchEventDocuments(channel.collection as EventDiscoveryCollection, channel.eventFilters, update, failure);
+    }
+    return onSnapshot(channel.target, {includeMetadataChanges: true}, snapshot => {
+      if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) update(snapshot.docs);
+    }, failure);
+  });
   if (parentSource) stops.push(watchParentEventProgrammes(parentSource.memberIds || [], month, entries => {if (active) {results.set(channels.length, entries); publish();}}, failed));
   return () => {active = false; stops.forEach(stop => stop());};
 }

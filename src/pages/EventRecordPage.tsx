@@ -2,7 +2,7 @@ import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { isCanonicalEventVisibilityAdmin } from "../services/eventVisibility.ts";
 
@@ -102,6 +102,28 @@ export default function EventRecordPage() {
     };
 
     useEffect(() => { void load(); }, [eventId]);
+    useEffect(() => {
+        if (!eventId) return;
+        let first = true;
+        return onSnapshot(doc(db, "events", eventId), {includeMetadataChanges: true}, snapshot => {
+            if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+            if (first) {first = false; return;}
+            if (!snapshot.exists()) {
+                ++loadRequestRef.current;
+                setEvent(null);
+                setLoading(false);
+                setError("This event is no longer available.");
+            } else void load();
+        }, () => {
+            ++loadRequestRef.current;
+            setEvent(null);
+            setLoading(false);
+            setRosterOpen(false);
+            setGalleryOpen(false);
+            setEquipmentOpen(false);
+            setError("This event is no longer available.");
+        });
+    }, [eventId]);
     useEffect(() => {
         let active = true;
         setCanManageVisibility(false);

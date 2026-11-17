@@ -276,3 +276,50 @@ test("direct Create Event route remains protected", async ({ page }, testInfo) =
   await expect(page).toHaveURL(/\/leader\/login/);
   await expect(page.getByLabel("Email address")).toBeVisible();
 });
+
+test("Super Admin hides and restores an event while ordinary admins lose record and list access", async ({ page, browser }) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password!});
+  await page.goto("/leader/events/create");
+  const title = `TEST visibility ${Date.now()}`;
+  await page.getByLabel("Event title").fill(title);
+  await page.getByRole("textbox", {name: /^Start date/}).fill("2099-05-10");
+  await page.getByRole("button", {name: "Create Event", exact: true}).click();
+  await expect(page.getByRole("heading", {name: title, exact: true})).toBeVisible();
+  const eventUrl = page.url();
+  const eventId = new URL(eventUrl).pathname.split("/").pop()!;
+  const originalAudience = await persistedAudienceMemberIds(eventId);
+  const ordinaryContext = await browser.newContext();
+  const ordinaryPage = await ordinaryContext.newPage();
+  try {
+    await loginAsLeader(ordinaryPage, {email: adminEmail, password: password!});
+    await ordinaryPage.goto(eventUrl);
+    await expect(ordinaryPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
+    await expect(ordinaryPage.getByRole("button", {name: "Hide Event", exact: true})).toHaveCount(0);
+    await page.getByRole("button", {name: "Hide Event", exact: true}).click();
+    const confirmation = page.getByRole("dialog").filter({hasText: "Hide this event from parents and ordinary leaders?"});
+    await expect(confirmation).toContainText(title);
+    await confirmation.getByRole("button", {name: "Hide Event", exact: true}).click();
+    await expect(page.getByTestId("event-hidden-banner")).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("event-hidden-banner")).toBeVisible();
+    await expect(ordinaryPage.getByRole("heading", {name: "Event Record", exact: true})).toBeVisible();
+    await ordinaryPage.reload();
+    await expect(ordinaryPage.getByRole("heading", {name: "Event Record", exact: true})).toBeVisible();
+    await expect(ordinaryPage.getByRole("heading", {name: title, exact: true})).toHaveCount(0);
+    await ordinaryPage.goto("/leader/events");
+    await expect(ordinaryPage.getByRole("heading", {name: "Events & Activities", exact: true})).toBeVisible();
+    await expect(ordinaryPage.getByTestId(`event-card-${eventId}`)).toHaveCount(0);
+    await page.getByRole("button", {name: "Show Event", exact: true}).click();
+    await page.getByRole("dialog").filter({hasText: "Restore this event to normal visibility?"})
+      .getByRole("button", {name: "Show Event", exact: true}).click();
+    await expect(page.getByTestId("event-hidden-banner")).toHaveCount(0);
+    await ordinaryPage.reload();
+    await expect(ordinaryPage.getByTestId(`event-card-${eventId}`)).toBeVisible();
+    await ordinaryPage.goto(eventUrl);
+    await expect(ordinaryPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
+    expect(await persistedAudienceMemberIds(eventId)).toEqual(originalAudience);
+  } finally {
+    await ordinaryContext.close();
+  }
+});

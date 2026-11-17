@@ -48,6 +48,8 @@ test("public event projections expose only canonical documents and remain sectio
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
     ["adminUsers/leader-scouts", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["events/event-1", {section: "Cubs"}],
+    ["events/event-2", {section: "Cubs"}],
     ["publicEvents/event-1", canonical],
     ["publicEvents/broken", { ...canonical, eventId: "different-id" }],
   ]);
@@ -69,10 +71,12 @@ test("public can list projections while authorized writes reject private fields"
   };
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["events/event-1", {section: "Cubs"}],
+    ["events/event-2", {section: "Cubs"}],
     ["publicEvents/event-1", canonical],
   ]);
   const publicDb = testEnv.unauthenticatedContext().firestore();
-  await assertSucceeds(getDocs(query(
+  await assertFails(getDocs(query(
     collection(publicDb, "publicEvents"),
     where("startDate", ">=", "2026-09-08"),
     orderBy("startDate", "asc"),

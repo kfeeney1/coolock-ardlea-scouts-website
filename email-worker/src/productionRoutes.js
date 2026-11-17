@@ -1,3 +1,4 @@
+import { discoverEventDocuments } from "./eventDiscovery.js";
 import { issueMemberInactivationToken, verifyJoinConsentToken, verifyMemberInactivationToken } from "./secureActionLinks.js";
 import { reminderDocumentId, reminderRecord, shouldAttemptReminder } from "./reminderPersistence.js";
 const BRAND = {
@@ -315,6 +316,13 @@ async function eventAudienceAuditId(eventId, operation, event, memberIds, remove
 }
 
 export async function handleEventAudienceSave(request, env, body) {
+  if (body.operation === "read") {
+    const response = await discoverEventDocuments(request, body, {
+      base: firestoreBase(env), serviceToken: () => serviceAccessToken(env)
+    });
+    for (const [key, value] of Object.entries(corsHeaders(request, env))) response.headers.set(key, value);
+    return response;
+  }
   const idToken = bearer(request);
   const claims = decodeFirebaseClaims(idToken);
   const uid = clean(claims.user_id || claims.sub, 200);

@@ -191,6 +191,7 @@ test("selected-event consent-link lists require a matching server-authorized aud
   const audience = await assertSucceeds(getDocs(query(
     collectionGroup(parentDb, "audienceMembers"),
     where("memberId", "in", ["member-cub", "member-cub-2"]),
+    where("eventId", "==", "event-1"),
   )));
   assert.deepEqual(audience.docs.map((item) => item.data().memberId).sort(), ["member-cub", "member-cub-2"]);
   await assertFails(getDoc(doc(parentDb, "events/event-1")));

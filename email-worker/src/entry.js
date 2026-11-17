@@ -191,7 +191,7 @@ export default {
     }
 
     if (path === "/join-application" || AUTHORITATIVE_PRODUCTION_ROUTES.has(path)) {
-      if (!["/join-application", "/registered-scouters"].includes(path) && !bearer(request)) return json(request, env, 401, { ok: false, error: "Sign-in required." });
+      if (!["/join-application", "/registered-scouters"].includes(path) && !(path === "/event-audience-save" && body.operation === "read" && body.collection === "publicEvents") && !bearer(request)) return json(request, env, 401, { ok: false, error: "Sign-in required." });
       try {
         const response = await handleProductionRoute(request, env, body, path);
         if (response) return response;
