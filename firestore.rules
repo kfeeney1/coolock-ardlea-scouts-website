@@ -1317,8 +1317,11 @@ service cloud.firestore {
           && parentProfile().memberIds.size() > index
           && parentProfile().memberIds[index] is string
           && isActiveMember(parentProfile().memberIds[index])
-          && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(parentProfile().memberIds[index]))
-          && get(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(parentProfile().memberIds[index])).data.memberId == parentProfile().memberIds[index];
+          // Membership documents are keyed by member ID and only trusted
+          // leader writes can create them with a matching memberId field.
+          // Avoid a redundant document read on each of up to eight parent
+          // members: it exceeds the Firestore rules expression budget.
+          && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(parentProfile().memberIds[index]));
       }
       function isApprovedParentForEventRecord(eventId) {
         return parentHasEventAudienceMemberAt(eventId, 0) || parentHasEventAudienceMemberAt(eventId, 1)
