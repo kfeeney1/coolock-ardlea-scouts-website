@@ -259,13 +259,17 @@ export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
 
     const profile = profileSnapshot.data();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-    const docs = isAdmin
-        ? (await getDocs(query(collection(db, "events"), orderBy("startDate", "desc")))).docs
-        : (await Promise.all(
-            normalizeLeaderSections(profile).map((section) =>
-                getDocs(query(collection(db, "events"), where("section", "==", section)))
-            )
-          )).flatMap((snapshot) => snapshot.docs);
+    // A single event must be read by document ID. Querying the whole collection
+    // to open one record can be rejected by visibility rules for unrelated events.
+    const docs = eventId
+        ? [await getDoc(doc(db, "events", eventId))].filter((snapshot) => snapshot.exists())
+        : isAdmin
+          ? (await getDocs(query(collection(db, "events"), orderBy("startDate", "desc")))).docs
+          : (await Promise.all(
+              normalizeLeaderSections(profile).map((section) =>
+                  getDocs(query(collection(db, "events"), where("section", "==", section)))
+              )
+            )).flatMap((snapshot) => snapshot.docs);
 
     // Keep the existing profile/section query boundary, but hydrate only the
     // requested record when opening an editor. Unrelated audience queries must
