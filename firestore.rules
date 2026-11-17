@@ -1085,20 +1085,24 @@ service cloud.firestore {
       function _validateWrite19(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section) && _writeData.createdBy == request.auth.uid
         && _writeData.get("hidden", false) != true
-        && !_writeData.keys().hasAny(["hallResource", "hallInterval", "hallRevision"])
+        && !_writeData.keys().hasAny(["visibilityChangeId", "hallResource", "hallInterval", "hallRevision"])
         && _writeData.title is string && _writeData.eventType is string
         && validDateRange(_writeData.startDate, _writeData.endDate)
         && _writeData.status in ["draft", "open", "closed", "completed"]
         && validVersion3EventAudience(_writeData);
       }
       allow create: if _validateWrite19(request.resource.data);
-      // Only Super Admin can change visibility; all other event fields remain
-      // immutable in this dedicated operation.
-      allow update: if isSuperAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["hidden", "updatedAt", "updatedBy"])
-        && request.resource.data.hidden is bool
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.updatedAt == request.time;
+      function validVisibilityChange() {
+        let after = request.resource.data;
+        let changeId = after.visibilityChangeId;
+        let changePath = /databases/$(database)/documents/events/$(eventId)/visibilityHistory/$(changeId);
+        return after.diff(resource.data).affectedKeys().hasOnly(["hidden", "visibilityChangeId", "updatedAt", "updatedBy"])
+          && after.hidden is bool
+          && after.hidden != (resource.data.get("hidden", false) == true)
+          && after.updatedBy == request.auth.uid && after.updatedAt == request.time
+          && !exists(changePath) && existsAfter(changePath);
+      }
+      allow update: if isSuperAdmin() && validVisibilityChange();
       allow update: if isActiveLeader() && resource.data.get("hidden", false) != true
         && request.resource.data.get("hidden", false) != true
         && hasSection(resource.data.section) && hasSection(request.resource.data.section)
@@ -1109,6 +1113,24 @@ service cloud.firestore {
         && (request.resource.data.audience == resource.data.audience || validVersion3EventAudience(request.resource.data))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "consentLinkToken", "audience", "attendance", "consent", "updatedAt", "updatedBy"]);
       allow delete: if false;
+    }
+
+    match /events/{eventId}/visibilityHistory/{changeId} {
+      function matchesVisibilityChange() {
+        let eventPath = /databases/$(database)/documents/events/$(eventId);
+        let before = get(eventPath).data;
+        let after = getAfter(eventPath).data;
+        let change = request.resource.data;
+        return change.keys().hasOnly(["fromHidden", "toHidden", "actorUid", "changedAt"])
+          && change.fromHidden == (before.get("hidden", false) == true)
+          && change.toHidden is bool && change.toHidden != change.fromHidden
+          && change.toHidden == after.hidden
+          && change.actorUid == request.auth.uid && change.changedAt == request.time
+          && after.visibilityChangeId == changeId;
+      }
+      allow get, list: if isSuperAdmin();
+      allow create: if isSuperAdmin() && matchesVisibilityChange();
+      allow update, delete: if false;
     }
 
     match /events/{eventId}/audienceMembers/{memberId} {

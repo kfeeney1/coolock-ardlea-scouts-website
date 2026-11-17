@@ -8,10 +8,10 @@ import {
     getDocs,
     orderBy,
     query,
+    runTransaction,
     serverTimestamp,
     setDoc,
     updateDoc,
-    writeBatch,
     where
 } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
@@ -225,29 +225,25 @@ export async function setEventHidden(eventId: string, hidden: boolean): Promise<
         throw new UserFacingError("Only Super Admin can change event visibility.");
     }
     const eventRef = doc(db, "events", eventId);
-    const event = await getDoc(eventRef);
-    if (!event.exists()) throw new UserFacingError("Event not found.");
-    if (event.data().hidden === hidden) return;
-    // Commit the visibility change and its audit record together. If either
-    // write is denied, neither is applied; never silently lose audit evidence.
-    const batch = writeBatch(db);
-    batch.update(eventRef, {
-        hidden,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid
+    const changeRef = doc(collection(eventRef, "visibilityHistory"));
+    await runTransaction(db, async (transaction) => {
+        const event = await transaction.get(eventRef);
+        if (!event.exists()) throw new UserFacingError("Event not found.");
+        const fromHidden = event.data().hidden === true;
+        if (fromHidden === hidden) return;
+        transaction.update(eventRef, {
+            hidden,
+            visibilityChangeId: changeRef.id,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+        });
+        transaction.set(changeRef, {
+            fromHidden,
+            toHidden: hidden,
+            actorUid: user.uid,
+            changedAt: serverTimestamp()
+        });
     });
-    batch.set(doc(collection(db, "auditLog")), {
-        category: "event",
-        action: hidden ? "hide-event" : "show-event",
-        actorUid: user.uid,
-        actorEmail: user.email || "",
-        targetId: eventId,
-        targetLabel: typeof event.data().title === "string" ? event.data().title : eventId,
-        description: hidden ? "Event hidden from parents and ordinary leaders." : "Event restored to normal visibility.",
-        section: typeof event.data().section === "string" ? event.data().section : "",
-        createdAt: serverTimestamp()
-    });
-    await batch.commit();
 }
 
 export async function loadEvents(eventId?: string): Promise<EventRecord[]> {

@@ -12,11 +12,11 @@ test("legacy and explicitly visible events remain visible", () => {
 
 test("only canonical active Super Admin can view hidden events", () => {
   assert.equal(isCanonicalEventVisibilityAdmin(superAdmin), true);
-  assert.equal(isCanonicalEventVisibilityAdmin({ active: true, role: "super-admin" }), true);
-  assert.equal(isCanonicalEventVisibilityAdmin({ active: true, role: "super-admin", section: "Group" }), true);
   assert.equal(canViewEventByVisibility({ hidden: true }, superAdmin), true);
   for (const profile of [
-    null, { active: true, role: "admin", sections: ["Group"] },
+    null, { active: true, role: "super-admin" },
+    { ...superAdmin, sections: [] }, { ...superAdmin, section: "Group" },
+    { active: true, role: "admin", sections: ["Group"] },
     { active: true, role: "leader", sections: ["Cubs"] },
     { active: false, role: "super-admin", sections: ["Group"] },
     { active: true, role: "super-admin ", sections: ["Group"] }

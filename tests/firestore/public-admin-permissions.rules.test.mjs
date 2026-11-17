@@ -408,3 +408,48 @@ test("Attendance experience version is private to signed-in readers and writable
   await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: serverTimestamp(), extra: "private" }));
   await assertFails(getDocs(collection(db, "siteSettings")));
 });
+test("event visibility requires a matching immutable audit entry and preserves event data", async () => {
+  const event = { title: "Historical camp", section: "Cubs", status: "closed", attendance: { child: "attending" } };
+  await seed([
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
+    ["events/event-1", event],
+  ]);
+  const superDb = testEnv.authenticatedContext("super-1").firestore();
+  const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+  const parentDb = testEnv.authenticatedContext("parent-1").firestore();
+  const eventRef = doc(superDb, "events/event-1");
+  const hideRef = doc(superDb, "events/event-1/visibilityHistory/hide");
+  const metadata = (uid, changeId, hidden) => ({
+    visibilityChangeId: changeId, hidden, updatedAt: serverTimestamp(), updatedBy: uid,
+  });
+  const change = (uid, fromHidden, toHidden) => ({
+    actorUid: uid, fromHidden, toHidden, changedAt: serverTimestamp(),
+  });
+  function commit(db, uid, changeId, fromHidden, toHidden, updates = {}) {
+    const batch = writeBatch(db);
+    batch.update(doc(db, "events/event-1"), { ...metadata(uid, changeId, toHidden), ...updates });
+    batch.set(doc(db, "events/event-1/visibilityHistory", changeId), change(uid, fromHidden, toHidden));
+    return batch.commit();
+  }
+
+  await assertSucceeds(getDoc(doc(adminDb, eventRef.path)));
+  await assertFails(updateDoc(eventRef, metadata("super-1", "hide", true)));
+  await assertFails(setDoc(hideRef, change("super-1", false, true)));
+  await assertFails(commit(adminDb, "admin-1", "hide", false, true));
+  await assertFails(commit(superDb, "super-1", "hide", true, true));
+  await assertFails(commit(superDb, "super-1", "hide", false, true, { title: "Changed" }));
+  await assertSucceeds(commit(superDb, "super-1", "hide", false, true));
+  await assertFails(getDoc(doc(adminDb, eventRef.path)));
+  await assertFails(getDoc(doc(parentDb, eventRef.path)));
+  await assertFails(getDoc(doc(adminDb, hideRef.path)));
+  await assertFails(updateDoc(hideRef, { actorUid: "different" }));
+  await assertSucceeds(commit(superDb, "super-1", "restore", true, false));
+  await assertFails(updateDoc(eventRef, metadata("super-1", "hide", true)));
+  const restored = (await assertSucceeds(getDoc(doc(adminDb, eventRef.path)))).data();
+  for (const [key, value] of Object.entries(event)) assert.deepEqual(restored[key], value);
+  const history = await assertSucceeds(getDocs(collection(superDb, "events/event-1/visibilityHistory")));
+  assert.deepEqual(history.docs.map((entry) => [entry.id, entry.data().fromHidden, entry.data().toHidden]), [
+    ["hide", false, true], ["restore", true, false],
+  ]);
+});
