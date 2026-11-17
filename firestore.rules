@@ -1333,18 +1333,17 @@ service cloud.firestore {
         return eventId is string && exists(eventPath)
           && (isSuperAdmin() || get(eventPath).data.get("hidden", false) != true);
       }
-      allow get: if eventVisibleToRequester(resource.data.eventId)
-        && ((isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true);
-      allow list: if eventVisibleToRequester(resource.data.eventId)
-        && (isSuperAdmin()
-        || (isActiveLeader() && hasSection(resource.data.section))
+      allow get: if isSuperAdmin() || (eventVisibleToRequester(resource.data.get("eventId", ""))
+        && ((isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true));
+      allow list: if isSuperAdmin() || (eventVisibleToRequester(resource.data.get("eventId", ""))
+        && ((isActiveLeader() && hasSection(resource.data.section))
         || (resource.data.active == true
           && resource.data.get("audienceVersion", 2) in [1, 2]
           && isApprovedParentForSection(resource.data.section))
         || (resource.data.active == true
           && resource.data.audienceVersion == 3
           && resource.data.eventId is string
-          && isApprovedParentForEventRecord(resource.data.eventId)));
+          && isApprovedParentForEventRecord(resource.data.eventId))));
       function _validateWrite30(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section)
         && _writeData.createdBy == request.auth.uid
