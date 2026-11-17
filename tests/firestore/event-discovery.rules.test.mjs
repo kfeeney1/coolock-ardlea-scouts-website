@@ -50,6 +50,8 @@ beforeEach(async () => {
         [`events/${id}`, {...safe, ...(id === "legacy" ? {} : {hidden: id === "hidden"}), leaderNotes: "private", attendance: {child: "attending"}}],
         [`publicEvents/${id}`, publicData],
         [`parentGalleryEvents/${id}`, safe],
+        [`events/${id}/programmes/parent`, safe],
+        [`events/${id}/programmeAccess/parent`, {memberId: "child"}],
         [`equipmentProgrammeRequirements/${id}`, {sourceType: "event", sourceId: id, sourceLabel: id, section: "Cubs"}],
         [`auditLog/${id}`, {category: "event", targetId: id, targetLabel: id}],
         [`eventConsentResponses/${id}`, {eventId: id, childName: "Private child"}],
@@ -93,6 +95,10 @@ test("hide and restore remove all existing projections while preserving records 
     const batch = writeBatch(db);
     batch.update(doc(db, "events/visible"), {hidden, visibilityChangeId: id, updatedBy: "super", updatedAt: serverTimestamp()});
     batch.set(doc(db, "events/visible/visibilityHistory", id), {fromHidden: !hidden, toHidden: hidden, actorUid: "super", changedAt: serverTimestamp()});
+    for (const collection of ["publicEvents", "parentGalleryEvents", "eventConsentLinks"]) {
+      batch.update(doc(db, collection, "visible"), {updatedAt: serverTimestamp()});
+    }
+    batch.update(doc(db, "events/visible/programmes/parent"), {visibilityUpdatedAt: serverTimestamp()});
     await assertSucceeds(batch.commit());
   };
   await toggle(true, "hide");

@@ -23,11 +23,11 @@ export function watchParentEventProgrammes(memberIds: string[], month: string, n
           if (!active || programmes.get(id) !== item || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
           item.entry = snapshot.exists() ? calendarSourceEntry("eventProgrammes", id, snapshot.data()) : null;
           item.loaded = true; emit();
-        }, error => {if (active && programmes.get(id) === item) {item.entry = null; item.loaded = true; if (error.code === "permission-denied") emit(); else failed();}});
+        }, error => {if (active && programmes.get(id) === item) {item.entry = null; item.loaded = true; if (error.code === "permission-denied") {item.stop(); programmes.delete(id); emit();} else failed();}});
       }).catch(error => {
         if (!active || programmes.get(id) !== item) return;
         item.entry = null; item.loaded = true;
-        if (error.code === "permission-denied") emit(); else failed();
+        if (error.code === "permission-denied") {item.stop(); programmes.delete(id); emit();} else failed();
       });
     }
     emit();

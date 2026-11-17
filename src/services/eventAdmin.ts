@@ -227,11 +227,23 @@ export async function setEventHidden(eventId: string, hidden: boolean): Promise<
     }
     const eventRef = doc(db, "events", eventId);
     const changeRef = doc(collection(eventRef, "visibilityHistory"));
+    const consentLinks = await getDocs(query(collection(db, "eventConsentLinks"), where("eventId", "==", eventId)));
+    const mirrors = [
+        doc(db, "publicEvents", eventId), doc(db, "parentGalleryEvents", eventId),
+        doc(eventRef, "programmes", "parent"), ...consentLinks.docs.map(link => link.ref)
+    ];
     await runTransaction(db, async (transaction) => {
         const event = await transaction.get(eventRef);
         if (!event.exists()) throw new UserFacingError("Event not found.");
         const fromHidden = event.data().hidden === true;
         if (fromHidden === hidden) return;
+        const token = event.data().consentLinkToken;
+        const references = new Map(mirrors.map(ref => [ref.path, ref]));
+        if (typeof token === "string" && token && !token.includes("/")) {
+            const ref = doc(db, "eventConsentLinks", token);
+            references.set(ref.path, ref);
+        }
+        const retained = await Promise.all([...references.values()].map(ref => transaction.get(ref)));
         transaction.update(eventRef, {
             hidden,
             visibilityChangeId: changeRef.id,
@@ -244,6 +256,10 @@ export async function setEventHidden(eventId: string, hidden: boolean): Promise<
             actorUid: user.uid,
             changedAt: serverTimestamp()
         });
+        for (const mirror of retained) if (mirror.exists()) {
+            transaction.update(mirror.ref, mirror.ref.path.includes("/programmes/")
+                ? {visibilityUpdatedAt: serverTimestamp()} : {updatedAt: serverTimestamp()});
+        }
     });
 }
 

@@ -1069,6 +1069,15 @@ service cloud.firestore {
       let path = /databases/$(database)/documents/events/$(eventId);
       return !exists(path) || isSuperAdmin() || get(path).data.get("hidden", false) != true;
     }
+    function eventVisibilityChanged(eventId) {
+      let path = /databases/$(database)/documents/events/$(eventId);
+      return (get(path).data.get("hidden", false) == true) != (getAfter(path).data.get("hidden", false) == true);
+    }
+    function visibilityProjectionTouch(eventId) {
+      return isSuperAdmin() && eventVisibilityChanged(eventId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["updatedAt"])
+        && request.resource.data.updatedAt == request.time;
+    }
     function writableVisibleEvent(eventId) {
       let path = /databases/$(database)/documents/events/$(eventId);
       return existsAfter(path) && getAfter(path).data.get("hidden", false) != true;
@@ -1225,7 +1234,7 @@ service cloud.firestore {
       function safeProgramme(data) {
         let source = sourceProgramme();
         return programmeId == "parent" && data.eventId == eventId
-          && data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status"])
+          && data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "visibilityUpdatedAt"])
           && data.title == source.title && data.description == source.description
           && data.eventType == source.eventType && data.section == source.section && data.location == source.location
           && data.startDate == source.startDate && data.endDate == source.endDate && data.status == source.status;
@@ -1236,23 +1245,26 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId))
           && get(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId)).data.memberId == memberId;
       }
-      allow get: if signedIn()
+      allow get: if isSuperAdmin() || (signedIn()
         && exists(/databases/$(database)/documents/events/$(eventId))
         && (isSuperAdmin() || sourceProgramme().get("hidden", false) != true)
         && safeProgramme(resource.data) && resource.data.status in ["open", "closed", "completed"]
-        && parentProgrammeAudience();
+        && parentProgrammeAudience());
       allow list: if false;
       function validProgrammeWrite() {
         let source = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
         let data = request.resource.data;
         return isActiveLeader() && source.get("hidden", false) != true && hasSection(source.section) && programmeId == "parent"
           && data.eventId == eventId
-          && data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status"])
+          && data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "visibilityUpdatedAt"])
           && data.title == source.title && data.description == source.description
           && data.eventType == source.eventType && data.section == source.section && data.location == source.location
           && data.startDate == source.startDate && data.endDate == source.endDate && data.status == source.status;
       }
       allow create, update: if validProgrammeWrite();
+      allow update: if isSuperAdmin() && eventVisibilityChanged(eventId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["visibilityUpdatedAt"])
+        && request.resource.data.visibilityUpdatedAt == request.time;
       allow delete: if false;
     }
 
@@ -1304,6 +1316,7 @@ service cloud.firestore {
         && _writeData.section is string && _writeData.startDate is string && _writeData.endDate is string
         && _writeData.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
       }
+      allow update: if visibilityProjectionTouch(eventId);
       allow update: if _validateWrite27(request.resource.data);
       allow delete: if isActiveLeader() && visibleEvent(eventId)
         && exists(/databases/$(database)/documents/events/$(eventId))
@@ -1311,10 +1324,10 @@ service cloud.firestore {
     }
 
     match /parentGalleryEvents/{eventId} {
-      allow get: if visibleEvent(eventId) && resource.data.eventId == eventId
+      allow get: if isSuperAdmin() || (visibleEvent(eventId) && resource.data.eventId == eventId
         && resource.data.section is string
         && resource.data.status in ["open", "closed", "completed"]
-        && isApprovedParentForSection(resource.data.section);
+        && isApprovedParentForSection(resource.data.section));
       allow list: if false;
       function _validateWrite28(_writeData) {
         return writableVisibleEvent(eventId) && isActiveLeader()
@@ -1340,6 +1353,7 @@ service cloud.firestore {
         && _writeData.endDate is string
         && _writeData.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
       }
+      allow update: if visibilityProjectionTouch(eventId);
       allow update: if _validateWrite29(request.resource.data);
       allow delete: if isActiveLeader() && visibleEvent(eventId)
         && exists(/databases/$(database)/documents/events/$(eventId))
@@ -1399,6 +1413,7 @@ service cloud.firestore {
         && _writeData.audienceMemberIds is list && _writeData.audienceVersion in [2, 3];
       }
       allow create: if _validateWrite30(request.resource.data);
+      allow update: if visibilityProjectionTouch(resource.data.eventId);
       allow update: if writableVisibleEvent(resource.data.eventId) && request.resource.data.eventId == resource.data.eventId
         && isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && (resource.data.audienceVersion != 3 || request.resource.data.audienceVersion == 3)
