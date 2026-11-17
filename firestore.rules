@@ -1311,23 +1311,27 @@ service cloud.firestore {
     }
 
     match /eventConsentLinks/{token} {
-      function parentHasEventAudienceMemberAt(eventId, index) {
-        return isApprovedParent()
-          && parentProfile().memberIds is list
-          && parentProfile().memberIds.size() > index
-          && parentProfile().memberIds[index] is string
-          && isActiveMember(parentProfile().memberIds[index])
-          // Membership documents are keyed by member ID and only trusted
-          // leader writes can create them with a matching memberId field.
-          // Avoid a redundant document read on each of up to eight parent
-          // members: it exceeds the Firestore rules expression budget.
-          && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(parentProfile().memberIds[index]));
+      // Resolve the approved parent profile once per consent-link evaluation.
+      // Repeating profile and member-status lookups eight times exceeds the
+      // Firestore rules expression budget for selected-event list queries.
+      function parentHasEventAudienceMemberAt(eventId, memberIds, index) {
+        return memberIds.size() > index
+          && memberIds[index] is string
+          && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberIds[index]))
+          && isActiveMember(memberIds[index]);
       }
       function isApprovedParentForEventRecord(eventId) {
-        return parentHasEventAudienceMemberAt(eventId, 0) || parentHasEventAudienceMemberAt(eventId, 1)
-          || parentHasEventAudienceMemberAt(eventId, 2) || parentHasEventAudienceMemberAt(eventId, 3)
-          || parentHasEventAudienceMemberAt(eventId, 4) || parentHasEventAudienceMemberAt(eventId, 5)
-          || parentHasEventAudienceMemberAt(eventId, 6) || parentHasEventAudienceMemberAt(eventId, 7);
+        let approved = isApprovedParent();
+        let memberIds = approved ? parentProfile().memberIds : [];
+        return approved && memberIds is list
+          && (parentHasEventAudienceMemberAt(eventId, memberIds, 0)
+          || parentHasEventAudienceMemberAt(eventId, memberIds, 1)
+          || parentHasEventAudienceMemberAt(eventId, memberIds, 2)
+          || parentHasEventAudienceMemberAt(eventId, memberIds, 3)
+          || parentHasEventAudienceMemberAt(eventId, memberIds, 4)
+          || parentHasEventAudienceMemberAt(eventId, memberIds, 5)
+          || parentHasEventAudienceMemberAt(eventId, memberIds, 6)
+          || parentHasEventAudienceMemberAt(eventId, memberIds, 7));
       }
       // Consent links remain stored, but cannot expose or accept responses
       // for events hidden by Super Admin.
