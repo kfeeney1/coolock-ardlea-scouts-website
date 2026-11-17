@@ -1326,8 +1326,17 @@ service cloud.firestore {
           || parentHasEventAudienceMemberAt(eventId, 4) || parentHasEventAudienceMemberAt(eventId, 5)
           || parentHasEventAudienceMemberAt(eventId, 6) || parentHasEventAudienceMemberAt(eventId, 7);
       }
-      allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
-      allow list: if isSuperAdmin()
+      // Consent links remain stored, but cannot expose or accept responses
+      // for events hidden by Super Admin.
+      function eventVisibleToRequester(eventId) {
+        let eventPath = /databases/$(database)/documents/events/$(eventId);
+        return eventId is string && exists(eventPath)
+          && (isSuperAdmin() || get(eventPath).data.get("hidden", false) != true);
+      }
+      allow get: if eventVisibleToRequester(resource.data.eventId)
+        && ((isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true);
+      allow list: if eventVisibleToRequester(resource.data.eventId)
+        && (isSuperAdmin()
         || (isActiveLeader() && hasSection(resource.data.section))
         || (resource.data.active == true
           && resource.data.get("audienceVersion", 2) in [1, 2]
@@ -1335,7 +1344,7 @@ service cloud.firestore {
         || (resource.data.active == true
           && resource.data.audienceVersion == 3
           && resource.data.eventId is string
-          && isApprovedParentForEventRecord(resource.data.eventId));
+          && isApprovedParentForEventRecord(resource.data.eventId)));
       function _validateWrite30(_writeData) {
         return isActiveLeader() && hasSection(_writeData.section)
         && _writeData.createdBy == request.auth.uid
@@ -1359,7 +1368,9 @@ service cloud.firestore {
         && _writeData.processingStatus == "new" && _writeData.submittedAt == request.time
         && exists(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token))
         && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.active == true
-        && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId;
+        && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId
+        && exists(/databases/$(database)/documents/events/$(_writeData.eventId))
+        && get(/databases/$(database)/documents/events/$(_writeData.eventId)).data.get("hidden", false) != true;
       }
       allow create: if _validateWrite32(request.resource.data);
       allow read: if isAdmin();
