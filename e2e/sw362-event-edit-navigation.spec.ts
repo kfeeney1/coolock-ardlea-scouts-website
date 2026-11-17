@@ -315,13 +315,9 @@ test("SW-390 saving through the leave dialog releases the dashboard and menu", a
 test("SW-390 explicit Save Event releases the dirty guard on desktop and mobile", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
-  const title = `TEST SW-390 explicit ${Date.now()}`;
-  const { eventUrl } = await createEvent(page, title);
-  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-  const eventId = new URL(eventUrl).pathname.split("/").pop()!;
   const audienceReads = new Set<string>();
   // Firestore WebChannel batches query targets in form-encoded requests.
-  // Opening this editor must not wait for every other event's audience.
+  // The record and editor should each request only this event's audience.
   page.on("request", (request) => {
     if (!new URL(request.url()).pathname.endsWith("/Listen/channel")) return;
     for (const [key, value] of new URLSearchParams(request.postData() ?? "")) {
@@ -331,6 +327,12 @@ test("SW-390 explicit Save Event releases the dirty guard on desktop and mobile"
       audienceReads.add(target.parent.split("/").pop());
     }
   });
+  const title = `TEST SW-390 explicit ${Date.now()}`;
+  const { eventUrl } = await createEvent(page, title);
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  const eventId = new URL(eventUrl).pathname.split("/").pop()!;
+  expect([...audienceReads]).toEqual([eventId]);
+  audienceReads.clear();
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   await expect(page.getByLabel("Event title")).toHaveValue(title);
   expect([...audienceReads]).toEqual([eventId]);

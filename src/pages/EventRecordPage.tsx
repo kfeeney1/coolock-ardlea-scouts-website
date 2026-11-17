@@ -65,7 +65,7 @@ export default function EventRecordPage() {
         setLoading(true);
         setError("");
         try {
-            const loadedEvents = await loadEvents();
+            const loadedEvents = eventId ? await loadEvents(eventId) : [];
             const requested = loadedEvents.find((item) => item.id === eventId) ?? null;
             if (requestId !== loadRequestRef.current) return;
             setEvent(requested);
