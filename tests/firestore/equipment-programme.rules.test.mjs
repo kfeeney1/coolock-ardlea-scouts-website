@@ -80,3 +80,19 @@ test("equipment programme plans cannot be deleted and parents cannot read them",
   const leaderDb = testEnv.authenticatedContext("scout-leader", { email: "scout@example.test" }).firestore();
   await assertFails(deleteDoc(doc(leaderDb, "equipmentProgrammeRequirements/event-camp-1")));
 });
+
+test("hidden event equipment plans remain stored while direct leader reads and edits are denied", async () => {
+  await seed([
+    ["adminUsers/leader", {active: true, role: "leader", sections: ["Scouts"]}],
+    ["adminUsers/super", {active: true, role: "super-admin", sections: ["Group"]}],
+    ["events/camp-1", {section: "Scouts", hidden: true}],
+    ["equipmentProgrammeRequirements/event-camp-1", {...requirement("leader"), loanId: "retained-reservation", createdAt: new Date(), updatedAt: new Date()}],
+  ]);
+  const target = doc(testEnv.authenticatedContext("leader").firestore(), "equipmentProgrammeRequirements/event-camp-1");
+  await assertFails(getDoc(target));
+  await assertFails(updateDoc(target, {sourceLabel: "Changed", updatedBy: "leader", updatedAt: serverTimestamp()}));
+  await assertSucceeds(getDoc(doc(testEnv.authenticatedContext("super").firestore(), target.path)));
+  await testEnv.withSecurityRulesDisabled(async ctx => {await updateDoc(doc(ctx.firestore(), "events/camp-1"), {hidden: false});});
+  const restored = await assertSucceeds(getDoc(target));
+  if (restored.data().loanId !== "retained-reservation") throw new Error("The existing reservation must be preserved.");
+});

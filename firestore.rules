@@ -1065,6 +1065,10 @@ service cloud.firestore {
       let path = /databases/$(database)/documents/events/$(eventId);
       return exists(path) && (isSuperAdmin() || get(path).data.get("hidden", false) != true);
     }
+    function eventReferenceVisible(eventId) {
+      let path = /databases/$(database)/documents/events/$(eventId);
+      return !exists(path) || isSuperAdmin() || get(path).data.get("hidden", false) != true;
+    }
     function writableVisibleEvent(eventId) {
       let path = /databases/$(database)/documents/events/$(eventId);
       return existsAfter(path) && getAfter(path).data.get("hidden", false) != true;
@@ -2596,9 +2600,10 @@ service cloud.firestore {
     }
 
     match /equipmentProgrammeRequirements/{requirementId} {
-      allow get, list: if isActiveLeader();
+      allow get, list: if isActiveLeader() && (resource.data.sourceType != "event" || eventReferenceVisible(resource.data.sourceId));
       function _validateWrite77(_writeData) {
         return isActiveLeader()
+        && (_writeData.sourceType != "event" || eventReferenceVisible(_writeData.sourceId))
         && _writeData.section is string
         && (hasSection(_writeData.section) || isGroupLeader())
         && _writeData.sourceType in ["weeklyMeeting", "event", "activity"]
@@ -2616,6 +2621,7 @@ service cloud.firestore {
       allow create: if _validateWrite77(request.resource.data);
       function _validateWrite78(_writeData, _storedData) {
         return isActiveLeader()
+        && (_storedData.sourceType != "event" || eventReferenceVisible(_storedData.sourceId))
         && _storedData.section is string
         && (hasSection(_storedData.section) || isGroupLeader())
         && _writeData.section == _storedData.section

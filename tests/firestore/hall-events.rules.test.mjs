@@ -76,3 +76,10 @@ test("a concurrent ordinary date edit and hall reservation cannot both commit", 
     assert.equal(current.endDate, "2026-11-06"); assert.equal(await raw(`hallAvailability/${date}`), undefined);
   }
 });
+
+test("trusted hall writes cannot bypass hidden event access", async () => {
+  await seed(path, {...data, hidden: true});
+  await assert.rejects(save(), {status: 403});
+  assert.equal((await raw(path)).hidden, true);
+  assert.equal((await raw("hall/group")).revision, 0);
+});

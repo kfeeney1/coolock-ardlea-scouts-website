@@ -12,7 +12,7 @@ const COLLECTIONS = [
 ] as const;
 
 export async function loadOperationalDataHealth(): Promise<OperationalDataHealth> {
-  const snapshots = await Promise.all(COLLECTIONS.map(async (name) => [name, ["events", "eventConsentLinks", "eventConsentResponses"].includes(name)
+  const snapshots = await Promise.all(COLLECTIONS.map(async (name) => [name, ["events", "eventConsentLinks", "eventConsentResponses", "equipmentProgrammeRequirements"].includes(name)
     ? {docs: await readEventDocuments(name as EventDiscoveryCollection)} : await getDocs(collection(db, name))] as const));
   const records = new Map(snapshots.map(([name, snapshot]) => [
     name,

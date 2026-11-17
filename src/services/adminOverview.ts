@@ -1,4 +1,5 @@
-import { collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
+import { readEventDocuments } from "./eventDiscovery";
+import { doc, getDoc, collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
 import { buildLeaderToday, joinApplicationOverviewSections, type LeaderAttentionItem, type LeaderTodayMeeting } from "./adminOverviewLogic";
@@ -138,6 +139,13 @@ async function countScopedNewJoins(profile: AdminProfile, sections: string[]): P
 }
 
 async function loadScopedCollection(collectionName: string, profile: AdminProfile): Promise<FirestoreSnapshot[]> {
+  if (collectionName === "events") {
+    if (isAdmin(profile)) return readEventDocuments("events");
+    return (await Promise.all(authorisedOverviewSections(profile).map(section =>
+      readEventDocuments("events", [["section", "==", section]])
+    ))).flat();
+  }
+
   if (isAdmin(profile)) return (await getDocs(collection(db, collectionName))).docs;
   const sections = authorisedOverviewSections(profile);
   if (sections.length === 0) return [];
@@ -183,7 +191,22 @@ async function loadEquipmentAttention(profile: AdminProfile): Promise<LeaderAtte
 export async function loadAdminOverview(profile: AdminProfile, force = false): Promise<AdminOverview> {
   const key = cacheKey(profile);
   const cached = overviewCache.get(key);
-  if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
+  if (!force && cached && cached.expiresAt > Date.now()) {
+    // Keep the existing overview read budget while rechecking cached event
+    // references before presenting titles or counts after a visibility change.
+    const visibleIds = new Set((await Promise.all(cached.value.upcomingEvents.map(async event => {
+      try {return (await getDoc(doc(db, "events", event.id))).exists() ? event.id : null;}
+      catch (error) {
+        if ((error as {code?: string}).code === "permission-denied") return null;
+        throw error;
+      }
+    }))).filter(Boolean));
+    const upcomingEvents = cached.value.upcomingEvents.filter(event => visibleIds.has(event.id));
+    return {...cached.value, upcomingEvents,
+      outstandingConsent: upcomingEvents.reduce((total, event) => total + event.outstandingConsent, 0),
+      attentionItems: cached.value.attentionItems.filter(item =>
+        !item.id.startsWith("event-consent-") || visibleIds.has(item.id.slice("event-consent-".length)))};
+  }
 
   const admin = isAdmin(profile);
   const joinSections = joinApplicationOverviewSections(profile);

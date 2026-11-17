@@ -50,6 +50,7 @@ beforeEach(async () => {
         [`events/${id}`, {...safe, ...(id === "legacy" ? {} : {hidden: id === "hidden"}), leaderNotes: "private", attendance: {child: "attending"}}],
         [`publicEvents/${id}`, publicData],
         [`parentGalleryEvents/${id}`, safe],
+        [`equipmentProgrammeRequirements/${id}`, {sourceType: "event", sourceId: id, sourceLabel: id, section: "Cubs"}],
         [`auditLog/${id}`, {category: "event", targetId: id, targetLabel: id}],
         [`eventConsentResponses/${id}`, {eventId: id, childName: "Private child"}],
         [`eventConsentLinks/${id}`, {...safe, active: true, audienceVersion: 3, audienceMemberIds: []}],
@@ -74,6 +75,8 @@ test("visible discovery preserves legacy records and excludes hidden sources fro
   assert.deepEqual(await discover("group-leader", "auditLog"), ["auditLog/historical", "auditLog/legacy", "auditLog/visible"]);
   assert.deepEqual(await discover("admin", "eventConsentResponses"), ["eventConsentResponses/legacy", "eventConsentResponses/visible"]);
   assert.deepEqual(await discover("parent", "eventConsentResponses"), []);
+  assert.deepEqual(await discover("admin", "equipmentProgrammeRequirements"), ["equipmentProgrammeRequirements/legacy", "equipmentProgrammeRequirements/visible"]);
+  assert.deepEqual(await discover("parent", "equipmentProgrammeRequirements"), []);
   assert.deepEqual(await discover(null, "publicEvents"), ["publicEvents/legacy", "publicEvents/visible"]);
   assert.deepEqual(await discover("parent", "parentGalleryEvents"), ["parentGalleryEvents/legacy", "parentGalleryEvents/visible"]);
   assert.deepEqual(await discover("parent", "audienceMembers", [["memberId", "==", "child"]]),

@@ -1,6 +1,6 @@
 // Privileged queries discover candidates only. Every returned path is checked
 // with the caller's Firebase token and the deployed document Rules.
-const collections = new Set(["events", "publicEvents", "parentGalleryEvents", "audienceMembers", "eventConsentLinks", "eventConsentResponses", "auditLog"]);
+const collections = new Set(["events", "publicEvents", "parentGalleryEvents", "audienceMembers", "eventConsentLinks", "eventConsentResponses", "auditLog", "equipmentProgrammeRequirements"]);
 const fields = new Set(["eventId", "memberId", "targetId", "section", "status", "active", "audienceVersion", "programmeVisible", "startDate", "endDate"]);
 const operators = { "==": "EQUAL", ">=": "GREATER_THAN_OR_EQUAL", "<=": "LESS_THAN_OR_EQUAL", "<": "LESS_THAN", ">": "GREATER_THAN", in: "IN" };
 const string = (document, field) => document?.fields?.[field]?.stringValue || "";
@@ -42,6 +42,7 @@ async function read(base, path, token) {
 }
 
 function sourceId(path, document, collection) {
+  if (collection === "equipmentProgrammeRequirements") return string(document, "sourceType") === "event" ? string(document, "sourceId") : null;
   if (collection === "auditLog") return ["event", "event-consent"].includes(string(document, "category")) ? string(document, "targetId") : null;
   return collection === "events" || collection === "publicEvents" || collection === "parentGalleryEvents"
     ? path.split("/").at(-1) : string(document, "eventId");
@@ -150,8 +151,8 @@ export async function discoverEventDocuments(request, body, { base, serviceToken
       const path = candidate.name.split("/documents/")[1];
       const eventId = sourceId(path, candidate, body.collection);
       const event = sourceCache.get(`events/${eventId}`);
-      const unrelatedAudit = body.collection === "auditLog" && (eventId === null || !event);
-      if (!unrelatedAudit && (!event || (boolean(event, "hidden") && !superAdmin))) continue;
+      const retainedReference = ["auditLog", "equipmentProgrammeRequirements"].includes(body.collection) && (eventId === null || !event);
+      if (!retainedReference && (!event || (boolean(event, "hidden") && !superAdmin))) continue;
       if (body.collection === "eventConsentLinks" && !leaderEvents.has(eventId)
         && !(await parentCanDiscoverLink(parent, candidate, eventId, evidence))) continue;
       candidates.push(candidate);

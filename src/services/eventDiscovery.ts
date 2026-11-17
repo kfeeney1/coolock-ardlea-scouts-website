@@ -4,7 +4,7 @@ import { eventAudienceEndpoint } from "./eventAudienceEndpoint";
 import { requestBackend } from "./backendRequest";
 import { ServiceFailure } from "./applicationErrors";
 
-export type EventDiscoveryCollection = "events" | "publicEvents" | "parentGalleryEvents" | "audienceMembers" | "eventConsentLinks" | "eventConsentResponses" | "auditLog";
+export type EventDiscoveryCollection = "events" | "publicEvents" | "parentGalleryEvents" | "audienceMembers" | "eventConsentLinks" | "eventConsentResponses" | "auditLog" | "equipmentProgrammeRequirements";
 export type EventDiscoveryFilter = [string, "==" | ">=" | "<=" | "<" | ">" | "in", string | number | boolean | string[]];
 
 /** Discovery returns authorized paths only. SDK reads recheck Rules after any concurrent hide. */
