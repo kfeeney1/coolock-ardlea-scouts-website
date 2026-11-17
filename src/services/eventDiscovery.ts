@@ -1,4 +1,4 @@
-import { doc, getDoc, onSnapshot, type DocumentData, type QueryDocumentSnapshot } from "firebase/firestore";
+import { doc, getDocFromServer, onSnapshot, type DocumentData, type QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { eventAudienceEndpoint } from "./eventAudienceEndpoint";
 import { requestBackend } from "./backendRequest";
@@ -37,7 +37,7 @@ export async function discoverEventPaths(collection: EventDiscoveryCollection, f
 export async function readEventDocuments(collection: EventDiscoveryCollection, filters: EventDiscoveryFilter[] = []) {
   const paths = await discoverEventPaths(collection, filters);
   const snapshots = await Promise.all(paths.map(async path => {
-    try { return await getDoc(doc(db, path)); }
+    try { return await getDocFromServer(doc(db, path)); }
     catch (error) {
       if ((error as {code?: string}).code === "permission-denied") return null;
       throw error;

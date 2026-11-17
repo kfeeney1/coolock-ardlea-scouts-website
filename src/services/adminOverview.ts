@@ -1,5 +1,5 @@
 import { readEventDocuments } from "./eventDiscovery";
-import { doc, getDoc, collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
+import { doc, getDocFromServer, collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
 import { buildLeaderToday, joinApplicationOverviewSections, type LeaderAttentionItem, type LeaderTodayMeeting } from "./adminOverviewLogic";
@@ -195,7 +195,7 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     // Keep the existing overview read budget while rechecking cached event
     // references before presenting titles or counts after a visibility change.
     const visibleIds = new Set((await Promise.all(cached.value.upcomingEvents.map(async event => {
-      try {return (await getDoc(doc(db, "events", event.id))).exists() ? event.id : null;}
+      try {return (await getDocFromServer(doc(db, "events", event.id))).exists() ? event.id : null;}
       catch (error) {
         if ((error as {code?: string}).code === "permission-denied") return null;
         throw error;

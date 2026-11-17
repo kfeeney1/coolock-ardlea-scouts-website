@@ -6,6 +6,7 @@ import {
     deleteDoc,
     doc,
     getDoc,
+    getDocFromServer,
     getDocs,
     query,
     runTransaction,
@@ -250,7 +251,7 @@ export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
-    const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    const profileSnapshot = await getDocFromServer(doc(db, "adminUsers", user.uid));
     if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) throw new UserFacingError("Active leader profile is required.");
 
     const profile = profileSnapshot.data();
@@ -258,7 +259,7 @@ export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
     // A single event must be read by document ID. Querying the whole collection
     // to open one record can be rejected by visibility rules for unrelated events.
     const docs = eventId
-        ? [await getDoc(doc(db, "events", eventId))].filter((snapshot) => snapshot.exists())
+        ? [await getDocFromServer(doc(db, "events", eventId))].filter((snapshot) => snapshot.exists())
         : isAdmin
           ? await readEventDocuments("events")
           : (await Promise.all(
