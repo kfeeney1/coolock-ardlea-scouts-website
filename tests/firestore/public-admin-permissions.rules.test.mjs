@@ -86,6 +86,8 @@ test("public can list projections while authorized writes reject private fields"
 
 test("event consent links are public only while active and responses bind to that link", async () => {
   await seed([
+    ["events/event-1", { title: "Camp", section: "Cubs", hidden: false }],
+    ["events/event-2", { title: "Past camp", section: "Cubs", hidden: false }],
     ["eventConsentLinks/active-token", { active: true, eventId: "event-1", section: "Cubs", title: "Camp" }],
     ["eventConsentLinks/closed-token", { active: false, eventId: "event-2", section: "Cubs", title: "Past camp" }],
   ]);
