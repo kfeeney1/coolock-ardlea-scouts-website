@@ -1,6 +1,5 @@
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
+import { readEventDocuments } from "./eventDiscovery";
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
 
 export type PublicEvent = {
     id: string;
@@ -44,11 +43,11 @@ function mapPublicEvent(snapshot: QueryDocumentSnapshot<DocumentData>): PublicEv
 export async function loadUpcomingPublicEvents(): Promise<PublicEvent[]> {
     const today = new Date().toISOString().slice(0, 10);
     const [upcoming, inProgress] = await Promise.all([
-        getDocs(query(collection(db, "publicEvents"), where("startDate", ">=", today), orderBy("startDate", "asc"))),
-        getDocs(query(collection(db, "publicEvents"), where("endDate", ">=", today), orderBy("endDate", "asc")))
+        readEventDocuments("publicEvents", [["startDate", ">=", today]]),
+        readEventDocuments("publicEvents", [["endDate", ">=", today]])
     ]);
 
-    return [...new Map([...upcoming.docs, ...inProgress.docs].map((snapshot) => [snapshot.id, snapshot])).values()]
+    return [...new Map([...upcoming, ...inProgress].map((snapshot) => [snapshot.id, snapshot])).values()]
         .map(mapPublicEvent)
         .filter((event): event is PublicEvent => event !== null)
         .filter((event) => (event.endDate || event.startDate) >= today)

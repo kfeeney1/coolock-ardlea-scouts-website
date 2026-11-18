@@ -6,7 +6,7 @@ for (const uiTheme of ["default", "modern"]) test(`Calendar record pages share c
   test.setTimeout(45000);
   test.skip(!process.env.E2E_TEST_USER_PASSWORD, "Configure canonical E2E credentials.");
   const db = scheduleFixtureDb(), taskId = "sw529-calendar-task-layout-001", appointmentId = "sw529-calendar-service-layout-001", eventId = "sw529-calendar-public-layout-001";
-  const paths = ["siteSettings/calendarExperience", "siteSettings/maintenanceExperience", "adminUsers/TEST_uid_super_admin_01", `maintenance/group/tasks/${taskId}`, `maintenance/group/appointments/${appointmentId}`, `publicEvents/${eventId}`];
+  const paths = ["siteSettings/calendarExperience", "siteSettings/maintenanceExperience", "adminUsers/TEST_uid_super_admin_01", `maintenance/group/tasks/${taskId}`, `maintenance/group/appointments/${appointmentId}`, `publicEvents/${eventId}`, `events/${eventId}`];
   const previous = await Promise.all(paths.map(path => db.doc(path).get()));
   const date = scheduleToday();
   try {
@@ -14,6 +14,7 @@ for (const uiTheme of ["default", "modern"]) test(`Calendar record pages share c
     await db.doc(paths[3]).set({description: "Inspect the den entrance and its hinges", documentIds: [], status: "open", assigneeUid: "TEST_uid_super_admin_01", assigneeName: "Responsible leader", revision: 1, createdAt: Date.now()});
     await db.doc(paths[4]).set({title: "Annual boiler service", date, allDay: true, startTime: "", endTime: "", location: "Scout den", notes: "Service notes. ".repeat(100), revision: 1});
     await db.doc(paths[5]).set({eventId, eventType: "Activity", title: "Shared group event", section: "Group", startDate: date, endDate: date, description: "Event programme details. ".repeat(100)});
+    await db.doc(paths[6]).set({eventId, eventType: "Activity", title: "Shared group event", section: "Group", startDate: date, endDate: date, status: "open"});
     await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: process.env.E2E_TEST_USER_PASSWORD!});
     const check = async (route: string, title: string) => {
       await page.goto(route);

@@ -1,3 +1,4 @@
+import { readEventDocuments } from "./eventDiscovery";
 import { ServiceFailure, UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import type { DocumentData, DocumentSnapshot, Timestamp } from "firebase/firestore";
@@ -138,8 +139,8 @@ export async function loadMeetingRecords(sections: string[], hasFullHistoryAcces
 }
 
 export async function loadMeetingRecordVersions(meetingId: string): Promise<MeetingRecordVersion[]> {
-  const snapshot = await getDocs(query(collection(db, "auditLog"), where("targetId", "==", meetingId)));
-  return snapshot.docs.flatMap((item) => {
+  const documents = await readEventDocuments("auditLog", [["targetId", "==", meetingId]]);
+  return documents.flatMap((item) => {
     const data = item.data();
     if (data.category !== "system" || data.action !== "meeting-record-update" || typeof data.description !== "string") return [];
     try {

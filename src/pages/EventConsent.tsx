@@ -21,7 +21,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import {
-    loadPublicEventLink,
+    watchPublicEventLink,
     submitEventConsentResponse
 } from "../services/eventConsent";
 import type { PublicEventLink } from "../services/eventConsent";
@@ -48,32 +48,36 @@ export default function EventConsent() {
     const [medicalDetails, setMedicalDetails] = useState<"current" | "changed" | "">("");
 
     useEffect(() => {
-        const load = async () => {
-            setLoading(true);
-            setError("");
-
-            try {
-                const consentEnabled = await loadParentConsentEnabled();
-                if (!consentEnabled) {
-                    setError("Event consent forms are currently unavailable.");
-                    return;
-                }
-                const result = await loadPublicEventLink(token);
-
-                if (!result || !result.active) {
-                    setError("This event consent link is not available or is no longer active.");
-                    return;
-                }
-
-                setEvent(result);
-            } catch (loadError) {
-                setError(applicationErrorMessage(loadError, "Unable to load this event consent form.", "EventConsent"));
-            } finally {
+        let active = true;
+        let stop = () => {};
+        setEvent(null);
+        setLoading(true);
+        setError("");
+        void loadParentConsentEnabled().then(enabled => {
+            if (!active) return;
+            if (!enabled) {
+                setError("Event consent forms are currently unavailable.");
+                setLoading(false);
+                return;
+            }
+            stop = watchPublicEventLink(token, result => {
+                if (!active) return;
+                setEvent(result?.active ? result : null);
+                setError(result?.active ? "" : "This event consent link is not available or is no longer active.");
+                setLoading(false);
+            }, error => {
+                if (!active) return;
+                setEvent(null);
+                setError(applicationErrorMessage(error, "This event consent link is no longer available.", "EventConsent"));
+                setLoading(false);
+            });
+        }).catch(error => {
+            if (active) {
+                setError(applicationErrorMessage(error, "Unable to load this event consent form.", "EventConsent"));
                 setLoading(false);
             }
-        };
-
-        void load();
+        });
+        return () => {active = false; stop();};
     }, [token]);
 
     const submit = async () => {

@@ -1,5 +1,6 @@
+import { watchEventDocuments, type EventDiscoveryFilter } from "./eventDiscovery";
 import { registerParentProgrammeAccess } from "./parentProgrammeAccess";
-import { collectionGroup, doc, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { calendarDays, type CalendarEntry } from "./groupCalendar";
 import { calendarSourceEntry } from "./calendarSourceLogic";
@@ -22,16 +23,25 @@ export function watchParentEventProgrammes(memberIds: string[], month: string, n
           if (!active || programmes.get(id) !== item || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
           item.entry = snapshot.exists() ? calendarSourceEntry("eventProgrammes", id, snapshot.data()) : null;
           item.loaded = true; emit();
-        }, error => {if (active && programmes.get(id) === item) {item.entry = null; item.loaded = true; if (error.code === "permission-denied") emit(); else failed();}});
-      }).catch(() => {if (active && programmes.get(id) === item) failed();});
+        }, error => {if (active && programmes.get(id) === item) {item.entry = null; item.loaded = true; if (error.code === "permission-denied") {item.stop(); programmes.delete(id); emit();} else failed();}});
+      }).catch(error => {
+        if (!active || programmes.get(id) !== item) return;
+        item.entry = null; item.loaded = true;
+        if (error.code === "permission-denied") {item.stop(); programmes.delete(id); emit();} else failed();
+      });
     }
     emit();
   };
-  const ranges = [[where("startDate", ">=", from), where("startDate", "<=", through)], [where("startDate", "<", from), where("endDate", ">=", from), orderBy("startDate"), orderBy("endDate")]];
-  const stops = ranges.map((range, index) => onSnapshot(query(collectionGroup(db, "audienceMembers"), where("memberId", "in", memberIds), where("programmeVisible", "==", true), ...range), {includeMetadataChanges: true}, snapshot => {
-    if (!active || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+  const ranges: EventDiscoveryFilter[][] = [
+    [["startDate", ">=", from], ["startDate", "<=", through]],
+    [["startDate", "<", from], ["endDate", ">=", from]]
+  ];
+  const stops = ranges.map((range, index) => watchEventDocuments("audienceMembers", [
+    ["memberId", "in", memberIds], ["programmeVisible", "==", true], ...range
+  ], documents => {
+    if (!active) return;
     const rows = new Map<string, {id: string; memberId: string}>();
-    snapshot.docs.forEach(item => {const id = item.data().eventId; if (typeof id === "string" && id && !id.includes("/") && item.ref.path === `events/${id}/audienceMembers/${item.id}`) rows.set(item.ref.path, {id, memberId: item.id});});
+    documents.forEach(item => {const id = item.data().eventId; if (typeof id === "string" && id && !id.includes("/") && item.ref.path === `events/${id}/audienceMembers/${item.id}`) rows.set(item.ref.path, {id, memberId: item.id});});
     results.set(index, rows); sync();
   }, () => {if (active) failed();}));
   return () => {active = false; stops.forEach(stop => stop()); programmes.forEach(item => item.stop());};

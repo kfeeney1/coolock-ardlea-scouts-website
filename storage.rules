@@ -116,6 +116,11 @@ service firebase.storage {
     function galleryConsentId(eventId) { return galleryAccess(eventId).get("consentApplicationId", "__missing__"); }
     function galleryConsent(eventId) { return firestore.get(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId))).data; }
     function galleryEvent(eventId) { return firestore.get(/databases/(default)/documents/events/$(eventId)).data; }
+    function canViewGalleryEvent(eventId) {
+      return firestore.exists(/databases/(default)/documents/events/$(eventId))
+        && (isActiveLeader() && profile().get("role", "") == "super-admin"
+          || galleryEvent(eventId).get("hidden", false) != true);
+    }
     function canParentReadProjectedGallery(section, eventId) {
       return galleryAccess(eventId).get("active", false) == true
         && galleryAccess(eventId).get("parentUid", "") == request.auth.uid
@@ -135,7 +140,7 @@ service firebase.storage {
         && galleryConsent(eventId).get("photoConsent", "") == "Yes";
     }
     function canParentReadGallery(section, eventId) {
-      return signedIn() && (firestore.exists(galleryAccessPath(eventId)) ? isApprovedParent() && canParentReadProjectedGallery(section, eventId) : false);
+      return signedIn() && canViewGalleryEvent(eventId) && (firestore.exists(galleryAccessPath(eventId)) ? isApprovedParent() && canParentReadProjectedGallery(section, eventId) : false);
     }
     function validReceiptWrite(section) {
       return canAccessFinanceSection(section) && resource == null && request.resource != null
@@ -146,7 +151,7 @@ service firebase.storage {
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
     function validEventGalleryWrite(section, eventId) {
-      return canAccessGallerySection(section) && request.resource != null
+      return canViewGalleryEvent(eventId) && canAccessGallerySection(section) && request.resource != null
         && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType in ["image/jpeg", "image/png", "image/webp"]
         && request.resource.metadata.ownerType == "event-gallery"
@@ -207,14 +212,14 @@ service firebase.storage {
       allow delete: if canAccessFinanceSection(section) && resource.metadata.ownerType == "finance-receipt" && resource.metadata.section == section;
     }
 
-    match /attachments/event-gallery/{section} { allow list: if canAccessGallerySection(section); }
-    match /attachments/event-gallery/{section}/{eventId} { allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId); }
-    match /attachments/event-gallery/{section}/{eventId}/{allPaths=**} { allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId); }
+    match /attachments/event-gallery/{section} { allow list: if isActiveLeader() && profile().get("role", "") == "super-admin"; }
+    match /attachments/event-gallery/{section}/{eventId} { allow list: if canViewGalleryEvent(eventId) && (canAccessGallerySection(section) || canParentReadGallery(section, eventId)); }
+    match /attachments/event-gallery/{section}/{eventId}/{allPaths=**} { allow list: if canViewGalleryEvent(eventId) && (canAccessGallerySection(section) || canParentReadGallery(section, eventId)); }
     match /attachments/event-gallery/{section}/{eventId}/{attachmentId}/{fileName} {
-      allow get: if canAccessGallerySection(section) || canParentReadGallery(section, eventId);
+      allow get: if canViewGalleryEvent(eventId) && (canAccessGallerySection(section) || canParentReadGallery(section, eventId));
       allow create: if validEventGalleryWrite(section, eventId);
       allow update: if false;
-      allow delete: if canAccessGallerySection(section) && resource.metadata.ownerType == "event-gallery" && resource.metadata.ownerId == eventId && resource.metadata.section == section;
+      allow delete: if canViewGalleryEvent(eventId) && canAccessGallerySection(section) && resource.metadata.ownerType == "event-gallery" && resource.metadata.ownerId == eventId && resource.metadata.section == section;
     }
 
     match /attachments/policy-documents/current/{audience} { allow list: if false; }

@@ -97,10 +97,12 @@ test("Group Youth Champion retains section scope while join applications require
   await assertFails(getDocs(query(collection(db, "joinApplications"), where("section", "==", "Beavers"))));
   await assertFails(getDocs(query(collection(db, "joinApplications"), where("section", "==", "Cubs"))));
 
-  const beaversEvents = await assertSucceeds(getDocs(query(collection(db, "events"), where("section", "==", "Beavers"))));
-  assert.deepEqual(beaversEvents.docs.map((snapshot) => snapshot.id), ["beavers-event"]);
-  await assertSucceeds(getDocs(query(collection(db, "events"), where("section", "==", "Scouts"))));
-  await assertFails(getDocs(query(collection(db, "events"), where("section", "==", "Cubs"))));
+  await assertSucceeds(getDoc(doc(db, "events/beavers-event")));
+  await assertSucceeds(getDoc(doc(db, "events/scouts-event")));
+  await assertFails(getDoc(doc(db, "events/cubs-event")));
+  for (const section of ["Beavers", "Scouts", "Cubs"]) {
+    await assertFails(getDocs(query(collection(db, "events"), where("section", "==", section))));
+  }
 });
 
 test("unauthenticated users cannot read member records", async () => {

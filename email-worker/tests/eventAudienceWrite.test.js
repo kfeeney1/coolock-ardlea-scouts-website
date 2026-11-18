@@ -339,6 +339,13 @@ test("hall-marked backend event updates reject schedule bypass and preserve mark
     const response = await handleProductionRoute(request(body), env, body, "/event-audience-save");
     assert.equal(response.status, 200); assert.equal(commits.length, 1);
     const write = commits[0].writes[0]; assert.equal(write.currentDocument.updateTime, existing.updateTime);
+    existing.fields.hidden = booleanValue(true);
+    for (const operation of ["update", "create"]) {
+      const hiddenRequest = { ...body, operation };
+      const hiddenResponse = await handleProductionRoute(request(hiddenRequest), env, hiddenRequest, "/event-audience-save");
+      assert.equal(hiddenResponse.status, 404);
+    }
+    assert.equal(commits.length, 1);
     assert.equal(write.updateMask.fieldPaths.includes("hallResource"), false); assert.equal(write.update.fields.hallResource, undefined);
     assert.equal(write.updateMask.fieldPaths.includes("hallRevision"), false);
   } finally {globalThis.fetch = originalFetch;}
