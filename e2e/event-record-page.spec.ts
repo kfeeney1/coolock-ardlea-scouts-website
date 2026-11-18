@@ -1,4 +1,5 @@
-import { expect, test, type TestInfo } from "@playwright/test";
+import { expect, test, type BrowserContext, type TestInfo } from "@playwright/test";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 import { loginAsLeader } from "./support/authentication-helpers";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
@@ -279,9 +280,15 @@ test("direct Create Event route remains protected", async ({ page }, testInfo) =
 
 test("Super Admin hides and restores an event while ordinary admins lose record and list access", async ({ page, browser }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password!});
-  await page.goto("/leader/events/create");
-  const title = `TEST visibility ${Date.now()}`;
+  const releaseConsentSettingLock = await acquireParentConsentSettingLock();
+  let previousConsentSetting: boolean | null = null;
+  let parentContext: BrowserContext | undefined;
+  let ordinaryContext: BrowserContext | undefined;
+  try {
+    previousConsentSetting = await setParentConsentEnabled(browser, true);
+    await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password!});
+    await page.goto("/leader/events/create");
+    const title = `TEST visibility ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
   await page.getByRole("textbox", {name: /^Start date/}).fill("2099-05-10");
   await page.getByRole("combobox", {name: "Section", exact: true}).click();
@@ -303,7 +310,7 @@ test("Super Admin hides and restores an event while ordinary admins lose record 
   expect(record.ok).toBe(true);
   const consentToken = (await record.json()).fields.consentLinkToken.stringValue;
   await page.goto(eventUrl);
-  const parentContext = await browser.newContext({baseURL: new URL(eventUrl).origin, viewport: page.viewportSize() || undefined});
+  parentContext = await browser.newContext({baseURL: new URL(eventUrl).origin, viewport: page.viewportSize() || undefined});
   const parentPage = await parentContext.newPage();
   await parentPage.goto("/parent");
   await parentPage.getByLabel("Email", {exact: true}).fill(process.env.E2E_PARENT_EMAIL || "test.beaver.parent1@example.com");
@@ -314,9 +321,8 @@ test("Super Admin hides and restores an event while ordinary admins lose record 
   await consentPage.goto(`/event-consent/${consentToken}`);
   await expect(consentPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
 
-  const ordinaryContext = await browser.newContext({baseURL: new URL(eventUrl).origin, viewport: page.viewportSize() || undefined});
+  ordinaryContext = await browser.newContext({baseURL: new URL(eventUrl).origin, viewport: page.viewportSize() || undefined});
   const ordinaryPage = await ordinaryContext.newPage();
-  try {
     await loginAsLeader(ordinaryPage, {email: adminEmail, password: password!});
     await ordinaryPage.goto(eventUrl);
     await expect(ordinaryPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
@@ -352,7 +358,12 @@ test("Super Admin hides and restores an event while ordinary admins lose record 
     await consentPage.reload();
     await expect(consentPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
   } finally {
-    await ordinaryContext.close();
-    await parentContext.close();
+    try {
+      await ordinaryContext?.close();
+      await parentContext?.close();
+      if (previousConsentSetting !== null) await setParentConsentEnabled(browser, previousConsentSetting);
+    } finally {
+      await releaseConsentSettingLock();
+    }
   }
 });
