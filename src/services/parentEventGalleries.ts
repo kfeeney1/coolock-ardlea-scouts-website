@@ -1,9 +1,9 @@
+import { readEventDocuments } from "./eventDiscovery";
 import { ServiceFailure } from "./applicationErrors.ts";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
 
-import { auth, db, storage } from "../firebase";
+import { auth, storage } from "../firebase";
 
 export type ParentGalleryPhoto = {
     id: string;
@@ -45,10 +45,7 @@ function firebaseErrorCode(error: unknown): string {
     return "";
 }
 
-function isFirestorePermissionDenied(error: unknown): boolean {
-    const code = firebaseErrorCode(error);
-    return code === "permission-denied" || code === "firestore/permission-denied";
-}
+
 
 function storageErrorCode(error: unknown): string {
     return firebaseErrorCode(error);
@@ -112,42 +109,10 @@ function mapCandidate(item: QueryDocumentSnapshot<DocumentData>): CandidateEvent
 }
 
 async function loadProjectionCandidates(collectionName: "parentGalleryEvents" | "publicEvents", sections: string[]): Promise<CandidateEvent[]> {
-    try {
-        if (collectionName === "parentGalleryEvents") {
-            const statuses = ["open", "closed", "completed"] as const;
-            const snapshots = await Promise.all(
-                sections.flatMap((section) => statuses.map((status) =>
-                    getDocs(query(
-                        collection(db, collectionName),
-                        where("section", "==", section),
-                        where("status", "==", status)
-                    ))
-                ))
-            );
-            return snapshots.flatMap((snapshot) => snapshot.docs).map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
-        }
-
-        // Reuse the same safe shape as the public upcoming-events query. Filtering
-        // on startDate keeps malformed/stale projection documents out of the list
-        // evaluation, while section filtering can happen client-side because this
-        // collection is already public metadata rather than an authorization source.
-        const today = new Date().toISOString().slice(0, 10);
-        const snapshot = await getDocs(query(
-            collection(db, collectionName),
-            where("startDate", ">=", today),
-            orderBy("startDate", "asc")
-        ));
-        const linkedSections = new Set(sections);
-        return snapshot.docs
-            .map(mapCandidate)
-            .filter((event): event is CandidateEvent => event !== null && linkedSections.has(event.section));
-    } catch (error) {
-        // Candidate projections never grant photo access. A rules mismatch during
-        // rollout therefore fails closed to no candidates; network/availability
-        // errors still surface so the UI can offer Retry.
-        if (isFirestorePermissionDenied(error)) return [];
-        throw error;
-    }
+    const snapshots = await Promise.all(sections.map(section =>
+        readEventDocuments(collectionName, [["section", "==", section]])
+    ));
+    return snapshots.flat().map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
 }
 
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {

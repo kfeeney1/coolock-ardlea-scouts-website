@@ -45,13 +45,15 @@ test("Deputy Group Leader can manage finance receipts across sections", async ()
 });
 
 test("Deputy Group Leader can manage event galleries across sections", async () => {
+  await seed([["events/event-1", {section: "Scouts"}]]);
   const storage = testEnv.authenticatedContext("dgl").storage();
   const image = ref(storage, "attachments/event-gallery/Scouts/event-1/image-1/photo.jpg");
   await assertSucceeds(uploadBytes(image, new Uint8Array([1]), {
     contentType: "image/jpeg",
     customMetadata: { ownerType: "event-gallery", ownerId: "event-1", section: "Scouts", uploadedBy: "dgl" }
   }));
-  await assertSucceeds(listAll(ref(storage, "attachments/event-gallery/Scouts")));
+  await assertSucceeds(listAll(ref(storage, "attachments/event-gallery/Scouts/event-1")));
+  await assertFails(listAll(ref(storage, "attachments/event-gallery/Scouts")));
 });
 
 test("ordinary Group-scoped Leader does not inherit Deputy group-wide Storage grants", async () => {

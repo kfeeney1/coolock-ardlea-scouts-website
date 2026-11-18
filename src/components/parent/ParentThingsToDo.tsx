@@ -17,7 +17,7 @@ import {
 } from "../admin/OperationalStates";
 import ParentWeeklyProgramme from "./ParentWeeklyProgramme";
 import { loadLinkedMembers, loadParentConsents } from "../../services/parentConsent";
-import { loadParentEventConsentLinks } from "../../services/parentEvents";
+import { loadParentEventConsentLinks, watchParentEventChanges, type ParentEventConsentLink } from "../../services/parentEvents";
 import { loadParentTaskSummary, type ParentTaskSummary } from "../../services/parentTasksLogic";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
 import { formatSiteDate } from "../../services/siteDateFormat";
@@ -65,14 +65,22 @@ function ParentTaskSummaryPanel({ memberIds, sections, refreshVersion = 0, conse
         const { memberIds, sections, consentFlowsEnabled } = context;
         if (memberIds.length === 0 && sections.length === 0) return;
         let active = true;
+        let stop = () => {};
         const load = async () => {
+            stop();
+            let events: ParentEventConsentLink[] = [];
             try {
                 const summary = await loadParentTaskSummary({
-                    events: () => loadParentEventConsentLinks(memberIds, sections),
+                    events: async () => {events = await loadParentEventConsentLinks(memberIds, sections); return events;},
                     members: () => loadLinkedMembers(memberIds),
                     consents: () => consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
                 }, { eventConsentEnabled: consentFlowsEnabled });
-                if (active) setResult({ revision: refreshVersion, retry: retryVersion, outcome: { summary } });
+                if (active) {
+                    setResult({ revision: refreshVersion, retry: retryVersion, outcome: { summary } });
+                    stop = watchParentEventChanges(events, () => {
+                        if (active) {setResult(null); void load();}
+                    });
+                }
             } catch (error) {
                 if (!active) return;
                 const eventOperation = error && typeof error === "object" && "parentEventOperation" in error
@@ -86,7 +94,7 @@ function ParentTaskSummaryPanel({ memberIds, sections, refreshVersion = 0, conse
             }
         };
         void load();
-        return () => { active = false; };
+        return () => { active = false; stop(); };
     }, [context, refreshVersion, retryVersion]);
 
     const retry = () => setRetryVersion((version) => version + 1);

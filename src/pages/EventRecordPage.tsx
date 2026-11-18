@@ -1,7 +1,10 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../firebase";
+import { isCanonicalEventVisibilityAdmin } from "../services/eventVisibility.ts";
 
 import EventHallUse from "../components/hall/EventHallUse";
 import EventGalleryDialog from "../components/admin/EventGalleryDialog";
@@ -14,7 +17,7 @@ import { loadEquipmentItems } from "../services/equipment";
 import type { EquipmentItem } from "../services/equipment";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
-import { loadEvents, updateEventRoster } from "../services/eventAdmin";
+import { loadEvents, setEventHidden, updateEventRoster } from "../services/eventAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventRecord } from "../services/eventAdmin";
 import { eventAudienceSummary, eventCounts, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
@@ -51,6 +54,9 @@ export default function EventRecordPage() {
     const [leaderAttendanceLoading, setLeaderAttendanceLoading] = useState(false);
     const [savingRoster, setSavingRoster] = useState(false);
     const [galleryOpen, setGalleryOpen] = useState(false);
+    const [canManageVisibility, setCanManageVisibility] = useState(false);
+    const [visibilityConfirmOpen, setVisibilityConfirmOpen] = useState(false);
+    const [savingVisibility, setSavingVisibility] = useState(false);
     const [equipmentOpen, setEquipmentOpen] = useState(false);
     const loadRequestRef = useRef(0);
 
@@ -59,7 +65,7 @@ export default function EventRecordPage() {
         setLoading(true);
         setError("");
         try {
-            const loadedEvents = await loadEvents();
+            const loadedEvents = eventId ? await loadEvents(eventId) : [];
             const requested = loadedEvents.find((item) => item.id === eventId) ?? null;
             if (requestId !== loadRequestRef.current) return;
             setEvent(requested);
@@ -96,6 +102,53 @@ export default function EventRecordPage() {
     };
 
     useEffect(() => { void load(); }, [eventId]);
+    useEffect(() => {
+        if (!eventId) return;
+        let first = true;
+        return onSnapshot(doc(db, "events", eventId), {includeMetadataChanges: true}, snapshot => {
+            if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+            if (first) {first = false; return;}
+            if (!snapshot.exists()) {
+                ++loadRequestRef.current;
+                setEvent(null);
+                setLoading(false);
+                setError("This event is no longer available.");
+            } else void load();
+        }, () => {
+            ++loadRequestRef.current;
+            setEvent(null);
+            setLoading(false);
+            setRosterOpen(false);
+            setGalleryOpen(false);
+            setEquipmentOpen(false);
+            setError("This event is no longer available.");
+        });
+    }, [eventId]);
+    useEffect(() => {
+        let active = true;
+        setCanManageVisibility(false);
+        const user = auth.currentUser;
+        if (user) void getDoc(doc(db, "adminUsers", user.uid)).then((snapshot) => {
+            if (active) setCanManageVisibility(snapshot.exists() && isCanonicalEventVisibilityAdmin(snapshot.data()));
+        }).catch(() => { if (active) setCanManageVisibility(false); });
+        return () => { active = false; };
+    }, [eventId]);
+
+    const changeVisibility = async () => {
+        if (!event || !canManageVisibility || savingVisibility) return;
+        setSavingVisibility(true);
+        setError("");
+        try {
+            await setEventHidden(event.id, !event.hidden);
+            setVisibilityConfirmOpen(false);
+            await load();
+            setMessage(event.hidden ? "Event restored to normal visibility." : "Event hidden from parents and ordinary leaders.");
+        } catch (changeError) {
+            setError(applicationErrorMessage(changeError, "Unable to change event visibility.", "EventRecordPage"));
+        } finally {
+            setSavingVisibility(false);
+        }
+    };
 
     const rosterMembers = useMemo(() => event ? eventMembers(event, members) : [], [event, members]);
     const summary = event ? eventCounts(event, members) : null;
@@ -196,6 +249,13 @@ export default function EventRecordPage() {
                 />
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+                {event.hidden && <Alert severity="warning" sx={{ mb: 2 }} data-testid="event-hidden-banner">Hidden event — only Super Admin can view this record.</Alert>}
+                {canManageVisibility && <Box sx={{ mb: 2 }}><Button color={event.hidden ? "success" : "warning"} variant="contained" sx={{ minHeight: 44, width: { xs: "100%", sm: "auto" } }} onClick={() => setVisibilityConfirmOpen(true)}>{event.hidden ? "Show Event" : "Hide Event"}</Button></Box>}
+                <Dialog open={visibilityConfirmOpen && canManageVisibility} onClose={() => { if (!savingVisibility) setVisibilityConfirmOpen(false); }} fullWidth maxWidth="xs">
+                    <DialogTitle>{event.hidden ? "Show Event" : "Hide Event"}</DialogTitle>
+                    <DialogContent><Typography>{event.hidden ? "Restore this event to normal visibility?" : "Hide this event from parents and ordinary leaders? All existing event records will be retained."}</Typography><Typography sx={{ mt: 1, fontWeight: 700 }}>{event.title} · {event.section} · {formatSiteDate(event.startDate)}</Typography></DialogContent>
+                    <DialogActions><Button disabled={savingVisibility} onClick={() => setVisibilityConfirmOpen(false)}>Cancel</Button><Button disabled={savingVisibility} variant="contained" color={event.hidden ? "success" : "warning"} onClick={() => void changeVisibility()}>{savingVisibility ? "Saving…" : event.hidden ? "Show Event" : "Hide Event"}</Button></DialogActions>
+                </Dialog>
                 {event.status === "completed" && <Alert severity="info" sx={{ mb: 3 }}>Completed event history is read-only. Attendance, reports, exports and gallery access remain available.</Alert>}
 
                 <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }} data-testid={`event-record-${event.id}`}>

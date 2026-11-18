@@ -1,3 +1,4 @@
+import { readEventDocuments } from "./eventDiscovery";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "../firebase";
@@ -31,6 +32,12 @@ function stringMap(value: unknown): Record<string, string> | null {
 }
 
 async function scopedDocs(collectionName: string, scope: Scope) {
+    if (collectionName === "events") {
+        if (scope.isAdmin) return readEventDocuments("events");
+        const sections = [...new Set(scope.sections.map(section => section.trim()).filter(Boolean))];
+        return (await Promise.all(sections.map(section => readEventDocuments("events", [["section", "==", section]])))).flat();
+    }
+
     if (scope.isAdmin) return (await getDocs(collection(db, collectionName))).docs;
 
     const uniqueSections = [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))];

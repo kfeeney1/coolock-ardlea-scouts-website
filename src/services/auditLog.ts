@@ -1,5 +1,6 @@
+import { readEventDocuments } from "./eventDiscovery";
 import { reportApplicationError } from "./applicationErrors.ts";
-import { addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, Timestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 export type AuditCategory = "parent-access" | "leader-request" | "leader-access" | "member" | "event" | "event-consent" | "equipment" | "finance" | "system";
@@ -36,8 +37,8 @@ export async function recordAuditEvent(event: AuditWrite) {
 }
 
 export async function loadAuditLog(maxEntries = 100): Promise<AuditLogEntry[]> {
-  const snapshot = await getDocs(query(collection(db, "auditLog"), orderBy("createdAt", "desc"), limit(maxEntries)));
-  return snapshot.docs.flatMap((item) => {
+  const documents = await readEventDocuments("auditLog");
+  return documents.flatMap((item) => {
     const data = item.data();
     const category = data.category as AuditCategory;
     if (!AUDIT_CATEGORIES.includes(category)) return [];
@@ -55,5 +56,5 @@ export async function loadAuditLog(maxEntries = 100): Promise<AuditLogEntry[]> {
       section: data.section,
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null
     }];
-  });
+  }).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)).slice(0, maxEntries);
 }

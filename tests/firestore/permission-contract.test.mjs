@@ -8,6 +8,7 @@ import {
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -211,7 +212,9 @@ test("Activity Log is readable by Group Leader and Group Secretary but not ordin
   const groupSecretaryDb = testEnv.authenticatedContext("group-secretary").firestore();
   const ordinaryLeaderDb = testEnv.authenticatedContext("leader-cubs").firestore();
 
-  await assertSucceeds(getDocs(collection(groupLeaderDb, "auditLog")));
-  await assertSucceeds(getDocs(collection(groupSecretaryDb, "auditLog")));
+  await assertSucceeds(getDoc(doc(groupLeaderDb, "auditLog/example")));
+  await assertFails(getDocs(collection(groupLeaderDb, "auditLog")));
+  await assertSucceeds(getDoc(doc(groupSecretaryDb, "auditLog/example")));
+  await assertFails(getDocs(collection(groupSecretaryDb, "auditLog")));
   await assertFails(getDocs(collection(ordinaryLeaderDb, "auditLog")));
 });

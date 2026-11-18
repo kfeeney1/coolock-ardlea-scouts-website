@@ -76,6 +76,8 @@ test("approved parents can read retained gallery event metadata only for linked 
   await seedDocuments([
     ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-1"], linkedSections: ["Cubs"] }],
     ["members/member-1", { section: "Cubs", status: "active" }],
+    ["events/event-1", {section: "Cubs"}],
+    ["events/event-2", {section: "Scouts"}],
     ["parentGalleryEvents/event-1", galleryEvent("Cubs", "completed")],
     ["parentGalleryEvents/event-2", { ...galleryEvent("Scouts", "completed"), eventId: "event-2" }],
   ]);
@@ -83,12 +85,12 @@ test("approved parents can read retained gallery event metadata only for linked 
 
   await assertSucceeds(getDoc(doc(db, "parentGalleryEvents/event-1")));
   await assertFails(getDoc(doc(db, "parentGalleryEvents/event-2")));
-  const snapshot = await assertSucceeds(getDocs(query(
+  await assertFails(getDocs(query(
     collection(db, "parentGalleryEvents"),
     where("section", "==", "Cubs"),
     where("status", "==", "completed")
   )));
-  if (snapshot.size !== 1) throw new Error(`Expected one Cubs gallery event projection, received ${snapshot.size}.`);
+
 });
 
 test("pending parents cannot read retained gallery event metadata", async () => {
@@ -101,10 +103,8 @@ test("pending parents cannot read retained gallery event metadata", async () => 
 });
 
 test("section leaders can maintain only canonical non-draft gallery event projections", async () => {
-  await seedDocuments([["adminUsers/leader-cubs", {
-    active: true,
-    role: "leader",
-    sections: ["Cubs"],
+  await seedDocuments([["events/event-1", {section: "Cubs"}], ["adminUsers/leader-cubs", {
+    active: true, role: "leader", sections: ["Cubs"],
   }]]);
   const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
   const projection = doc(db, "parentGalleryEvents/event-1");
