@@ -41,10 +41,9 @@ function selectSamples(comparison) {
   if (comparison === "history") return historySamples();
   if (comparison !== "current") throw new Error("Unknown Firestore compiler comparison.");
   return [
+    ["Last successful production source before SW-595", "708b2903434b11cff505580c7bc845853315f6b6", true],
+    ["SW-595 source rejected in TEST and production", "4cf6daa34300152dada0c8a018232a6911d7a1c6"],
     ["Current main source", git("rev-parse", "HEAD"), true],
-    control,
-    ["Previously published TEST source", "89eae97811a83d256968485b5fd223adb4fd0787"],
-    ["Failing #993 source", "b1d3d411b2b9fd00d5f3f9a7e83a3c805854c3aa"],
   ];
 }
 

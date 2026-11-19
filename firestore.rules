@@ -1065,6 +1065,10 @@ service cloud.firestore {
       let path = /databases/$(database)/documents/events/$(eventId);
       return exists(path) && (isSuperAdmin() || get(path).data.get("hidden", false) != true);
     }
+    function visibleEventForOrdinaryCaller(eventId) {
+      let path = /databases/$(database)/documents/events/$(eventId);
+      return exists(path) && get(path).data.get("hidden", false) != true;
+    }
     function eventReferenceVisible(eventId) {
       let path = /databases/$(database)/documents/events/$(eventId);
       return !exists(path) || isSuperAdmin() || get(path).data.get("hidden", false) != true;
@@ -1182,20 +1186,12 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["eventId", "eventSection", "memberId", "scopeSection", "selectedBySection", "selectedIndividually", "startDate", "endDate", "programmeVisible", "updatedAt", "updatedBy"])
           && (!request.resource.data.keys().hasAny(["startDate", "endDate", "programmeVisible"]) || (request.resource.data.startDate == eventData.startDate && request.resource.data.endDate == eventData.endDate && request.resource.data.programmeVisible == (eventData.status != "draft")));
       }
-      // Audience membership documents expose event participation. Deny access
-      // to hidden events, including direct parent document links.
-      function canReadAudienceForEvent() {
-        let eventPath = /databases/$(database)/documents/events/$(eventId);
-        return exists(eventPath)
-          && (isSuperAdmin() || get(eventPath).data.get("hidden", false) != true);
-      }
-      allow get: if canReadAudienceForEvent() && ((isActiveLeader()
-        && exists(/databases/$(database)/documents/events/$(eventId))
+      // visibleEvent also proves that the source exists.
+      allow get: if visibleEvent(eventId) && ((isActiveLeader()
         && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
         || (isApprovedParentForMember(memberId) && isActiveMember(memberId)));
-      allow list: if canReadAudienceForEvent() && ((isActiveLeader()
-        && exists(/databases/$(database)/documents/events/$(eventId))
+      allow list: if visibleEvent(eventId) && ((isActiveLeader()
         && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
         || (isApprovedParentForMember(memberId) && resource.data.memberId == memberId && resource.data.eventId == eventId));
@@ -1211,18 +1207,15 @@ service cloud.firestore {
       }
       allow update: if dateOnlyUpdate() || validEventAudienceMembership(eventId, memberId);
       allow delete: if isActiveLeader() && visibleEvent(eventId)
-        && exists(/databases/$(database)/documents/events/$(eventId))
         && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
     }
 
     match /events/{eventId}/programmeAccess/{parentUid} {
       allow get: if signedIn() && parentUid == request.auth.uid
-        && exists(/databases/$(database)/documents/events/$(eventId))
-        && get(/databases/$(database)/documents/events/$(eventId)).data.get("hidden", false) != true;
+        && visibleEventForOrdinaryCaller(eventId);
       allow list: if false;
       allow create, update: if signedIn() && parentUid == request.auth.uid
-        && exists(/databases/$(database)/documents/events/$(eventId))
-        && get(/databases/$(database)/documents/events/$(eventId)).data.get("hidden", false) != true
+        && visibleEventForOrdinaryCaller(eventId)
         && request.resource.data.keys().hasOnly(["memberId"])
         && isApprovedParentForMember(request.resource.data.memberId) && isActiveMember(request.resource.data.memberId)
         && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(request.resource.data.memberId));
@@ -1246,8 +1239,7 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId)).data.memberId == memberId;
       }
       allow get: if isSuperAdmin() || (signedIn()
-        && exists(/databases/$(database)/documents/events/$(eventId))
-        && (isSuperAdmin() || sourceProgramme().get("hidden", false) != true)
+        && visibleEventForOrdinaryCaller(eventId)
         && safeProgramme(resource.data) && resource.data.status in ["open", "closed", "completed"]
         && parentProgrammeAudience());
       allow list: if false;
@@ -1319,12 +1311,11 @@ service cloud.firestore {
       allow update: if visibilityProjectionTouch(eventId);
       allow update: if _validateWrite27(request.resource.data);
       allow delete: if isActiveLeader() && visibleEvent(eventId)
-        && exists(/databases/$(database)/documents/events/$(eventId))
         && (isAdmin() || canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section));
     }
 
     match /parentGalleryEvents/{eventId} {
-      allow get: if isSuperAdmin() || (visibleEvent(eventId) && resource.data.eventId == eventId
+      allow get: if isSuperAdmin() || (visibleEventForOrdinaryCaller(eventId) && resource.data.eventId == eventId
         && resource.data.section is string
         && resource.data.status in ["open", "closed", "completed"]
         && isApprovedParentForSection(resource.data.section));
@@ -1356,7 +1347,6 @@ service cloud.firestore {
       allow update: if visibilityProjectionTouch(eventId);
       allow update: if _validateWrite29(request.resource.data);
       allow delete: if isActiveLeader() && visibleEvent(eventId)
-        && exists(/databases/$(database)/documents/events/$(eventId))
         && (isAdmin() || canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section));
     }
 
@@ -1365,10 +1355,11 @@ service cloud.firestore {
       // Repeating profile and member-status lookups eight times exceeds the
       // Firestore rules expression budget for selected-event list queries.
       function parentHasEventAudienceMemberAt(eventId, memberIds, index) {
-        return memberIds.size() > index
-          && memberIds[index] is string
-          && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberIds[index]))
-          && isActiveMember(memberIds[index]);
+        let memberId = memberIds.size() > index ? memberIds[index] : null;
+        return memberId is string
+          && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId))
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active";
       }
       function isApprovedParentForEventRecord(eventId) {
         let approved = isApprovedParent();
@@ -1386,9 +1377,7 @@ service cloud.firestore {
       // Consent links remain stored, but cannot expose or accept responses
       // for events hidden by Super Admin.
       function consentEventIsVisible(eventId) {
-        let eventPath = /databases/$(database)/documents/events/$(eventId);
-        return eventId is string && exists(eventPath)
-          && get(eventPath).data.get("hidden", false) != true;
+        return eventId is string && visibleEventForOrdinaryCaller(eventId);
       }
       allow get: if isSuperAdmin() || (consentEventIsVisible(resource.data.get("eventId", ""))
         && ((isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true));
@@ -1430,8 +1419,7 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token))
         && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.active == true
         && get(/databases/$(database)/documents/eventConsentLinks/$(_writeData.token)).data.eventId == _writeData.eventId
-        && exists(/databases/$(database)/documents/events/$(_writeData.eventId))
-        && get(/databases/$(database)/documents/events/$(_writeData.eventId)).data.get("hidden", false) != true;
+        && visibleEventForOrdinaryCaller(_writeData.eventId);
       }
       allow create: if _validateWrite32(request.resource.data);
       allow get, list: if isAdmin() && visibleEvent(resource.data.eventId);
@@ -2594,8 +2582,7 @@ service cloud.firestore {
       allow list: if false;
       allow get: if (isAdmin() || isGroupLeaderOrSecretary())
         && (!(resource.data.get("category", "") in ["event", "event-consent"])
-          || !exists(/databases/$(database)/documents/events/$(resource.data.targetId))
-          || visibleEvent(resource.data.targetId));
+          || eventReferenceVisible(resource.data.targetId));
       function _validateWrite76(_writeData) {
         return isActiveLeader()
         && _writeData.actorUid == request.auth.uid
