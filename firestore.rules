@@ -271,27 +271,37 @@ service cloud.firestore {
         && parent.memberIds is list
         && memberId in parent.memberIds;
     }
-    function parentMemberCurrentlyInSection(memberId, section) {
-      return memberId is string
-        && exists(/databases/$(database)/documents/members/$(memberId))
-        && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
-        && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
+    function parentMemberCurrentlyInSections(memberId, sections) {
+      let path = /databases/$(database)/documents/members/$(memberId);
+      let member = get(path).data;
+      let memberSections = member.get("sections", null);
+      return exists(path) && member.status == "active"
+        && ((memberSections is list && sections.hasAny(memberSections))
+          || (member.keys().hasAny(["section"]) && member.section in sections));
+    }
+    function parentMemberAtMatchesSections(memberIds, index, sections) {
+      let memberId = memberIds.size() > index ? memberIds[index] : null;
+      return memberId is string && parentMemberCurrentlyInSections(memberId, sections);
+    }
+    function isApprovedParentForSections(sections) {
+      let parent = parentProfile();
+      let memberIds = parent.get("memberIds", null);
+      return sections.size() > 0 && signedIn()
+        && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+        && parent.status == "approved"
+        && memberIds is list && memberIds.size() <= 8
+        && (sections.hasAny(["Group", "All Sections"])
+          || parentMemberAtMatchesSections(memberIds, 0, sections)
+          || parentMemberAtMatchesSections(memberIds, 1, sections)
+          || parentMemberAtMatchesSections(memberIds, 2, sections)
+          || parentMemberAtMatchesSections(memberIds, 3, sections)
+          || parentMemberAtMatchesSections(memberIds, 4, sections)
+          || parentMemberAtMatchesSections(memberIds, 5, sections)
+          || parentMemberAtMatchesSections(memberIds, 6, sections)
+          || parentMemberAtMatchesSections(memberIds, 7, sections));
     }
     function isApprovedParentForSection(section) {
-      return isApprovedParent()
-        && parentProfile().memberIds is list
-        && parentProfile().memberIds.size() <= 8
-        && (
-          section in ["Group", "All Sections"]
-          || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
-          || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
-          || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
-          || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
-          || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
-          || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
-          || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
-          || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
-        );
+      return isApprovedParentForSections([section].toSet());
     }
 
     function isActiveMember(memberId) {
@@ -2690,13 +2700,8 @@ service cloud.firestore {
 
     match /polls/{pollId} {
       function pollHasEligibleParent(poll) {
-        return poll.scopeSections is list && (
-          (poll.scopeSections.hasAny(["Beavers"]) && isApprovedParentForSection("Beavers"))
-          || (poll.scopeSections.hasAny(["Cubs"]) && isApprovedParentForSection("Cubs"))
-          || (poll.scopeSections.hasAny(["Scouts"]) && isApprovedParentForSection("Scouts"))
-          || (poll.scopeSections.hasAny(["Ventures"]) && isApprovedParentForSection("Ventures"))
-          || (poll.scopeSections.hasAny(["Rovers"]) && isApprovedParentForSection("Rovers"))
-        );
+        return poll.scopeSections is list
+          && isApprovedParentForSections(poll.scopeSections.toSet().intersection(pollGroupSections().toSet()));
       }
       function pollHasEligibleLeader(poll) {
         return isActiveLeader() && poll.scopeSections is list && profile().sections is list

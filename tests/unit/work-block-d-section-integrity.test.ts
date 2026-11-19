@@ -13,9 +13,9 @@ test("parent current programme scope is refreshed from members before section pr
   const portal = readFileSync("src/services/parentPortal.ts", "utf8");
   assert.match(portal, /return \{ \.\.\.account, linkedSections: currentSections \}/);
   const rules = readFileSync("firestore.rules", "utf8");
-  const helper = rules.match(/function isApprovedParentForSection\(section\) \{[\s\S]*?^ {4,6}\}/m)?.[0] ?? "";
+  const helper = rules.match(/function isApprovedParentForSections\(sections\) \{[\s\S]*?^ {4,6}\}/m)?.[0] ?? "";
   assert.doesNotMatch(helper, /linkedSections/);
-  assert.match(helper, /parentMemberCurrentlyInSection/);
+  assert.match(helper, /parentMemberAtMatchesSections/);
   assert.match(helper, /"Group", "All Sections"/);
 });
 
