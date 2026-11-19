@@ -1,14 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
+import { setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const email = process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com";
 async function mode(page: Page, redesigned: boolean) {
   await page.goto("/leader/settings");
-  const button = page.getByRole("button", { name: `${redesigned ? "Redesigned" : "Existing"} navigation`, exact: true });
-  await expect(button).toBeEnabled();
-  if (await button.getAttribute("aria-pressed") !== "true") await button.click();
-  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await setRolloutSwitch(page, "navigation", redesigned);
 }
 async function open(page: Page) {
   await page.locator('button[aria-controls="leader-navigation"]').click();

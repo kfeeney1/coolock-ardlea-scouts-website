@@ -7,9 +7,13 @@ const password = process.env.E2E_TEST_USER_PASSWORD;
 test("canonical monthly sources stay clickable, refresh live, filter and restore record context", async ({page}, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
   const fixture = await seedCalendarSources();
-  const targets = new FirestoreListenTargets("events");
+  const queries = new Map<string, unknown[]>();
   let track = true;
-  page.on("request", request => {if (track && page.url().includes("/calendar?") && request.url().includes("/Listen/channel")) targets.record(request.postData());});
+  page.on("request", request => {
+    if (!track || !page.url().includes("/calendar?") || !request.url().endsWith("/event-audience-save")) return;
+    const body = request.postDataJSON();
+    if (body?.operation === "read" && body.collection === "events") queries.set(JSON.stringify(body.filters), body.filters);
+  });
   try {
     await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password!});
     await page.goto(`/calendar?month=${fixture.month}`);
@@ -24,8 +28,8 @@ test("canonical monthly sources stay clickable, refresh live, filter and restore
     await expect(grid.locator(`[data-calendar-date="${fixture.month}-03"]`).getByRole("link", {name: /^Event: SW336 Spanning/})).toBeVisible();
     await expect(grid.locator(`[data-calendar-date="${fixture.month}-04"]`).getByRole("link", {name: /^Event: SW336 Spanning/})).toHaveCount(0);
     await page.screenshot({path: testInfo.outputPath("calendar-all-sources.png"), fullPage: true});
-    const reads = targets.values(); expect(reads.length).toBeGreaterThan(0); expect(reads.length).toBeLessThanOrEqual(14);
-    for (const target of reads) {const text = JSON.stringify(target.query.structuredQuery?.where); expect(text).toContain("startDate"); expect(text).toContain(calendarDays(fixture.month)[0]);}
+    const reads = [...queries.values()]; expect(reads.length).toBeGreaterThan(0); expect(reads.length).toBeLessThanOrEqual(14);
+    for (const target of reads) {const text = JSON.stringify(target); expect(text).toContain("startDate"); expect(text).toContain(calendarDays(fixture.month)[0]);}
     track = false;
     await cell.getByRole("link", {name: /^Meeting: SW336 Pioneering/}).click();
     await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${fixture.meetingId}$`));

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { clearScheduleMeetings, scheduleFixtureDb, seedScheduleMeetings } from "./support/schedule-fixtures";
+import { setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 test("Weekly schedule selects today, synchronises controls and preserves canonical destinations", async ({ page }) => {
@@ -9,8 +10,7 @@ test("Weekly schedule selects today, synchronises controls and preserves canonic
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
-    await page.getByRole("button", { name: "Redesigned schedules", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Redesigned schedules", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await setRolloutSwitch(page, "schedules", true);
     await page.goto("/leader/weekly");
     const schedule = page.getByRole("region", { name: "Meetings schedule", exact: true });
     const selected = schedule.getByRole("article", { name: "Scouts · Schedule fixture 1", exact: true });
@@ -74,8 +74,7 @@ test("Weekly schedule selects today, synchronises controls and preserves canonic
     await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
     await expect(page.getByText("Meeting saved.", { exact: true })).toBeVisible();
     await page.goto("/leader/settings");
-    await page.getByRole("button", { name: "Existing schedules", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Existing schedules", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await setRolloutSwitch(page, "schedules", false);
     await page.goto("/leader/weekly");
     await expect(page.getByRole("region", { name: "Meetings schedule", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: new RegExp(`${today.split("-").reverse().join("-")} · Scouts`) })).toBeVisible();

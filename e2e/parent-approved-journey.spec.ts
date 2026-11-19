@@ -79,7 +79,7 @@ test.describe("approved parent journey", () => {
     const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
     await expect(summary.getByRole("heading", { name: "Things to do" })).toBeVisible();
     await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
-    await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
+    await expect(summary.getByText("Consent & Medical", { exact: true })).toBeVisible();
     await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
     await expect(medicalAttentionCount).toHaveText("1");
 
@@ -147,9 +147,15 @@ test.describe("approved parent journey", () => {
     await loginParent(page);
 
     const nextAction = page.getByTestId("parent-next-action");
-    await expect(nextAction).toContainText("Next action");
+    await expect(nextAction).toContainText("Consent required");
     await expect(nextAction).toContainText("TEST Beavers Open Day Trip");
-    await expect(nextAction.getByRole("button", { name: "Review consent" })).toBeVisible();
+    await expect(page).toHaveURL(/child=TEST_member_beaver_01/);
+    const portalUrl = page.url();
+    const historyLength = await page.evaluate(() => window.history.length);
+    await nextAction.getByRole("button", { name: "Review consent" }).click();
+    await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeInViewport();
+    await expect(page).toHaveURL(portalUrl);
+    expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
 
     await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
@@ -232,10 +238,27 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     }
   });
 
-  test("menu preserves the linked child, deep links and browser Back", async ({ page }) => {
+  test("menu preserves the linked child, deep links and browser Back", async ({ page }, testInfo) => {
+    const isMobile = testInfo.project.name === "mobile-chromium";
+    if (isMobile) await page.setViewportSize({ width: 320, height: 720 });
     const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
     await expect(childSelect).toBeVisible();
     const badgeworkLink = page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" });
+    const summary = page.getByTestId("parent-things-to-do");
+    const context = page.getByTestId("parent-child-context");
+    const polls = page.locator("#parent-dashboard-polls");
+    await expect(summary).toBeVisible();
+    await expect(polls).toBeVisible();
+    expect((await context.boundingBox())!.y).toBeLessThan((await summary.boundingBox())!.y);
+    expect((await summary.boundingBox())!.y).toBeLessThan((await polls.boundingBox())!.y);
+    if (isMobile) {
+      const links = page.getByTestId("parent-portal-menu").getByRole("link");
+      const firstLink = (await links.first().boundingBox())!;
+      const secondLink = (await links.nth(1).boundingBox())!;
+      expect(firstLink.height).toBeGreaterThanOrEqual(44);
+      expect(secondLink.y).toBeGreaterThanOrEqual(firstLink.y + firstLink.height);
+      expect(secondLink.x + secondLink.width).toBeLessThanOrEqual(320);
+    }
     const firstHref = await badgeworkLink.getAttribute("href");
     const firstChild = new URL(firstHref!, "http://localhost").searchParams.get("child") || "";
     expect(firstChild).not.toBe("");

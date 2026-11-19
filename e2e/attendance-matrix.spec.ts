@@ -4,6 +4,7 @@ import { loginAsLeader } from "./support/authentication-helpers";
 import { seedAttendanceMatrix, matrixMeetingIds } from "./support/attendance-matrix-fixtures";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
 const password = process.env.E2E_TEST_USER_PASSWORD;
+import { rolloutSwitch } from "./support/rollout-switches";
 
 test("Superuser rollout persists independently; matrix scroll, filters and rollback preserve summaries and records", async ({ page }, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
@@ -20,7 +21,11 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     await expect(enable).toHaveAttribute("aria-pressed", "true");
     await page.reload();
     await expect(enable).toHaveAttribute("aria-pressed", "true");
-    for (const kind of ["navigation", "schedules"]) await expect(page.getByRole("button", { name: `Existing ${kind}`, exact: true })).toHaveAttribute("aria-pressed", "true");
+    for (const kind of ["navigation", "schedules"] as const) {
+      const control = rolloutSwitch(page, kind);
+      await expect(control).toBeEnabled();
+      await expect(control).not.toBeChecked();
+    }
     await page.goto("/leader/attendance");
     await page.getByLabel("Search members").fill("SW260");
     await page.getByTestId("attendance-from-date").fill("01-01-2098");

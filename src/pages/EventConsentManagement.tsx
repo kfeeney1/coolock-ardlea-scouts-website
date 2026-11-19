@@ -15,7 +15,8 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { loadEvents, updateEventRoster } from "../services/eventAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventRecord } from "../services/eventAdmin";
@@ -43,6 +44,12 @@ import {
 } from "../services/eventConsentManagementLogic";
 
 export default function EventConsentManagement() {
+    const [searchParams] = useSearchParams();
+    const requestedEventId = searchParams.get("eventId") || undefined;
+    return <EventConsentView key={requestedEventId} requestedEventId={requestedEventId} />;
+}
+
+function EventConsentView({ requestedEventId }: { requestedEventId?: string }) {
     const [events, setEvents] = useState<EventRecord[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [links, setLinks] = useState<PublicEventLink[]>([]);
@@ -56,37 +63,40 @@ export default function EventConsentManagement() {
     const [error, setError] = useState("");
     const [copyFallbackUrl, setCopyFallbackUrl] = useState("");
 
-    const load = async (reportFailure = false) => {
+    const load = useCallback(async (reportFailure = false) => {
         setLoading(true);
         setError("");
         try {
-            const [loadedEvents, loadedMembers, loadedLinks] = await Promise.all([
-                loadEvents(),
-                loadMembers(),
-                loadEventConsentLinks()
+            const [loadedEvents, loadedMembers] = await Promise.all([
+                loadEvents(requestedEventId),
+                loadMembers()
+            ]);
+
+            const eventsWithConsent = loadedEvents.filter((event) => event.consentRequired);
+            const [loadedLinks, responseEntries] = await Promise.all([
+                loadEventConsentLinks(eventsWithConsent),
+                Promise.all(eventsWithConsent.map(async (event) => [
+                    event.id, await loadEventConsentResponses(event.id)
+                ] as const))
             ]);
             setEvents(loadedEvents);
             setMembers(loadedMembers);
             setLinks(loadedLinks);
-
-            const responseEntries = await Promise.all(
-                loadedEvents.map(async (event) => [
-                    event.id,
-                    await loadEventConsentResponses(event.id)
-                ] as const)
-            );
             setResponses(Object.fromEntries(responseEntries));
         } catch (loadError) {
+            setEvents([]);
+            setLinks([]);
+            setResponses({});
             setError(applicationErrorMessage(loadError, "Unable to load event consent information.", "EventConsentManagement"));
             if (reportFailure) throw loadError;
         } finally {
             setLoading(false);
         }
-    };
+    }, [requestedEventId]);
 
     useEffect(() => {
         void load();
-    }, []);
+    }, [load]);
 
     const consentEvents = useMemo(
         () => events.filter((event) => event.consentRequired),

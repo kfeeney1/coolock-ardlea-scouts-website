@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import axe from "axe-core";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { clearScheduleEvents, clearScheduleMeetings, seedScheduleEvents, seedScheduleMeetings } from "./support/schedule-fixtures";
+import { setRolloutSwitch } from "./support/rollout-switches";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 test("Schedule tiles wrap on mobile, expose selection, retain keyboard focus and capture both pages", async ({ page }, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
@@ -9,8 +10,7 @@ test("Schedule tiles wrap on mobile, expose selection, retain keyboard focus and
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
-    const choice = page.getByRole("button", { name: "Redesigned schedules", exact: true });
-    await choice.click(); await expect(choice).toHaveAttribute("aria-pressed", "true");
+    await setRolloutSwitch(page, "schedules", true);
     for (const [path, label] of [["weekly", "Meetings"], ["events", "Events"]]) {
       await page.goto(`/leader/${path}`);
       const schedule = page.getByRole("region", { name: `${label} schedule`, exact: true });

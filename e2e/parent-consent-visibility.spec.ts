@@ -34,6 +34,8 @@ test("Superuser controls Parent Portal Consent and Medical Consent entry points"
     await expect(thingsToDo.getByRole("button", { name: "Review events", exact: true })).toHaveCount(0);
     await expect(thingsToDo.getByText("Upcoming events", { exact: true })).toBeVisible();
     await expect(thingsToDo.getByTestId("parent-next-action")).toHaveCount(0);
+    await expect(thingsToDo.getByRole("status").filter({ hasText: "Nothing needs your attention right now." })).toBeVisible();
+    await expect(thingsToDo.getByTestId("parent-next-event").getByRole("button", { name: "View event details" })).toBeVisible();
     await expect(parentPage.getByRole("link", { name: "Complete Event Consent" })).toHaveCount(0);
     await expect(parentPage.getByRole("heading", { name: "Event Galleries" })).toBeVisible();
 

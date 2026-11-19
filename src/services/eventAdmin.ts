@@ -1,12 +1,15 @@
+import { readEventDocuments } from "./eventDiscovery";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
+import { canViewEventByVisibility, isCanonicalEventVisibilityAdmin } from "./eventVisibility.ts";
 import {
     collection,
     deleteDoc,
     doc,
     getDoc,
+    getDocFromServer,
     getDocs,
-    orderBy,
     query,
+    runTransaction,
     serverTimestamp,
     setDoc,
     updateDoc,
@@ -39,6 +42,7 @@ export type EventRecord = {
     hallInterval?: HallLocalInterval;
     hallRevision?: number;
     id: string;
+    hidden: boolean;
     title: string;
     description: string;
     eventType: string;
@@ -126,6 +130,7 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | 
 
     return {
         id: snapshot.id,
+        hidden: data.hidden === true,
         ...eventHallMetadata(data),
         title,
         description: stringValue(data, "description"),
@@ -209,28 +214,82 @@ async function syncEventProjections(eventId: string, input: EventInput): Promise
     ]);
 }
 
+/** Change visibility without modifying invitations, consent, attendance or galleries.
+ * The Firestore rule is the authoritative permission check; this profile
+ * check only gives a clear error before the write.
+ */
+export async function setEventHidden(eventId: string, hidden: boolean): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new ServiceFailure("No signed-in Super Admin.", "auth/unauthenticated");
+    const profile = await getDoc(doc(db, "adminUsers", user.uid));
+    if (!profile.exists() || !isCanonicalEventVisibilityAdmin(profile.data())) {
+        throw new UserFacingError("Only Super Admin can change event visibility.");
+    }
+    const eventRef = doc(db, "events", eventId);
+    const changeRef = doc(collection(eventRef, "visibilityHistory"));
+    const consentLinks = await getDocs(query(collection(db, "eventConsentLinks"), where("eventId", "==", eventId)));
+    const mirrors = [
+        doc(db, "publicEvents", eventId), doc(db, "parentGalleryEvents", eventId),
+        doc(eventRef, "programmes", "parent"), ...consentLinks.docs.map(link => link.ref)
+    ];
+    await runTransaction(db, async (transaction) => {
+        const event = await transaction.get(eventRef);
+        if (!event.exists()) throw new UserFacingError("Event not found.");
+        const fromHidden = event.data().hidden === true;
+        if (fromHidden === hidden) return;
+        const token = event.data().consentLinkToken;
+        const references = new Map(mirrors.map(ref => [ref.path, ref]));
+        if (typeof token === "string" && token && !token.includes("/")) {
+            const ref = doc(db, "eventConsentLinks", token);
+            references.set(ref.path, ref);
+        }
+        const retained = await Promise.all([...references.values()].map(ref => transaction.get(ref)));
+        transaction.update(eventRef, {
+            hidden,
+            visibilityChangeId: changeRef.id,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+        });
+        transaction.set(changeRef, {
+            fromHidden,
+            toHidden: hidden,
+            actorUid: user.uid,
+            changedAt: serverTimestamp()
+        });
+        for (const mirror of retained) if (mirror.exists()) {
+            transaction.update(mirror.ref, mirror.ref.path.includes("/programmes/")
+                ? {visibilityUpdatedAt: serverTimestamp()} : {updatedAt: serverTimestamp()});
+        }
+    });
+}
+
 export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
-    const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    const profileSnapshot = await getDocFromServer(doc(db, "adminUsers", user.uid));
     if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) throw new UserFacingError("Active leader profile is required.");
 
     const profile = profileSnapshot.data();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-    const docs = isAdmin
-        ? (await getDocs(query(collection(db, "events"), orderBy("startDate", "desc")))).docs
-        : (await Promise.all(
-            normalizeLeaderSections(profile).map((section) =>
-                getDocs(query(collection(db, "events"), where("section", "==", section)))
-            )
-          )).flatMap((snapshot) => snapshot.docs);
+    // A single event must be read by document ID. Querying the whole collection
+    // to open one record can be rejected by visibility rules for unrelated events.
+    const docs = eventId
+        ? [await getDocFromServer(doc(db, "events", eventId))].filter((snapshot) => snapshot.exists())
+        : isAdmin
+          ? await readEventDocuments("events")
+          : (await Promise.all(
+              normalizeLeaderSections(profile).map((section) =>
+                  readEventDocuments("events", [["section", "==", section]])
+              )
+            )).flat();
 
     // Keep the existing profile/section query boundary, but hydrate only the
     // requested record when opening an editor. Unrelated audience queries must
     // not block this page or grow with the number of events in the group.
     const events = docs
-        .filter((snapshot) => eventId === undefined || snapshot.id === eventId)
+        .filter((snapshot) => (eventId === undefined || snapshot.id === eventId)
+            && canViewEventByVisibility(snapshot.data(), profile))
         .map(mapEvent)
         .filter((event): event is EventRecord => event !== null)
         .sort((a, b) => b.startDate.localeCompare(a.startDate));

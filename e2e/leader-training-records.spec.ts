@@ -23,8 +23,7 @@ async function dates(page: Page, start: string, end: string) {
   await page.getByRole("textbox", { name: "Expiry / lapse date", exact: true }).fill(end);
 }
 async function save(page: Page) {
-  await page.getByRole("button", { name: "Save record", exact: true }).focus();
-  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Save record", exact: true }).press("Enter");
   await expect(page.getByText("Training record saved.", { exact: true })).toBeVisible();
   await expect(page.getByRole("form", { name: /dates$/ })).toHaveCount(0);
 }
@@ -42,6 +41,7 @@ test("training categories create, validate, renew and persist on the correct lea
       await dates(page, "25-10-2026", "24-10-2026");
       await page.getByRole("button", { name: "Save record", exact: true }).click();
       await expect(page.getByRole("alert").filter({ hasText: "must be on or after" }).first()).toBeVisible();
+      await expect(page.getByRole("textbox", { name: "Expiry / lapse date", exact: true })).toBeFocused();
       const expiry = category === "Child Protection" ? "23-10-2026" : "24-10-2026";
       await dates(page, "01-01-2026", expiry);
       await save(page);

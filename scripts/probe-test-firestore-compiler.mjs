@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { compileRulesSource, readCommittedRules, rulesSourceDigest } from "./reviewed-rules-source.mjs";
 import { cert, deleteApp, initializeApp } from "firebase-admin/app";
 import { getSecurityRules } from "firebase-admin/security-rules";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
@@ -25,14 +25,25 @@ function historySamples() {
   return [control, ...checkpoints.map((line) => [line.slice(41), line.slice(0, 40)])];
 }
 
+function appointmentSamples() {
+  const before = "1829245312cad835682e06fbe4583f4b61e20c2a";
+  const after = "d0cf40cba39719b022194c257f9a57ce47f30f22";
+  return [
+    ["Before #981 (control)", before, true],
+    ["Full #981", after],
+    ["#981 appointment lookup only", after, false, before],
+    ["#981 delegated writes only", before, false, after],
+  ];
+}
+
 function selectSamples(comparison) {
+  if (comparison === "appointments") return appointmentSamples();
   if (comparison === "history") return historySamples();
   if (comparison !== "current") throw new Error("Unknown Firestore compiler comparison.");
   return [
+    ["Last successful production source before SW-595", "708b2903434b11cff505580c7bc845853315f6b6", true],
+    ["SW-595 source rejected in TEST and production", "4cf6daa34300152dada0c8a018232a6911d7a1c6"],
     ["Current main source", git("rev-parse", "HEAD"), true],
-    control,
-    ["Previously published TEST source", "89eae97811a83d256968485b5fd223adb4fd0787"],
-    ["Failing #993 source", "b1d3d411b2b9fd00d5f3f9a7e83a3c805854c3aa"],
   ];
 }
 
@@ -43,12 +54,30 @@ if (target.environment !== "test" || target.credentialProjectId !== target.proje
 }
 
 const comparison = process.env.FIRESTORE_PROBE_COMPARISON || "current";
-const sources = selectSamples(comparison).map(([label, sha, required = false]) => ({
-  label,
-  sha,
-  required,
-  content: execFileSync("git", ["show", `${sha}:firestore.rules`], { encoding: "utf8" }),
-}));
+function readRules(sha) {
+  return readCommittedRules(sha).toString("utf8");
+}
+
+function delegationMatch(source) {
+  const start = "    match /organisationLeadership/{leaderId} {";
+  const next = "    match /publicLeadership/{leaderId} {";
+  const from = source.indexOf(start);
+  const to = source.indexOf(next, from);
+  if (from < 0 || to <= from || source.lastIndexOf(start) !== from || source.lastIndexOf(next) !== to) {
+    throw new Error("Cannot isolate the organisationLeadership match.");
+  }
+  return source.slice(from, to);
+}
+
+const sources = selectSamples(comparison).map(([label, sha, required = false, delegationSha]) => {
+  const source = readRules(sha);
+  // #981 changed delegated writes only within this match. Swap it in memory
+  // for the two diagnostic variants, which must never be released.
+  const content = delegationSha
+    ? source.replace(delegationMatch(source), () => delegationMatch(readRules(delegationSha)))
+    : source;
+  return { label, sha, required, delegationSha, content };
+});
 
 function status(error) {
   const code = error.httpResponse?.status;
@@ -59,13 +88,14 @@ const results = [];
 const app = initializeApp({ credential: cert(JSON.parse(raw)), projectId: target.projectId });
 try {
   const rules = getSecurityRules(app);
-  for (const { label, sha, content, required } of sources) {
-    const digest = createHash("sha256").update(content).digest("hex");
-    console.log(`${label}: commit=${sha}, source SHA-256=${digest}`);
+  for (const { label, sha, content, required, delegationSha } of sources) {
+    const digest = rulesSourceDigest(content);
+    const revision = delegationSha ? `base=${sha}, delegation=${delegationSha}` : `commit=${sha}`;
+    console.log(`${label}: ${revision}, source SHA-256=${digest}`);
     const started = performance.now();
     let ruleset;
     try {
-      ruleset = await rules.createRuleset({ name: "firestore.rules", content });
+      ruleset = await compileRulesSource(rules, { name: "firestore.rules", content });
     } catch (error) {
       const elapsed = Math.round(performance.now() - started);
       console.error(`Compile failed after ${elapsed} ms (HTTP ${status(error)}; ${rulesCompilerReason(error)}).`);

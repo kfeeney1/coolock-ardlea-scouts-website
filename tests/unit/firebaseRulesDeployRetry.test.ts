@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import test from "node:test";
 import { publishReviewedRules, deliveryConfig, RULES_ATTEMPTS, RULES_BACKOFF_MS, publishTestRules } from "../../scripts/publish-test-rules.mjs";
+import { readReviewedTestRules, rulesSourceDigest } from "../../scripts/reviewed-rules-source.mjs";
 import { deployFirebaseTest } from "../../scripts/deploy-firebase-test-with-rules-retry.mjs";
 
 const name = "firestore.rules";
@@ -9,6 +11,17 @@ const source = "rules_version = '2'; service cloud.firestore { match /databases/
 const ruleset = { name: "compiled", source: [{ name, content: source }] };
 const unavailable = () => Object.assign(new Error("private SDK payload"), { httpResponse: { status: 503 } });
 const quiet = () => {};
+
+test("TEST rules are taken from the exact checked-out Git commit and log their digest", async () => {
+  const sha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  for (const name of ["firestore.rules", "storage.rules"]) {
+    const messages: string[] = [];
+    const content = await readReviewedTestRules(sha, name, (message: string) => messages.push(message));
+    assert.equal(content, readFileSync(name, "utf8"));
+    assert.deepEqual(messages, [`${name}: verified TEST source at ${sha}, source SHA-256=${rulesSourceDigest(content)}.`]);
+  }
+  await assert.rejects(readReviewedTestRules("0".repeat(40), "firestore.rules"), /matching GITHUB_SHA/);
+});
 
 test("unchanged active reviewed Rules need no compilation or publication", async () => {
   await publishReviewedRules({ name, source, getLive: async () => ruleset,

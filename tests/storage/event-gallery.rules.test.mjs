@@ -15,7 +15,7 @@ async function seedDocuments(entries) {
 }
 
 async function uploadGalleryPhoto(section, eventId) {
-  await seedDocuments([["adminUsers/leader-gallery", { active: true, role: "leader", sections: [section] }]]);
+  await seedDocuments([[`events/${eventId}`, {section}], ["adminUsers/leader-gallery", { active: true, role: "leader", sections: [section] }]]);
   const storage = testEnv.authenticatedContext("leader-gallery", { email: "leader@example.com" }).storage();
   const photo = ref(storage, `attachments/event-gallery/${section}/${eventId}/photo-1/photo.jpg`);
   await assertSucceeds(uploadBytes(photo, new Uint8Array([1, 2, 3]), {
@@ -131,4 +131,28 @@ test("unapproved parents and unauthenticated users remain denied", async () => {
   await seedDocuments(documents);
   await assertFails(getMetadata(ref(testEnv.authenticatedContext("parent-pending").storage(), path)));
   await assertFails(getMetadata(ref(testEnv.unauthenticatedContext().storage(), path)));
+});
+
+test("hiding revokes existing parent and leader photo links and restoring preserves the photo", async () => {
+  await seedDocuments([["events/event-1", {section: "Cubs", hidden: false}]]);
+  const path = await uploadGalleryPhoto("Cubs", "event-1");
+  await seedDocuments([
+    ...eligibleAccessDocuments(),
+    ["adminUsers/super-gallery", {active: true, role: "super-admin", sections: ["Group"]}],
+    ["adminUsers/admin-gallery", {active: true, role: "admin", sections: ["Group"]}],
+  ]);
+  const parent = testEnv.authenticatedContext("parent-1").storage();
+  const leader = testEnv.authenticatedContext("leader-gallery").storage();
+  const admin = testEnv.authenticatedContext("admin-gallery").storage();
+  const superAdmin = testEnv.authenticatedContext("super-gallery").storage();
+  await assertSucceeds(getMetadata(ref(parent, path)));
+  await seedDocuments([["events/event-1", {section: "Cubs", hidden: true, attendance: {"member-1": "attending"}}]]);
+  for (const storage of [parent, leader, admin]) {
+    await assertFails(getMetadata(ref(storage, path)));
+    await assertFails(listAll(ref(storage, "attachments/event-gallery/Cubs/event-1")));
+  }
+  await assertSucceeds(getMetadata(ref(superAdmin, path)));
+  await seedDocuments([["events/event-1", {section: "Cubs", hidden: false, attendance: {"member-1": "attending"}}]]);
+  await assertSucceeds(getMetadata(ref(parent, path)));
+  await assertSucceeds(getMetadata(ref(leader, path)));
 });

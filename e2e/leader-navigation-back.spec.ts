@@ -1,15 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
+import { setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const email = process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com";
 const eventPath = "/leader/events/TEST_flow_event_beavers_open";
 async function selectMode(page: Page, redesigned: boolean) {
   await page.goto("/leader/settings");
-  const option = page.getByRole("button", { name: `${redesigned ? "Redesigned" : "Existing"} navigation`, exact: true });
-  await expect(option).toBeEnabled();
-  if (await option.getAttribute("aria-pressed") !== "true") await option.click();
-  await expect(option).toHaveAttribute("aria-pressed", "true");
+  await setRolloutSwitch(page, "navigation", redesigned);
 }
 async function setup(page: Page, redesigned: boolean) {
   test.skip(!password, "Configure canonical E2E credentials.");

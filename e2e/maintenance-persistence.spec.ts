@@ -33,7 +33,15 @@ test("leader creates an independent task and retains its details through reload 
     const description = `Independent task ${info.project.name}: ${"Inspect the roof and supporting timbers. ".repeat(10)}`;
     ids.push(await createTask(page, description));
     await expect(page.getByText("No linked documents.", {exact: true})).toBeVisible();
-    await expect(page.getByText(/^Responsible leader: /)).not.toContainText("Assignment pending");
+    const db = scheduleFixtureDb();
+    const groupLeaderUid = "TEST_uid_group_leader";
+    const groupLeader = await db.doc(`organisationLeadership/${groupLeaderUid}`).get();
+    const groupLeaderName = groupLeader.get("displayName");
+    expect(groupLeaderName).toEqual(expect.any(String));
+    await page.reload();
+    await expect(page.getByText(`Responsible leader: ${groupLeaderName}`, {exact: true})).toBeVisible();
+    const task = await db.doc(`maintenance/group/tasks/${ids[0]}`).get();
+    expect(task.data()).toMatchObject({assigneeUid: groupLeaderUid, assigneeName: groupLeaderName, assignmentMode: "default"});
     await page.getByLabel("Responsible leader", {exact: true}).click();
     await page.getByRole("option", {name: /Scouts Section Leader/}).first().click();
     await waitForTransientOverlayHistory(page);
@@ -44,6 +52,9 @@ test("leader creates an independent task and retains its details through reload 
     await expect(page.getByText("Task progress saved successfully.", {exact: true})).toBeVisible();
     await page.reload();
     await expect(page.getByText(/^Responsible leader: /)).toContainText("Scouts Section Leader");
+    const reassigned = await task.ref.get();
+    expect(reassigned.get("assigneeUid")).not.toBe(groupLeaderUid);
+    expect(reassigned.get("assignmentMode")).toBe("explicit");
     await expect(page.getByText("Complete", {exact: true}).first()).toBeVisible();
     await page.reload();
     await expect(page.getByText(description.trim(), {exact: true})).toBeVisible();

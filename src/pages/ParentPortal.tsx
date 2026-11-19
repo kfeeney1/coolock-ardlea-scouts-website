@@ -11,9 +11,7 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { OperationalErrorState, OperationalLoading, OperationalPermissionState } from "../components/admin/OperationalStates";
 import ParentPortalSections from "../components/parent/ParentPortalSections";
 import ParentChildRequestFields from "../components/ParentChildRequestFields";
-import { afterTransientOverlayClose } from "../services/afterTransientOverlayClose";
-import { loadLinkedMembers } from "../services/parentConsent";
-import type { ParentLinkedMember } from "../services/parentConsent";
+import { useParentLinkedChild } from "../hooks/useParentLinkedChild";
 import { auth } from "../firebase";
 import { resolveJoinConsentContext } from "../services/emailNotifications";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
@@ -52,13 +50,7 @@ export default function ParentPortal() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const [linkedChildren, setLinkedChildren] = useState<ParentLinkedMember[]>([]);
-    const [childrenLoadError, setChildrenLoadError] = useState(false);
-    const [pendingChildId, setPendingChildId] = useState<string | null>(null);
-    const pendingChildIdRef = useRef<string | null>(null);
     const handledJoinConsentTokenRef = useRef("");
-    const cancelChildCommitRef = useRef<(() => void) | null>(null);
-    const portalContentRef = useRef<HTMLDivElement | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
 
     useEffect(() => {
@@ -74,31 +66,6 @@ export default function ParentPortal() {
         return () => { cancelled = true; };
     }, []);
 
-    useEffect(() => {
-        const cancelPendingChildCommit = () => {
-            cancelChildCommitRef.current?.();
-            cancelChildCommitRef.current = null;
-            pendingChildIdRef.current = null;
-        };
-        const handleNavigation = (event: Event) => {
-            const destinationUrl = (event as Event & { destination?: { url?: string } }).destination?.url;
-            if (!destinationUrl) return;
-            try {
-                if (new URL(destinationUrl).pathname !== "/parent") cancelPendingChildCommit();
-            } catch {
-                cancelPendingChildCommit();
-            }
-        };
-        const navigationApi = (window as Window & { navigation?: EventTarget }).navigation;
-        navigationApi?.addEventListener("navigate", handleNavigation);
-        window.addEventListener("beforeunload", cancelPendingChildCommit);
-        return () => {
-            navigationApi?.removeEventListener("navigate", handleNavigation);
-            window.removeEventListener("beforeunload", cancelPendingChildCommit);
-            cancelPendingChildCommit();
-        };
-    }, []);
-
     const loadAccount = useCallback(async () => {
         if (adminAuthLoading) return;
         if (!user) { setAccount(null); setAccountLoadError(null); setAccountReady(true); return; }
@@ -109,43 +76,16 @@ export default function ParentPortal() {
     }, [adminAuthLoading, user]);
     useEffect(() => { void loadAccount(); }, [loadAccount]);
 
-    useEffect(() => {
-        let cancelled = false;
-        if (!account || account.status !== "approved" || account.memberIds.length === 0) {
-            setLinkedChildren([]);
-            return;
-        }
-        setChildrenLoadError(false);
-        void loadLinkedMembers(account.memberIds).then((children) => {
-            if (!cancelled) setLinkedChildren(children);
-        }).catch((loadError) => {
-            reportApplicationError(loadError, { area: "ParentPortal", operation: "Unable to load linked child context" });
-            if (!cancelled) setChildrenLoadError(true);
-        });
-        return () => { cancelled = true; };
-    }, [account]);
-
-    const requestedChildId = searchParams.get("child") || "";
+    const {
+        linkedChildren,
+        selectedChild,
+        pendingChildId,
+        childrenLoadError,
+        rememberChildSelection,
+        commitChildSelectionAfterClose,
+        portalContentRef,
+    } = useParentLinkedChild(account);
     const joinConsentToken = searchParams.get("joinToken") || "";
-    const selectedChild = linkedChildren.find((child) => child.id === pendingChildId)
-        || linkedChildren.find((child) => child.id === requestedChildId)
-        || linkedChildren[0]
-        || null;
-    useEffect(() => {
-        // Linked-child loading may finish after a visible header navigation.
-        // Do not replace the destination with a late Parent Portal URL cleanup.
-        if (window.location.pathname !== "/parent") return;
-        if (pendingChildId && requestedChildId === pendingChildId) {
-            pendingChildIdRef.current = null;
-            setPendingChildId(null);
-            return;
-        }
-        if (pendingChildId || !selectedChild || requestedChildId === selectedChild.id) return;
-        const next = new URLSearchParams(searchParams);
-        next.set("child", selectedChild.id);
-        navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true, state: location.state });
-    }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
-
     useEffect(() => {
         if (!joinConsentToken || !user || !consentSettingsReady || handledJoinConsentTokenRef.current === joinConsentToken) return;
         handledJoinConsentTokenRef.current = joinConsentToken;
@@ -171,62 +111,6 @@ export default function ParentPortal() {
         });
         return () => { cancelled = true; };
     }, [joinConsentToken, user, consentSettingsReady, consentFlowsEnabled, searchParams, navigate, location.state]);
-
-    const rememberChildSelection = (childId: string) => {
-        cancelChildCommitRef.current?.();
-        cancelChildCommitRef.current = null;
-        pendingChildIdRef.current = childId;
-        setPendingChildId(childId);
-    };
-    const commitChildSelectionAfterClose = () => {
-        const childId = pendingChildIdRef.current;
-        if (!childId || cancelChildCommitRef.current !== null) return;
-        // Commit only after the select's browser Back entry is consumed. A
-        // query replacement during its exit transition can otherwise leave a
-        // stale marker which restores the previous child after a reload.
-        cancelChildCommitRef.current = afterTransientOverlayClose((routerState) => {
-            cancelChildCommitRef.current = null;
-            if (pendingChildIdRef.current !== childId || window.location.pathname !== "/parent") return;
-            const next = new URLSearchParams(window.location.search);
-            next.set("child", childId);
-            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: routerState });
-        });
-    };
-
-    useEffect(() => {
-        if (!location.hash || !account || account.status !== "approved" || linkedChildren.length === 0) return;
-        const targetId = decodeURIComponent(location.hash.slice(1));
-        let stoppedByUser = false;
-        let settleTimer = 0;
-        let timeout = 0;
-        let frame = 0;
-        const stopFollowingUserInteraction = () => {
-            stoppedByUser = true;
-            observer.disconnect();
-            window.clearTimeout(settleTimer);
-            window.clearTimeout(timeout);
-            window.cancelAnimationFrame(frame);
-        };
-        const scrollToTarget = () => {
-            if (stoppedByUser) return;
-            document.getElementById(targetId)?.scrollIntoView({ behavior: "auto", block: "start" });
-            window.clearTimeout(settleTimer);
-            settleTimer = window.setTimeout(() => observer.disconnect(), 750);
-        };
-        const observer = new ResizeObserver(scrollToTarget);
-        const interactionEvents = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
-        interactionEvents.forEach((eventName) => window.addEventListener(eventName, stopFollowingUserInteraction, true));
-        if (portalContentRef.current) observer.observe(portalContentRef.current);
-        frame = window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToTarget));
-        timeout = window.setTimeout(() => observer.disconnect(), 4_000);
-        return () => {
-            interactionEvents.forEach((eventName) => window.removeEventListener(eventName, stopFollowingUserInteraction, true));
-            window.cancelAnimationFrame(frame);
-            window.clearTimeout(settleTimer);
-            window.clearTimeout(timeout);
-            observer.disconnect();
-        };
-    }, [location.hash, account, linkedChildren, selectedChild?.id]);
 
     const validateRegistration = () => {
         if (!displayName.trim()) return "Your name is required.";
@@ -290,7 +174,7 @@ export default function ParentPortal() {
     if (user && !account) return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "sm"}>{leaderHeader}<Paper sx={{ p: 4 }}>{!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography>}{leaderAccessDenied && <Alert severity="warning" sx={{ mt: 2 }}>This account does not have leader access.</Alert>}<Alert severity="info" sx={{ my: 2 }}>Submit parent registration by identifying your child or children. The details are reviewed separately from any Leader access and never grant child access automatically.</Alert><Stack spacing={2}><TextField label="Parent / Guardian name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />{!joinConsentToken && <ParentChildRequestFields children={children} setChildren={setChildren} />}{joinConsentToken && <Alert severity="info">This registration came from an accepted Join Us email. Sign in or submit your parent details; the accepted child will be linked securely from that application.</Alert>}{error && <Alert severity="error">{error}</Alert>}<Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>{working ? "Please wait…" : "Submit Parent Registration"}</Button><Button onClick={() => void logoutParent()}>Sign Out</Button></Stack></Paper></Container></Box>;
 
     if (account) {
-        return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper ref={portalContentRef} sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>{joinConsentNotice && <Alert severity="info" sx={{ mb: 3 }}>{joinConsentNotice}</Alert>}
+        return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 4 } }}><Container maxWidth={leaderAccount ? "xl" : "lg"} sx={{ px: { xs: 1, sm: 3 } }}>{leaderHeader}<Paper ref={portalContentRef} sx={{ p: { xs: 1.5, md: 3 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}><Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}><Typography component="h1" variant="h4" color="secondary" sx={{ fontWeight: 800, fontSize: { xs: "1.5rem", md: "2rem" } }}>Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" sx={{ minHeight: 44, flexShrink: 0, "&.Mui-focusVisible": { outline: "2px solid", outlineOffset: 2 } }} onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>{joinConsentNotice && <Alert severity="info" sx={{ mb: 3 }}>{joinConsentNotice}</Alert>}
             <ParentPortalSections
                 linkedChildren={linkedChildren}
                 selectedChild={selectedChild}
