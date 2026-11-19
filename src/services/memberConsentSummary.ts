@@ -9,7 +9,6 @@ import {
 
 import { ServiceFailure } from "./applicationErrors.ts";
 import { auth, db } from "../firebase";
-import { memberSectionStorageAliases } from "./memberSectionCore.mjs";
 import { mapMemberConsentSummary, type MemberConsentSummary } from "./memberConsentSummaryLogic";
 
 export type { MemberConsentSummary } from "./memberConsentSummaryLogic";
@@ -25,12 +24,7 @@ export async function loadMemberConsentSummaries(member: MemberConsentScope): Pr
   const isAdmin = profileSnapshot.exists() && ["admin", "super-admin"].includes(String(profileSnapshot.data().role));
   const snapshots = isAdmin
     ? [await getDocs(collection(db, "consentApplications"))]
-    : await Promise.all([
-        getDocs(query(collection(db, "consentApplications"), where("memberId", "==", member.id))),
-        ...member.sections.flatMap((section) => memberSectionStorageAliases(section)).map((section) =>
-          getDocs(query(collection(db, "consentApplications"), where("section", "==", section)))
-        )
-      ]);
+    : [await getDocs(query(collection(db, "consentApplications"), where("memberId", "==", member.id)))];
   const documents = [...new Map(snapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()];
 
   return documents.flatMap((item) => {

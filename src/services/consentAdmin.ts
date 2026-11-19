@@ -1,22 +1,5 @@
-import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
-import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    orderBy,
-    query,
-    where
-} from "firebase/firestore";
-import type {
-    DocumentData,
-    DocumentSnapshot,
-    QueryDocumentSnapshot,
-    Timestamp
-} from "firebase/firestore";
-
-import { auth, db } from "../firebase";
-import { normalizeLeaderSections } from "./leaderAccessLogic";
+import type { DocumentData, Timestamp } from "firebase/firestore";
+import { readLeaderConsent } from "./leaderConsentRead";
 import { normalizeMedicationManagement } from "./consentManagementLogic";
 export { daysUntilExpiry, isConsentExpired } from "./consentDateLogic";
 
@@ -69,20 +52,17 @@ function hasScouterMedicalAlert(data: DocumentData): boolean {
     return ["epilepsy", "diabetes", "asthma", "heartDisease", "highBloodPressure", "skinAllergies", "hearingDifficulties", "onMedication"].some((key) => yes(data, key));
 }
 
-function mapConsent(snapshot: DocumentSnapshot<DocumentData>): ConsentAdminRecord | null {
-    const data = snapshot.data();
-    if (!data) return null;
+function mapConsent({ id, section, data }: { id: string; section: string; data: DocumentData }): ConsentAdminRecord | null {
     const formType = stringValue(data, "formType");
     if (formType !== "youth-activity-consent" && formType !== "scouter-es3-medical-advice") return null;
 
-    const section = stringValue(data, "section");
     const isScouter = formType === "scouter-es3-medical-advice";
     const memberName = isScouter ? stringValue(data, "name") : stringValue(data, "childName");
     const status = stringValue(data, "status");
     if (!section || !memberName || !["active", "reviewed", "expired", "archived"].includes(status)) return null;
 
     return {
-        id: snapshot.id,
+        id,
         type: isScouter ? "scouter" : "youth",
         section,
         memberName,
@@ -101,51 +81,12 @@ function mapConsent(snapshot: DocumentSnapshot<DocumentData>): ConsentAdminRecor
 }
 
 export async function loadConsentAdminRecord(consentId: string): Promise<ConsentAdminRecord | null> {
-    const user = auth.currentUser;
-    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
-
-    const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
-    if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
-        throw new UserFacingError("Active leader profile is required.");
-    }
-
-    // Direct record reads deliberately use the document path. Firestore Rules are
-    // authoritative here: a leader may read a youth consent when either the
-    // consent's historical section is in scope or its stable memberId resolves to
-    // a member in one of the leader's current sections. This keeps list queries
-    // section-scoped while allowing a valid linked consent to survive transfers.
-    const snapshot = await getDoc(doc(db, "consentApplications", consentId));
-    if (!snapshot.exists()) return null;
-    return mapConsent(snapshot);
+    const [document] = await readLeaderConsent(consentId);
+    return document ? mapConsent(document) : null;
 }
 
 export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
-    const user = auth.currentUser;
-    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
-
-    const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
-    if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
-        throw new UserFacingError("Active leader profile is required.");
-    }
-
-    const profile = profileSnapshot.data();
-    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-
-    let documents: QueryDocumentSnapshot<DocumentData>[];
-    if (isAdmin) {
-        documents = (await getDocs(query(collection(db, "consentApplications"), orderBy("submittedAt", "desc")))).docs;
-    } else {
-        const sections = normalizeLeaderSections(profile);
-        if (sections.length === 0) return [];
-        const snapshots = await Promise.all(
-            sections.map((section) => getDocs(query(collection(db, "consentApplications"), where("section", "==", section))))
-        );
-        const byId = new Map<string, QueryDocumentSnapshot<DocumentData>>();
-        snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => byId.set(item.id, item)));
-        documents = [...byId.values()];
-    }
-
-    return documents
+    return (await readLeaderConsent())
         .map(mapConsent)
         .filter((record): record is ConsentAdminRecord => record !== null)
         .sort((left, right) => (right.submittedAt?.getTime() ?? 0) - (left.submittedAt?.getTime() ?? 0));

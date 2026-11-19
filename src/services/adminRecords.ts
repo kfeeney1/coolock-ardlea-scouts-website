@@ -17,7 +17,7 @@ import type {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
-import { normalizeLeaderSections } from "./leaderAccessLogic";
+import { readLeaderConsent } from "./leaderConsentRead";
 import { activeScoutingAppointments, isGroupLeadershipAppointment, normalizeScoutingAppointmentAssignments } from "../security/scoutingAppointments";
 
 export type RecordKind = "join" | "consent";
@@ -73,10 +73,8 @@ function mapJoin(snapshot: QueryDocumentSnapshot<DocumentData>): AdminRecord | n
     };
 }
 
-function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): AdminRecord | null {
-    const data = snapshot.data();
+function mapConsent({ id, section, data }: Awaited<ReturnType<typeof readLeaderConsent>>[number]): AdminRecord | null {
     const formType = stringValue(data, "formType");
-    const section = stringValue(data, "section");
     if (!CONSENT_FORM_TYPES.has(formType) || !section) return null;
 
     const title = formType === "scouter-es3-medical-advice"
@@ -85,7 +83,7 @@ function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): AdminRecord 
     if (!title) return null;
 
     return {
-        id: snapshot.id,
+        id,
         kind: "consent",
         submittedAt: timestampToDate(data.submittedAt),
         status: stringValue(data, "status"),
@@ -96,14 +94,13 @@ function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): AdminRecord 
 }
 
 async function scopedDocuments(
-    collectionName: "joinApplications" | "consentApplications",
     sections: string[]
 ): Promise<QueryDocumentSnapshot<DocumentData>[]> {
     if (sections.length === 0) return [];
 
     const snapshots = await Promise.all(
         sections.map((section) =>
-            getDocs(query(collection(db, collectionName), where("section", "==", section), limit(200)))
+            getDocs(query(collection(db, "joinApplications"), where("section", "==", section), limit(200)))
         )
     );
     const byId = new Map<string, QueryDocumentSnapshot<DocumentData>>();
@@ -122,7 +119,6 @@ export async function loadAdminRecords(): Promise<AdminRecord[]> {
 
     const profile = profileSnapshot.data();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-    const sections = normalizeLeaderSections(profile);
     const leadershipSnapshot = await getDoc(doc(db, "organisationLeadership", user.uid));
     const leadership = leadershipSnapshot.exists() ? leadershipSnapshot.data() : null;
     const appointments = leadership?.active === true
@@ -135,15 +131,13 @@ export async function loadAdminRecords(): Promise<AdminRecord[]> {
 
     const joinPromise = hasGroupJoinAccess
         ? getDocs(query(collection(db, "joinApplications"), orderBy("submittedAt", "desc"), limit(200))).then((snapshot) => snapshot.docs)
-        : joinSections.length > 0 ? scopedDocuments("joinApplications", joinSections) : Promise.resolve([]);
-    const consentPromise = isAdmin
-        ? getDocs(query(collection(db, "consentApplications"), orderBy("submittedAt", "desc"), limit(200))).then((snapshot) => snapshot.docs)
-        : scopedDocuments("consentApplications", sections);
-    const [joinDocuments, consentDocuments] = await Promise.all([joinPromise, consentPromise]);
+        : joinSections.length > 0 ? scopedDocuments(joinSections) : Promise.resolve([]);
+    const [joinDocuments, consentDocuments] = await Promise.all([joinPromise, readLeaderConsent()]);
 
     return [
         ...joinDocuments.map(mapJoin),
-        ...consentDocuments.map(mapConsent)
+        ...consentDocuments.map(mapConsent).sort((left, right) =>
+            (right?.submittedAt?.getTime() ?? 0) - (left?.submittedAt?.getTime() ?? 0)).slice(0, 200)
     ]
         .filter((record): record is AdminRecord => record !== null)
         .sort((left, right) => {

@@ -4,6 +4,8 @@ import { collection, doc, getDoc, runTransaction, serverTimestamp } from "fireba
 import { auth, db } from "../firebase";
 import type { MemberRecord, MemberStatus } from "./memberAdmin";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
+import { canonicalMemberSections } from "./memberSectionCore.mjs";
+import { normalizeMemberSectionRoles } from "./memberYouthRoles";
 import { recordAuditEvent } from "./auditLog";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 
@@ -91,13 +93,18 @@ export async function bulkTransferMembersSection(
         throw new Error(`${expected.displayName} changed after selection. Refresh and review the selection.`);
       }
       if (!scope.allSections && !scope.sections.includes(currentSection)) throw new UserFacingError("Your access to a selected member changed. Refresh and try again.");
-      return { expected, currentSection, currentStatus };
+      const retainedSections = canonicalMemberSections(data.sections)
+        .filter((section) => section !== currentSection && isYouthSection(section));
+      const sections = [...new Set([destinationSection, ...retainedSections])];
+      return { expected, currentSection, currentStatus, sections, sectionRoles: normalizeMemberSectionRoles(data.sectionRoles, sections) };
     });
 
     for (const [index, item] of validated.entries()) {
       if (item.currentSection === destinationSection) continue;
       transaction.update(memberRefs[index], {
         section: destinationSection,
+        sections: item.sections,
+        sectionRoles: item.sectionRoles,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
       });

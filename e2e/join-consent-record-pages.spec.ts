@@ -1,3 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { loginAsLeader } from "./support/authentication-helpers";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
@@ -231,4 +235,79 @@ test("SW-218 unlinked Venture consent creates a canonical member visible in Memb
   await expect(page.getByRole("heading", { name: "Consent & Medical Indicators" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Open consent and medical details/ }).first()).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
+test("SW-605 transferred consent follows the current section and retains the original submission", async ({ browser, page }, testInfo) => {
+  desktopOnly(testInfo);
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  test.skip(!password || projectId !== "demo-coolock-ardlea-scouts"
+    || !process.env.FIRESTORE_EMULATOR_HOST?.startsWith("127.0.0.1:"), "Requires the isolated synthetic Firebase emulator.");
+  const firestore = getFirestore(getApps()[0] || initializeApp({ projectId }));
+  const id = `sw605-${randomUUID()}`;
+  const member = firestore.collection("members").doc(id);
+  const consent = firestore.collection("consentApplications").doc(id);
+  const displayName = `TEST Consent Transfer ${id.slice(-8)}`;
+  const submission = {
+    formType: "youth-activity-consent", status: "active", section: "Beavers", childName: displayName, memberId: id,
+    formVersion: "sw605-synthetic", source: "website", submittedAt: Timestamp.fromDate(new Date("2026-10-20T12:00:00Z")),
+    consentFrom: "2026-10-20", consentTo: "2027-08-31"
+  };
+  await member.set({
+    firstName: "TEST", lastName: "Consent Transfer", displayName, dateOfBirth: "2018-01-01",
+    section: "Beavers", sections: ["Beavers"], sectionRoles: {}, status: "active", source: "manual"
+  });
+  try {
+    await consent.set(submission);
+    await loginAdmin(page, process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com");
+    await page.goto("/leader/consents");
+    const card = page.getByTestId(`consent-record-${id}`);
+    await expect(card.getByText("Beavers", { exact: true })).toBeVisible();
+    const originalSubmission = await card.getByText(/^Submitted /).innerText();
+
+    await page.goto("/leader/members");
+    await page.getByLabel("Search members").fill(displayName);
+    await page.getByRole("button", { name: "Select members", exact: true }).click();
+    await page.getByRole("checkbox", { name: `Select ${displayName}` }).check();
+    await page.getByRole("combobox", { name: "Destination section" }).click();
+    await page.getByRole("option", { name: "Cubs", exact: true }).click();
+    await page.getByRole("button", { name: "Change section", exact: true }).click();
+    await page.getByRole("button", { name: "Confirm transfer", exact: true }).click();
+    await expect(page.getByText("1 member moved to Cubs.", { exact: true })).toBeVisible();
+
+    await page.goto("/leader/consents");
+    await expect(card).toHaveCount(1);
+    await expect(card.getByText("Cubs", { exact: true })).toBeVisible();
+    await expect(card.getByText(originalSubmission, { exact: true })).toBeVisible();
+    const section = page.getByRole("combobox", { name: "Section", exact: true });
+    await section.click();
+    await page.getByRole("option", { name: "Beavers", exact: true }).click();
+    await expect(card).toHaveCount(0);
+    await section.click();
+    await page.getByRole("option", { name: "Cubs", exact: true }).click();
+    await expect(card).toHaveCount(1);
+    expect((await consent.get()).data()).toEqual(submission);
+
+    const oldContext = await browser.newContext();
+    const newContext = await browser.newContext();
+    try {
+      const oldPage = await oldContext.newPage();
+      const newPage = await newContext.newPage();
+      await Promise.all([
+        loginAsLeader(oldPage, { email: "test.beaver.section.leader@example.com", password: password! }),
+        loginAsLeader(newPage, { email: "test.cub.section.leader@example.com", password: password! })
+      ]);
+      await Promise.all([oldPage.goto("/leader/consents"), newPage.goto("/leader/consents")]);
+      await oldPage.getByLabel("Search consent records").fill(displayName);
+      await expect(oldPage.getByText("No consent records match the current filters.")).toBeVisible();
+      await newPage.getByTestId(`consent-record-${id}`).click();
+      await expect(newPage.getByTestId(`consent-record-page-${id}`).getByText("Cubs", { exact: true }).first()).toBeVisible();
+      await oldPage.goto(`/leader/consents/${id}`);
+      await expect(oldPage.getByText("This consent record could not be found or is outside your permitted sections.")).toBeVisible();
+    } finally {
+      await Promise.all([oldContext.close(), newContext.close()]);
+    }
+  } finally {
+    const history = await firestore.collection("memberHistory").where("memberId", "==", id).get();
+    await Promise.all([member.delete(), consent.delete(), ...history.docs.map(item => item.ref.delete())]);
+  }
 });

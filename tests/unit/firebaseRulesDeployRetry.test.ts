@@ -96,13 +96,15 @@ test("remaining CLI config excludes already verified Rules and retains exact ind
   assert.throws(() => deliveryConfig({ ...original, firestore: { ...original.firestore, rules: "unreviewed.rules" } }));
   assert.throws(() => deliveryConfig({ ...original, storage: [...original.storage, original.storage[0]] }));
   let configPath;
+  const targets: string[] = [];
   await assert.rejects(deployFirebaseTest({ publishRules: async () => {}, run: async (args) => {
     configPath = args[args.indexOf("--config") + 1];
     assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), config);
-    assert.equal(args[args.indexOf("--only") + 1], "firestore:indexes,hosting");
+    targets.push(args[args.indexOf("--only") + 1]);
     assert.equal(args[args.indexOf("--project") + 1], "coolock-ardlea-scouts-test");
-    return { code: 1 };
+    return { code: targets.length === 1 ? 0 : 1 };
   } }), /indexes and Hosting deployment failed/);
+  assert.deepEqual(targets, ["functions:consent:leaderConsentRead", "firestore:indexes,hosting"]);
   assert.equal(existsSync(configPath), false);
 });
 

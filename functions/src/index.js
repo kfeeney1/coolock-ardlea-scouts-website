@@ -1,6 +1,8 @@
 import { applicationDefault, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { onRequest } from "firebase-functions/v2/https";
+import { getFirestore } from "firebase-admin/firestore";
+import { readLeaderConsent } from "./leaderConsentRead.js";
+import { onCall, onRequest } from "firebase-functions/v2/https";
 import { handleEventAudienceSave } from "./shared/productionRoutes.js";
 import { createEventSaveHandler } from "./handler.js";
 
@@ -34,3 +36,6 @@ export const eventAudienceSave = onRequest({
   result.headers.forEach((value, name) => response.set(name, value));
   response.status(result.status).send(await result.text());
 });
+
+export const leaderConsentRead = onCall({ region: "europe-west1", maxInstances: 3, memory: "256MiB" },
+  request => readLeaderConsent(getFirestore(app), request));

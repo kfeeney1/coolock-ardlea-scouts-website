@@ -1463,13 +1463,31 @@ service cloud.firestore {
             && isApprovedParentForMember(_writeData.memberId)));
       }
       allow create: if _validateWrite34(request.resource.data);
-      allow read: if (isActiveLeader() && ((resource.data.formType == "scouter-es3-medical-advice" && resource.data.submittedByUid == request.auth.uid) || isAdmin() || hasResourceSection(resource.data)
-          || (resource.data.memberId is string
-            && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
-            && canAccessMemberSections(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data))))
-        || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
+      function currentConsentMemberInScope(memberId) {
+        let member = get(/databases/$(database)/documents/members/$(memberId)).data;
+        return profileHasSection(member.section)
+          || (member.get("sections", []) is list
+            && member.section in member.sections
+            && member.sections.hasAny(profile().sections));
+      }
+      function ownScouterConsent(data) {
+        return data.formType == "scouter-es3-medical-advice" && data.submittedByUid == request.auth.uid;
+      }
+      function scopedConsent(data) {
+        return data.formType == "youth-activity-consent" && data.get("memberId", "") is string
+          && data.get("memberId", "") != ""
+          ? currentConsentMemberInScope(data.memberId)
+          : hasResourceSection(data);
+      }
+      allow get: if isAdmin() || (isActiveLeader() && (ownScouterConsent(resource.data) || scopedConsent(resource.data)));
+      // Scoped section lists are assembled by leaderConsentRead. Explicit member
+      // queries and the Scouter's own medical query can still be proved by Rules.
+      allow list: if isAdmin() || (isActiveLeader() && (
+        ownScouterConsent(resource.data)
+        || (resource.data.memberId is string && currentConsentMemberInScope(resource.data.memberId))));
+      allow read: if resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId);
       function _validateWrite35(_writeData, _storedData) {
-        return (isActiveLeader() && (isAdmin() || hasResourceSection(_storedData))
+        return (isActiveLeader() && (isAdmin() || scopedConsent(_storedData))
           && _writeData.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
           && !_writeData.keys().hasAny(["scoutSection"])
           && _writeData.diff(_storedData).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
