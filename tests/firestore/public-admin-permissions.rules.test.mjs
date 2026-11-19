@@ -48,6 +48,8 @@ test("public event projections expose only canonical documents and remain sectio
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
     ["adminUsers/leader-scouts", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["events/event-1", {section: "Cubs"}],
+    ["events/event-2", {section: "Cubs"}],
     ["publicEvents/event-1", canonical],
     ["publicEvents/broken", { ...canonical, eventId: "different-id" }],
   ]);
@@ -69,10 +71,12 @@ test("public can list projections while authorized writes reject private fields"
   };
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["events/event-1", {section: "Cubs"}],
+    ["events/event-2", {section: "Cubs"}],
     ["publicEvents/event-1", canonical],
   ]);
   const publicDb = testEnv.unauthenticatedContext().firestore();
-  await assertSucceeds(getDocs(query(
+  await assertFails(getDocs(query(
     collection(publicDb, "publicEvents"),
     where("startDate", ">=", "2026-09-08"),
     orderBy("startDate", "asc"),
@@ -86,6 +90,8 @@ test("public can list projections while authorized writes reject private fields"
 
 test("event consent links are public only while active and responses bind to that link", async () => {
   await seed([
+    ["events/event-1", { title: "Camp", section: "Cubs", hidden: false }],
+    ["events/event-2", { title: "Past camp", section: "Cubs", hidden: false }],
     ["eventConsentLinks/active-token", { active: true, eventId: "event-1", section: "Cubs", title: "Camp" }],
     ["eventConsentLinks/closed-token", { active: false, eventId: "event-2", section: "Cubs", title: "Past camp" }],
   ]);
@@ -102,6 +108,31 @@ test("event consent links are public only while active and responses bind to tha
   await assertSucceeds(setDoc(doc(publicDb, "eventConsentResponses/valid"), response));
   await assertFails(setDoc(doc(publicDb, "eventConsentResponses/wrong-event"), { ...response, eventId: "event-2" }));
   await assertFails(getDocs(collection(publicDb, "eventConsentResponses")));
+});
+
+test("leaders can load consent links for their visible event without reading hidden or out-of-scope events", async () => {
+  await seed([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/super", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["events/visible", { section: "Cubs" }],
+    ["events/hidden", { section: "Cubs", hidden: true }],
+    ["events/other", { section: "Scouts" }],
+    ["eventConsentLinks/visible", { eventId: "visible", section: "Cubs", active: true }],
+    ["eventConsentLinks/hidden", { eventId: "hidden", section: "Cubs", active: true }],
+    ["eventConsentLinks/other", { eventId: "other", section: "Scouts", active: false }],
+  ]);
+  const leaderDb = testEnv.authenticatedContext("leader-cubs").firestore();
+  const superDb = testEnv.authenticatedContext("super").firestore();
+  const links = (db, eventId, section) => getDocs(query(
+    collection(db, "eventConsentLinks"), where("eventId", "==", eventId), where("section", "==", section)
+  ));
+
+  await assertSucceeds(getDoc(doc(leaderDb, "events/visible")));
+  assert.deepEqual((await assertSucceeds(links(leaderDb, "visible", "Cubs"))).docs.map(item => item.id), ["visible"]);
+  await assertFails(getDoc(doc(leaderDb, "events/hidden")));
+  await assertFails(links(leaderDb, "hidden", "Cubs"));
+  await assertFails(links(leaderDb, "other", "Scouts"));
+  assert.deepEqual((await assertSucceeds(links(superDb, "hidden", "Cubs"))).docs.map(item => item.id), ["hidden"]);
 });
 
 test("session settings are readable when signed in but writable only by admins", async () => {
@@ -405,4 +436,49 @@ test("Attendance experience version is private to signed-in readers and writable
   await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: new Date(0) }));
   await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: serverTimestamp(), extra: "private" }));
   await assertFails(getDocs(collection(db, "siteSettings")));
+});
+test("event visibility requires a matching immutable audit entry and preserves event data", async () => {
+  const event = { title: "Historical camp", section: "Cubs", status: "closed", attendance: { child: "attending" } };
+  await seed([
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
+    ["events/event-1", event],
+  ]);
+  const superDb = testEnv.authenticatedContext("super-1").firestore();
+  const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+  const parentDb = testEnv.authenticatedContext("parent-1").firestore();
+  const eventRef = doc(superDb, "events/event-1");
+  const hideRef = doc(superDb, "events/event-1/visibilityHistory/hide");
+  const metadata = (uid, changeId, hidden) => ({
+    visibilityChangeId: changeId, hidden, updatedAt: serverTimestamp(), updatedBy: uid,
+  });
+  const change = (uid, fromHidden, toHidden) => ({
+    actorUid: uid, fromHidden, toHidden, changedAt: serverTimestamp(),
+  });
+  function commit(db, uid, changeId, fromHidden, toHidden, updates = {}) {
+    const batch = writeBatch(db);
+    batch.update(doc(db, "events/event-1"), { ...metadata(uid, changeId, toHidden), ...updates });
+    batch.set(doc(db, "events/event-1/visibilityHistory", changeId), change(uid, fromHidden, toHidden));
+    return batch.commit();
+  }
+
+  await assertSucceeds(getDoc(doc(adminDb, eventRef.path)));
+  await assertFails(updateDoc(eventRef, metadata("super-1", "hide", true)));
+  await assertFails(setDoc(hideRef, change("super-1", false, true)));
+  await assertFails(commit(adminDb, "admin-1", "hide", false, true));
+  await assertFails(commit(superDb, "super-1", "hide", true, true));
+  await assertFails(commit(superDb, "super-1", "hide", false, true, { title: "Changed" }));
+  await assertSucceeds(commit(superDb, "super-1", "hide", false, true));
+  await assertFails(getDoc(doc(adminDb, eventRef.path)));
+  await assertFails(getDoc(doc(parentDb, eventRef.path)));
+  await assertFails(getDoc(doc(adminDb, hideRef.path)));
+  await assertFails(updateDoc(hideRef, { actorUid: "different" }));
+  await assertSucceeds(commit(superDb, "super-1", "restore", true, false));
+  await assertFails(updateDoc(eventRef, metadata("super-1", "hide", true)));
+  const restored = (await assertSucceeds(getDoc(doc(adminDb, eventRef.path)))).data();
+  for (const [key, value] of Object.entries(event)) assert.deepEqual(restored[key], value);
+  const history = await assertSucceeds(getDocs(collection(superDb, "events/event-1/visibilityHistory")));
+  assert.deepEqual(history.docs.map((entry) => [entry.id, entry.data().fromHidden, entry.data().toHidden]), [
+    ["hide", false, true], ["restore", true, false],
+  ]);
 });

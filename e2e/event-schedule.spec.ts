@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { clearScheduleEvents, seedScheduleEvents } from "./support/schedule-fixtures";
+import { setRolloutSwitch } from "./support/rollout-switches";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 test("Event schedule preserves summaries, date selection, past actions and legacy fallback", async ({ page }) => {
   test.skip(!password, "Configure canonical E2E credentials.");
@@ -8,8 +9,7 @@ test("Event schedule preserves summaries, date selection, past actions and legac
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
-    const redesigned = page.getByRole("button", { name: "Redesigned schedules", exact: true });
-    await redesigned.click(); await expect(redesigned).toHaveAttribute("aria-pressed", "true");
+    await setRolloutSwitch(page, "schedules", true);
     await page.goto("/leader/events");
     await page.getByLabel("Search events", { exact: true }).fill("Schedule event");
     const schedule = page.getByRole("region", { name: "Events schedule", exact: true });
@@ -27,8 +27,7 @@ test("Event schedule preserves summaries, date selection, past actions and legac
     await expect(page).toHaveURL(/\/leader\/events\/000-sw177-event-past$/);
     await expect(page.getByRole("heading", { name: "Schedule event 0", exact: true })).toBeVisible();
     await page.goto("/leader/settings");
-    const existing = page.getByRole("button", { name: "Existing schedules", exact: true });
-    await existing.click(); await expect(existing).toHaveAttribute("aria-pressed", "true");
+    await setRolloutSwitch(page, "schedules", false);
     await page.goto("/leader/events");
     await expect(page.getByRole("region", { name: "Events schedule", exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Open Schedule event 1", exact: true })).toBeVisible();
@@ -45,8 +44,7 @@ test("Copying a past event creates a distinct draft and retains the source", asy
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
-    await page.getByRole("button", { name: "Redesigned schedules", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Redesigned schedules", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await setRolloutSwitch(page, "schedules", true);
     await page.goto("/leader/events");
     await page.getByLabel("Search events", { exact: true }).fill("Schedule event 0");
     await page.getByRole("button", { name: "Copy event", exact: true }).click();

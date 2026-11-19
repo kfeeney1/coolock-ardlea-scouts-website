@@ -12,7 +12,7 @@ import {
 } from "../admin/OperationalStates";
 import { classifyFirestoreFailure } from "../../services/firestoreErrors";
 import { formatSiteDate } from "../../services/siteDateFormat";
-import { loadParentEventConsentLinks } from "../../services/parentEvents";
+import { loadParentEventConsentLinks, watchParentEventChanges } from "../../services/parentEvents";
 import type { ParentEventConsentLink } from "../../services/parentEvents";
 import ParentEventGallerySection from "./ParentEventGallerySection";
 
@@ -30,6 +30,7 @@ export default function ParentEventConsentSection({ memberIds, sections, consent
 
   useEffect(() => {
     let cancelled = false;
+    let stop = () => {};
     if (!consentFlowsEnabled) {
       setEvents([]);
       setLoading(false);
@@ -37,13 +38,19 @@ export default function ParentEventConsentSection({ memberIds, sections, consent
       setPermissionDenied(false);
       return () => { cancelled = true; };
     }
-    void (async () => {
+    const load = async () => {
+      stop();
       setLoading(true);
       setError("");
       setPermissionDenied(false);
       try {
         const loaded = await loadParentEventConsentLinks(memberIds, sections);
-        if (!cancelled) setEvents(loaded);
+        if (!cancelled) {
+          setEvents(loaded);
+          stop = watchParentEventChanges(loaded, () => {
+            if (!cancelled) {setEvents([]); void load();}
+          });
+        }
       } catch (loadError) {
         const failedOperation = loadError && typeof loadError === "object" && "parentEventOperation" in loadError
           ? Reflect.get(loadError, "parentEventOperation") : undefined;
@@ -59,8 +66,9 @@ export default function ParentEventConsentSection({ memberIds, sections, consent
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    void load();
+    return () => { cancelled = true; stop(); };
   }, [consentFlowsEnabled, memberIds, sections, retryVersion]);
 
   const visible = useMemo(() => {

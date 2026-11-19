@@ -5,6 +5,7 @@ import {
     doc,
     getDoc,
     getDocs,
+    onSnapshot,
     query,
     serverTimestamp,
     setDoc,
@@ -15,7 +16,6 @@ import type { DocumentData, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import type { EventRecord } from "./eventAdmin";
-import { normalizeLeaderSections } from "./leaderAccessLogic";
 
 export type ResponseProcessingStatus = "new" | "matched" | "ignored";
 
@@ -172,9 +172,7 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
-    const existing = await getDocs(
-        query(collection(db, "eventConsentLinks"), where("eventId", "==", event.id), where("section", "==", event.section))
-    );
+    const existing = await getDocs(consentLinksForEvent(event));
 
     if (!existing.empty) {
         const snapshot = existing.docs[0];
@@ -200,19 +198,13 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
     return mapped;
 }
 
-export async function loadEventConsentLinks(): Promise<PublicEventLink[]> {
-    const profile = await currentLeaderProfile();
-    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
+function consentLinksForEvent(event: Pick<EventRecord, "id" | "section">) {
+    return query(collection(db, "eventConsentLinks"), where("eventId", "==", event.id), where("section", "==", event.section));
+}
 
-    const docs = isAdmin
-        ? (await getDocs(collection(db, "eventConsentLinks"))).docs
-        : (await Promise.all(
-            normalizeLeaderSections(profile).map((section) =>
-                getDocs(query(collection(db, "eventConsentLinks"), where("section", "==", section)))
-            )
-          )).flatMap((snapshot) => snapshot.docs);
-
-    return docs
+export async function loadEventConsentLinks(events: Pick<EventRecord, "id" | "section">[]): Promise<PublicEventLink[]> {
+    const snapshots = await Promise.all(events.map((event) => getDocs(consentLinksForEvent(event))));
+    return snapshots.flatMap((snapshot) => snapshot.docs)
         .map((item) => mapLink(item.id, item.data()))
         .filter((link): link is PublicEventLink => link !== null);
 }
@@ -221,6 +213,14 @@ export async function loadPublicEventLink(token: string): Promise<PublicEventLin
     const snapshot = await getDoc(doc(db, "eventConsentLinks", token));
     if (!snapshot.exists()) return null;
     return mapLink(snapshot.id, snapshot.data());
+}
+
+export function watchPublicEventLink(token: string, next: (event: PublicEventLink | null) => void, failed: (error: unknown) => void) {
+    return onSnapshot(doc(db, "eventConsentLinks", token), {includeMetadataChanges: true}, snapshot => {
+        if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+            next(snapshot.exists() ? mapLink(snapshot.id, snapshot.data()) : null);
+        }
+    }, failed);
 }
 
 export async function submitEventConsentResponse(input: SubmitEventConsentInput): Promise<string> {

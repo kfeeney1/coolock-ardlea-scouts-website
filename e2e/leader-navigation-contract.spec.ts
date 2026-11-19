@@ -2,15 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 import { accountNavItems, dashboardNavItem, leaderNavGroups, redesignedNavigationGroups, leaderLegacyRedirects, leaderContextlessRoutes, type LeaderNavItem } from '../src/navigation/leaderNavigation';
 import { leaderNavigationFilter } from '../src/navigation/leaderNavigationPermissions';
 import { loginAsLeader } from './support/authentication-helpers';
+import { setRolloutSwitch } from "./support/rollout-switches";
 
 const password=process.env.E2E_TEST_USER_PASSWORD;
 const email=process.env.E2E_SUPER_ADMIN_EMAIL || 'superadmin@example.com';
 async function selectMode(page: Page, redesigned: boolean){
   await page.goto('/leader/settings');
-  const button=page.getByRole('button',{name:`${redesigned?'Redesigned':'Existing'} navigation`,exact:true});
-  await expect(button).toBeEnabled();
-  if(await button.getAttribute('aria-pressed')!=='true')await button.click();
-  await expect(button).toHaveAttribute('aria-pressed','true');
+  await setRolloutSwitch(page, "navigation", redesigned);
 }
 async function identity(page: Page,item: LeaderNavItem){
   if('testId' in item.identity)await expect(page.getByTestId(item.identity.testId)).toBeVisible();

@@ -20,7 +20,7 @@ export async function saveHallEventSource(store, uid, command, now = Date.now())
     const [profile, organisation, rollout, lock] = await tx.read([`adminUsers/${uid}`, `organisationLeadership/${uid}`, "siteSettings/hallHire", "hall/group"]);
     assertHallCouncil(profile, organisation, now);
     // Match hasSection, the canonical direct event write rule. Group Council alone grants no programme scope.
-    if (!current || !hallMeetingScope(profile, {}, current.section)) hallFailure(403, "hall/forbidden", "Current event write permission is required.");
+    if (!current || (current.hidden === true && profile?.role !== "super-admin") || !hallMeetingScope(profile, {}, current.section)) hallFailure(403, "hall/forbidden", "Current event write permission is required.");
     if ((current.hallRevision ?? 0) !== command.expectedRevision || current.startDate !== command.expectedStartDate || current.endDate !== command.expectedEndDate) hallFailure(409, "hall/stale", "This event schedule changed. Reopen it before saving.");
     if (!["draft", "open", "closed", "completed"].includes(current.status)) hallFailure(409, "hall/reconcile", "This event needs reconciliation.");
     if (!command.release && !["open", "closed"].includes(current.status)) hallFailure(409, "hall/closed", "Open the event before reserving hall time.");

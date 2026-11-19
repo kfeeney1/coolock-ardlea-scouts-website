@@ -1,13 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { clearScheduleEvents, clearScheduleMeetings, scheduleEventIds, scheduleFixtureDb, scheduleMeetingIds, seedScheduleEvents, seedScheduleMeetings } from "./support/schedule-fixtures";
+import { rolloutSwitch, setRolloutSwitch } from "./support/rollout-switches";
 const password = process.env.E2E_TEST_USER_PASSWORD;
-async function setting(page: Page, kind: string, redesigned: boolean) {
-  const button = page.getByRole("button", { name: `${redesigned ? "Redesigned" : "Existing"} ${kind}`, exact: true });
-  await expect(button).toBeEnabled();
-  if (await button.getAttribute("aria-pressed") !== "true") await button.click();
-  await expect(button).toHaveAttribute("aria-pressed", "true");
-}
 for (const navigation of [false, true]) for (const schedules of [false, true]) test(`Navigation ${navigation}, schedules ${schedules}: list identity and canonical data`, async ({ page }) => {
   test.skip(!password, "Configure canonical E2E credentials.");
   await seedScheduleMeetings(); await seedScheduleEvents();
@@ -18,10 +13,10 @@ for (const navigation of [false, true]) for (const schedules of [false, true]) t
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     {
       await page.goto("/leader/settings");
-      await setting(page, "navigation", navigation); await setting(page, "schedules", schedules);
+      await setRolloutSwitch(page, "navigation", navigation); await setRolloutSwitch(page, "schedules", schedules);
       await page.reload();
-      await expect(page.getByRole("button", { name: `${navigation ? "Redesigned" : "Existing"} navigation`, exact: true })).toHaveAttribute("aria-pressed", "true");
-      await expect(page.getByRole("button", { name: `${schedules ? "Redesigned" : "Existing"} schedules`, exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(rolloutSwitch(page, "navigation")).toBeChecked({ checked: navigation });
+      await expect(rolloutSwitch(page, "schedules")).toBeChecked({ checked: schedules });
       for (const [path, label, heading] of [["weekly", "Meetings", "Weekly Meetings"], ["events", "Events", "Events & Activities"]]) {
         await page.goto(`/leader/${path}`);
         await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
@@ -37,7 +32,7 @@ for (const navigation of [false, true]) for (const schedules of [false, true]) t
     const after = await Promise.all(refs.map(async ref => (await ref.get()).data()));
     expect(after).toEqual(before);
   } finally {
-    await page.goto("/leader/settings"); await setting(page, "navigation", false); await setting(page, "schedules", false);
+    await page.goto("/leader/settings"); await setRolloutSwitch(page, "navigation", false); await setRolloutSwitch(page, "schedules", false);
     await clearScheduleMeetings(); await clearScheduleEvents();
   }
 });
@@ -56,7 +51,7 @@ test("Read-only meeting access and section boundaries survive redesigned schedul
     await expect(schedule.getByRole("link", { name: "Edit meeting", exact: true })).toHaveCount(0);
     await expect(schedule.getByRole("link", { name: "Copy meeting", exact: true })).toHaveCount(0);
     await page.goto("/leader/settings");
-    await expect(page.getByRole("button", { name: "Redesigned schedules", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: "Redesigned schedules", exact: true })).toHaveCount(0);
     const context = await browser.newContext({ baseURL });
     try {
       const scoped = await context.newPage();
@@ -76,7 +71,7 @@ test("Touch swipe and pointer browsing keep the event tile and date in sync", as
   await seedScheduleEvents();
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
-    await page.goto("/leader/settings"); await setting(page, "schedules", true);
+    await page.goto("/leader/settings"); await setRolloutSwitch(page, "schedules", true);
     await page.goto("/leader/events");
     await page.getByLabel("Search events", { exact: true }).fill("Schedule event");
     const schedule = page.getByRole("region", { name: "Events schedule", exact: true });

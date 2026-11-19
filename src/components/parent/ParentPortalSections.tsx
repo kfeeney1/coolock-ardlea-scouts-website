@@ -42,20 +42,27 @@ export default function ParentPortalSections({
 
   return <>
     {childrenLoadError && <Alert severity="warning" sx={{ mb: 3 }}>Child details could not be loaded. Portal navigation remains limited to the approved linked records.</Alert>}
-    {!childrenLoadError && linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2 }}>
+    {!childrenLoadError && linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2, borderRadius: 2, bgcolor: "action.selected" }}>
       <InputLabel id="parent-child-context-label">Viewing information for</InputLabel>
-      <Select labelId="parent-child-context-label" label="Viewing information for" value={pendingChildId ?? selectedChild?.id ?? ""} onChange={(event) => onRememberChildSelection(event.target.value)} onClose={onCommitChildSelectionAfterClose} data-testid="parent-child-context">
-        {linkedChildren.map((child) => <MenuItem key={child.id} value={child.id}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}
+      <Select labelId="parent-child-context-label" label="Viewing information for" value={pendingChildId ?? selectedChild?.id ?? ""} onChange={(event) => onRememberChildSelection(event.target.value)} onClose={onCommitChildSelectionAfterClose} data-testid="parent-child-context" sx={{
+        bgcolor: "background.paper",
+        "& .MuiSelect-select": { minHeight: "44px", boxSizing: "border-box", whiteSpace: "normal", overflowWrap: "anywhere" },
+        "&.Mui-focused": { outline: "2px solid", outlineColor: "secondary.main", outlineOffset: 2 }
+      }}>
+        {linkedChildren.map((child) => <MenuItem key={child.id} value={child.id} sx={{ minHeight: 44, whiteSpace: "normal", overflowWrap: "anywhere" }}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}
       </Select>
     </FormControl>}
-    {selectedChild && <Typography role="status" aria-live="polite" sx={{ mb: 2 }}>Viewing {selectedChild.displayName} · {selectedChild.sections.join(", ")}</Typography>}
-    <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">
-      {portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}
+    {selectedChild && <Typography role="status" aria-live="polite" sx={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden", clipPath: "inset(50%)" }}>Viewing {selectedChild.displayName} · {selectedChild.sections.join(", ")}</Typography>}
+    <Box id="parent-things-to-do" sx={{ scrollMarginTop: 24 }}><ParentThingsToDo memberIds={memberIds} sections={sections} refreshVersion={taskSummaryVersion} consentFlowsEnabled={consentFlowsEnabled} /></Box>
+    <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">
+      {portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{
+        minHeight: 44, justifyContent: "flex-start", textAlign: "left", overflowWrap: "anywhere",
+        "&.Mui-focusVisible": { outline: "2px solid", outlineOffset: 2 }
+      }}>{label}</Button>)}
     </Box>
     <Box id="parent-dashboard-polls" sx={{ mb: 3 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Group Polls</Typography><ParentPollsSection key={pollSections.join("|")} sections={pollSections} /></Box>
-    <Box id="parent-things-to-do" sx={{ scrollMarginTop: 24 }}><ParentThingsToDo memberIds={memberIds} sections={sections} refreshVersion={taskSummaryVersion} consentFlowsEnabled={consentFlowsEnabled} /></Box>
-    <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection memberIds={memberIds} /></Box>
-    <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>{consentFlowsEnabled ? "Upcoming Events & Event Consent" : "Upcoming Events & Galleries"}</Typography><ParentEventConsentSection memberIds={memberIds} sections={sections} consentFlowsEnabled={consentFlowsEnabled} /></Box>
-    {consentFlowsEnabled && <Box id="parent-medical-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography><ParentConsentSection memberIds={memberIds} onSaved={onConsentSaved} /></Box>}
+    <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection key={selectedChild?.id} memberIds={memberIds} /></Box>
+    <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>{consentFlowsEnabled ? "Upcoming Events & Event Consent" : "Upcoming Events & Galleries"}</Typography><ParentEventConsentSection key={selectedChild?.id} memberIds={memberIds} sections={sections} consentFlowsEnabled={consentFlowsEnabled} /></Box>
+    {consentFlowsEnabled && <Box id="parent-medical-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography><ParentConsentSection key={selectedChild?.id} memberIds={memberIds} onSaved={onConsentSaved} /></Box>}
   </>;
 }

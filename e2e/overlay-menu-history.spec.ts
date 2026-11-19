@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { holdOverlayCloseForMenu } from "./support/overlay-close-race";
+import { rolloutSwitch, setRolloutSwitch } from "./support/rollout-switches";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 for (const redesigned of [false, true]) {
@@ -12,12 +13,10 @@ for (const redesigned of [false, true]) {
     try {
       await loginAsLeader(settings, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
       await settings.goto("/leader/settings");
-      const redesignedChoice = settings.getByRole("button", { name: "Redesigned navigation", exact: true });
-      await expect(redesignedChoice).toBeEnabled();
-      original = await redesignedChoice.getAttribute("aria-pressed") === "true";
-      const choice = settings.getByRole("button", { name: `${redesigned ? "Redesigned" : "Existing"} navigation`, exact: true });
-      if (await choice.getAttribute("aria-pressed") !== "true") await choice.click();
-      await expect(choice).toHaveAttribute("aria-pressed", "true");
+      const navigationSwitch = rolloutSwitch(settings, "navigation");
+      await expect(navigationSwitch).toBeEnabled();
+      original = await navigationSwitch.isChecked();
+      await setRolloutSwitch(settings, "navigation", redesigned);
 
       await loginAsLeader(page, { email: "test.webadmin@example.com", password: password! });
       await page.goto("/leader/members");
@@ -49,9 +48,7 @@ for (const redesigned of [false, true]) {
     } finally {
       try {
         if (original !== undefined) {
-          const restore = settings.getByRole("button", { name: `${original ? "Redesigned" : "Existing"} navigation`, exact: true });
-          if (await restore.getAttribute("aria-pressed") !== "true") await restore.click();
-          await expect(restore).toHaveAttribute("aria-pressed", "true");
+          await setRolloutSwitch(settings, "navigation", original);
         }
       } finally { await context.close(); }
     }
