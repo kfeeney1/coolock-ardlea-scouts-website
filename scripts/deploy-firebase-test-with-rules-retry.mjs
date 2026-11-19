@@ -51,6 +51,8 @@ export async function deployFirebaseTest({ run = runNpx, publishRules = publishT
   const config = deliveryConfig(JSON.parse(await readFile("firebase.test.json", "utf8")));
   await writeFile(configPath, JSON.stringify(config), { flag: "wx", mode: 0o600 });
   try {
+    const consent = await run(firebaseDeployArgs("functions:consent:leaderConsentRead", configPath));
+    if (consent.code !== 0) throw new Error(`Firebase TEST consent function deployment failed with exit code ${consent.code}.`);
     const result = await run(firebaseDeployArgs("firestore:indexes,hosting", configPath));
     if (result.code !== 0) throw new Error(`Firebase TEST indexes and Hosting deployment failed with exit code ${result.code}.`);
     log("Firebase TEST Rules verified; indexes and Hosting deployment succeeded.");

@@ -67,7 +67,7 @@ test("Programme Scouters cannot query Join Us while Section Leaders remain secti
   await assertFails(getDocs(collection(sectionDb, "joinApplications")));
 });
 
-test("ordinary leaders can query canonical consent section fields and legacy section aliases are denied", async () => {
+test("unlinked consent supports scoped direct reads and historical-section lists are rejected", async () => {
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
     ["consentApplications/current-cub", { section: "Cubs", formType: "youth-activity-consent", status: "active", source: "website" }],
@@ -76,9 +76,10 @@ test("ordinary leaders can query canonical consent section fields and legacy sec
   ]);
 
   const db = testEnv.authenticatedContext("leader-cubs").firestore();
-  await assertSucceeds(
-    getDocs(query(collection(db, "consentApplications"), where("section", "==", "Cubs")))
-  );
+  await assertSucceeds(getDoc(doc(db, "consentApplications/current-cub")));
+  await assertFails(getDoc(doc(db, "consentApplications/scout")));
+  await assertFails(getDoc(doc(db, "consentApplications/legacy-cub")));
+  await assertFails(getDocs(query(collection(db, "consentApplications"), where("section", "==", "Cubs"))));
   await assertFails(
     getDocs(query(collection(db, "consentApplications"), where("scoutSection", "==", "Cubs")))
   );

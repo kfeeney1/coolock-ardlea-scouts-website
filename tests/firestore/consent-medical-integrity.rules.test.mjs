@@ -89,7 +89,7 @@ test("only Super Admin can replace an existing canonical relationship with recon
 });
 
 
-test("SW-156 linked consent follows the member's current authorized section after a transfer", async () => {
+test("SW-605 linked consent follows the member's current authorized section after a transfer", async () => {
   await seed([
     ["members/member-moved", { displayName: "Alex Scout", dateOfBirth: "2015-01-02", section: "Cubs", sections: ["Cubs"], status: "active" }],
     ["adminUsers/cub-leader", { active: true, role: "leader", sections: ["Cubs"] }],
@@ -99,10 +99,17 @@ test("SW-156 linked consent follows the member's current authorized section afte
   ]);
 
   const cubDb = testEnv.authenticatedContext("cub-leader", { email: "cub@example.com" }).firestore();
-  await assertSucceeds(getDoc(doc(cubDb, "consentApplications/consent-moved")));
+  const record = await assertSucceeds(getDoc(doc(cubDb, "consentApplications/consent-moved")));
+  assert.equal(record.data().section, "Beavers");
+  assert.equal(record.data().consentTo, consent.consentTo);
+  const linkedQuery = db => query(collection(db, "consentApplications"), where("memberId", "==", "member-moved"));
+  assert.deepEqual((await assertSucceeds(getDocs(linkedQuery(cubDb)))).docs.map(item => item.id), ["consent-moved"]);
 
   const oldSectionDb = testEnv.authenticatedContext("beaver-leader", { email: "beaver@example.com" }).firestore();
-  await assertSucceeds(getDoc(doc(oldSectionDb, "consentApplications/consent-moved")));
+  await assertFails(getDoc(doc(oldSectionDb, "consentApplications/consent-moved")));
+  await assertFails(getDocs(linkedQuery(oldSectionDb)));
+  await assertFails(getDocs(query(collection(oldSectionDb, "consentApplications"), where("section", "==", "Beavers"))));
+  await assertFails(updateDoc(doc(oldSectionDb, "consentApplications/consent-moved"), { status: "reviewed" }));
 
   const superDb = testEnv.authenticatedContext("super-1", { email: "super@example.com" }).firestore();
   await assertSucceeds(getDoc(doc(superDb, "consentApplications/consent-moved")));

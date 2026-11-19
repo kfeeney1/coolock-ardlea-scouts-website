@@ -1,3 +1,4 @@
+import { readLeaderConsent } from "./leaderConsentRead";
 import { readEventDocuments } from "./eventDiscovery";
 import { doc, getDocFromServer, collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
@@ -110,8 +111,7 @@ function mapMeeting(snapshot: FirestoreSnapshot): LeaderTodayMeeting | null {
   };
 }
 
-function mapFormRenewalConsent(snapshot: FirestoreSnapshot): FormRenewalConsent | null {
-  const data = snapshot.data();
+function mapFormRenewalConsent({ data }: Awaited<ReturnType<typeof readLeaderConsent>>[number]): FormRenewalConsent | null {
   const memberId = stringValue(data.memberId);
   const formType = stringValue(data.formType);
   if (!memberId || !formType) return null;
@@ -217,7 +217,7 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     loadScopedCollection("members", profile),
     loadScopedCollection("events", profile),
     loadScopedWeeklyMeetings(profile),
-    loadScopedCollection("consentApplications", profile),
+    readLeaderConsent(),
     loadEquipmentAttention(profile)
   ]);
 

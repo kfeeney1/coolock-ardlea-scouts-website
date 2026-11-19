@@ -75,7 +75,7 @@ export async function validateReportingReadBudgetSource(rootDir = process.cwd())
   }
   requireSource(errors, overview, "loadScopedCollection(\"members\", profile)", "Leader overview must keep member reads in the scoped loader.");
   requireSource(errors, overview, "loadScopedCollection(\"events\", profile)", "Leader overview must keep event reads in the scoped loader.");
-  requireSource(errors, overview, "loadScopedCollection(\"consentApplications\", profile)", "Leader overview must keep consent renewal reads in the scoped loader.");
+  requireSource(errors, overview, "readLeaderConsent()", "Leader overview must use the current-section-authorised consent reader.");
 
   requireSource(errors, leaderReports, "Promise.all([loadMemberReportRows(scope), loadEventReportRecords(scope)])", "Reports must keep the initial Firestore snapshot to the member and event datasets.");
   requireSource(errors, reporting, "const memberReportCache = new Map", "Reports must retain the member snapshot cache used by event exports.");

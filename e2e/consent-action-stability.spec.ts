@@ -15,11 +15,13 @@ test("consent Back stays under the pointer when the record finishes loading", as
   let releaseRead!: () => void;
   let readHeld = false;
   const readGate = new Promise<void>((resolve) => { releaseRead = resolve; });
-  const listenChannel = "**/google.firestore.v1.Firestore/Listen/channel?**";
-  await page.route(listenChannel, async (route) => {
-    const values = new URLSearchParams(route.request().postData() || "");
-    const readsConsent = [...values.values()].some((value) => value.includes('"addTarget"') && value.includes(`/consentApplications/${consentId}`));
-    if (readsConsent) { readHeld = true; await readGate; }
+  const consentRead = "**/leaderConsentRead";
+  await page.route(consentRead, async (route) => {
+    const request = route.request();
+    if (request.method() === "POST" && request.postDataJSON()?.data?.consentId === consentId) {
+      readHeld = true;
+      await readGate;
+    }
     await route.continue();
   });
   try {
@@ -46,6 +48,6 @@ test("consent Back stays under the pointer when the record finishes loading", as
   } finally {
     releaseRead();
     await page.mouse.up();
-    await page.unroute(listenChannel);
+    await page.unroute(consentRead);
   }
 });

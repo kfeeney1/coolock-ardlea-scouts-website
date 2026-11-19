@@ -125,6 +125,14 @@
   },
   "functions": [
     {
+      "source": "functions",
+      "codebase": "consent",
+      "runtime": "nodejs22",
+      "predeploy": [
+        "npm run check:event-backend-build"
+      ]
+    },
+    {
       "source": "maintenance-functions",
       "codebase": "maintenance",
       "runtime": "nodejs22",
