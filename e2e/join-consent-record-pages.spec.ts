@@ -272,7 +272,7 @@ test("SW-605 transferred consent follows the current section and retains the ori
     await page.getByRole("option", { name: "Cubs", exact: true }).click();
     await page.getByRole("button", { name: "Change section", exact: true }).click();
     await page.getByRole("button", { name: "Confirm transfer", exact: true }).click();
-    await expect(page.getByText("1 member moved to Cubs.", { exact: true })).toBeVisible();
+    await expect(page.getByTestId(`member-card-${id}`).getByText("Cubs", { exact: true })).toBeVisible();
 
     await page.goto("/leader/consents");
     await expect(card).toHaveCount(1);
