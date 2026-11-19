@@ -109,9 +109,10 @@ test("equipment store filters retain their viewport when applied, changed and cl
   await page.goto("/leader/equipment");
 
   const storeFilter = page.getByTestId("equipment-location-filter");
-  await storeFilter.scrollIntoViewIfNeeded();
-  const initialScroll = await page.evaluate(() => window.scrollY);
-  expect(initialScroll).toBeGreaterThan(0);
+  await expect(storeFilter).toBeVisible();
+  // Start scrolled even when the filter already fits in the initial viewport.
+  await storeFilter.evaluate((filter) => filter.scrollIntoView({ block: "start", behavior: "instant" }));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
   const assertStoreFilterVisible = async () => {
     const box = await storeFilter.boundingBox();
