@@ -53,6 +53,22 @@ test("approved linked parent and scoped leader can read only eligible poll audie
   await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), "polls/poll-1")));
 });
 
+test("parent poll scope checks all linked children and only canonical youth sections", async () => {
+  const otherMemberIds = Array.from({ length: 7 }, (_, index) => `other-member-${index}`);
+  await seed([
+    ["parentAccounts/parent-a", { status: "approved", memberIds: [...otherMemberIds, "member-a"] }],
+    ...otherMemberIds.map((id) => [`members/${id}`, { status: "active", sections: ["Rovers"] }]),
+    ["members/member-a", { status: "active", section: "Scouts" }],
+  ]);
+  await seedPoll("combined-scope", { scopeSections: ["Beavers", "Scouts"] });
+  await seedPoll("non-youth-scope", { scopeSections: ["Group", "All Sections"] });
+  const parent = testEnv.authenticatedContext("parent-a").firestore();
+  await assertSucceeds(getDoc(doc(parent, "polls/combined-scope")));
+  await assertFails(getDoc(doc(parent, "polls/non-youth-scope")));
+  await seed([["members/member-a", { status: "left", section: "Scouts" }]]);
+  await assertFails(getDoc(doc(parent, "polls/combined-scope")));
+});
+
 test("draft poll roots and discovery indexes stay hidden from respondents until publication", async () => {
   await seedPoll("draft-poll", { status: "draft" });
   const parent = testEnv.authenticatedContext("parent-a").firestore();
