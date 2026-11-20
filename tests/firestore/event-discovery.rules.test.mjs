@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { initializeTestEnvironment, assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { doc, setDoc, getDoc, getDocs, collection, writeBatch, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, getDocs, collection, collectionGroup, query, where, writeBatch, serverTimestamp } from "firebase/firestore";
 import { discoverEventDocuments } from "../../email-worker/src/eventDiscovery.js";
 
 const projectId = "demo-coolock-ardlea-scouts";
@@ -88,6 +88,31 @@ test("visible discovery preserves legacy records and excludes hidden sources fro
   assert.deepEqual(await discover("other", "eventConsentLinks"), []);
 });
 
+test("Firestore-only discovery needs a queryable visibility record for ordinary audiences", async () => {
+  const parent = env.authenticatedContext("parent").firestore();
+  const superAdmin = env.authenticatedContext("super").firestore();
+  const cubs = env.authenticatedContext("cubs").firestore();
+  const visitor = env.unauthenticatedContext().firestore();
+
+  // Parent consent starts with the linked child ID. This does not constrain
+  // the source event, so Firestore cannot prove that the query excludes hides.
+  await assertFails(getDocs(query(collectionGroup(parent, "audienceMembers"),
+    where("memberId", "in", ["child"]))));
+  const selectedConsent = eventId => getDocs(query(collection(parent, "eventConsentLinks"),
+    where("eventId", "==", eventId), where("active", "==", true), where("audienceVersion", "==", 3)));
+  const visible = await assertSucceeds(selectedConsent("visible"));
+  assert.deepEqual(visible.docs.map(link => link.id), ["visible"]);
+  await assertFails(selectedConsent("hidden"));
+
+  // The privileged attendance reader has a direct list path. Ordinary leaders
+  // and visitors still need a list path that cannot expose hidden projections.
+  const attendance = await assertSucceeds(getDocs(collection(superAdmin, "events")));
+  assert.equal(attendance.docs.some(event => event.id === "hidden"), true);
+  await assertFails(getDocs(query(collection(cubs, "events"),
+    where("section", "==", "Cubs"), where("hidden", "==", false))));
+  await assertFails(getDocs(collection(visitor, "publicEvents")));
+});
+
 test("hide and restore remove all existing projections while preserving records and immutable audit", async () => {
   const db = env.authenticatedContext("super").firestore();
   const original = (await getDoc(doc(db, "events/visible"))).data();
@@ -120,6 +145,17 @@ test("hide and restore remove all existing projections while preserving records 
   const restored = (await getDoc(doc(db, "events/visible"))).data();
   for (const [key, value] of Object.entries(original)) assert.deepEqual(restored[key], value);
   assert.equal((await getDocs(collection(db, "events/visible/visibilityHistory"))).size, 2);
+});
+
+test("only Super Admin can read a missing public projection during an event visibility change", async () => {
+  const path = "publicEvents/unprojected";
+  const superDb = env.authenticatedContext("super").firestore();
+  const adminDb = env.authenticatedContext("admin").firestore();
+  const publicDb = env.unauthenticatedContext().firestore();
+  const snapshot = await assertSucceeds(getDoc(doc(superDb, path)));
+  assert.equal(snapshot.exists(), false);
+  await assertFails(getDoc(doc(adminDb, path)));
+  await assertFails(getDoc(doc(publicDb, path)));
 });
 
 test("discovery rejects arbitrary collections, invalid filters, anonymous private scans and forged tokens", async () => {

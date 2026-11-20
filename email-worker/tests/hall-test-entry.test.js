@@ -41,3 +41,43 @@ test("CORS preflight preserves the exact allowed origin without an email depende
   assert.equal(response.status, 204); assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
   assert.equal(response.headers.get("Access-Control-Allow-Methods"), "POST, OPTIONS");
 });
+
+test("isolated event discovery allows preflight and denies writes and foreign tokens before Firestore", async () => {
+  const never = () => { throw new Error("Unexpected privileged read"); };
+  const preflight = await handleTestHallRequest(request("/event-discovery", {method: "OPTIONS"}), env, never);
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), origin);
+  const write = await handleTestHallRequest(request("/event-discovery", {body: '{"operation":"create"}'}), env, never);
+  assert.equal(write.status, 400);
+  const foreign = await handleTestHallRequest(request("/event-discovery", {
+    body: '{"operation":"read","collection":"events","filters":[]}',
+    headers: {Authorization: `Bearer ${token("coolock-ardlea-scouts")}`}
+  }), env, never);
+  assert.equal(foreign.status, 401);
+  const anonymous = await handleTestHallRequest(request("/event-discovery", {
+    body: '{"operation":"read","collection":"events","filters":[]}'
+  }), env, never);
+  assert.equal(anonymous.status, 401);
+});
+
+test("TEST discovery returns public paths only after TEST Firestore authorizes them", async (t) => {
+  const base = `https://firestore.googleapis.com/v1/projects/${hallTestProject}/databases/(default)/documents`;
+  const prefix = `projects/${hallTestProject}/databases/(default)/documents/`;
+  const publicEvent = {name: prefix + "publicEvents/visible", fields: {}};
+  const source = {name: prefix + "events/visible", fields: {hidden: {booleanValue: false}}};
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    const privileged = options.headers.Authorization === "Bearer synthetic-service-token";
+    if (url === base + ":runQuery" && privileged) return Response.json([{document: publicEvent}]);
+    assert.equal(url, base + ":batchGet");
+    assert.deepEqual(JSON.parse(options.body).documents, [privileged ? source.name : publicEvent.name]);
+    return Response.json([{found: privileged ? source : publicEvent}]);
+  });
+  const result = await handleTestHallRequest(request("/event-discovery", {
+    body: '{"operation":"read","collection":"publicEvents","filters":[]}'
+  }), env, async (configuration) => {
+    assert.equal(configuration.FIREBASE_PROJECT_ID, hallTestProject);
+    return "synthetic-service-token";
+  });
+  assert.equal(result.status, 200);
+  assert.deepEqual(await result.json(), {ok: true, paths: ["publicEvents/visible"], cursor: null});
+});

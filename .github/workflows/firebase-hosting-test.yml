@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  checks: read
 
 concurrency:
   group: firebase-test-deploy
@@ -28,6 +29,72 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
         run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
+      - name: Wait for required CI evidence for exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          deadline=$((SECONDS + 2700))
+
+          for required_check in 'quality' 'e2e' 'rules' 'audit'; do
+            echo "Waiting for ${required_check} on ${TARGET_SHA}..."
+
+            while (( SECONDS < deadline )); do
+              latest="$(
+                gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100" \
+                  --jq ".check_runs
+                    | map(select(.name == \"${required_check}\"))
+                    | sort_by(.id)
+                    | last
+                    | if . == null then \"missing\\t\" else [.status, (.conclusion // \"\")] | @tsv end"
+              )"
+
+              status="${latest%%$'\t'*}"
+              conclusion="${latest#*$'\t'}"
+
+              if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then
+                echo "${required_check}: success"
+                break
+              fi
+
+              if [[ "$status" == "completed" && -n "$conclusion" && "$conclusion" != "success" ]]; then
+                echo "::error::Required check ${required_check} completed with ${conclusion} on ${TARGET_SHA}."
+                exit 1
+              fi
+
+              echo "${required_check}: ${status}${conclusion:+/${conclusion}}; checking again in 30s"
+              sleep 30
+            done
+
+            if (( SECONDS >= deadline )); then
+              echo "::error::Timed out waiting for required check ${required_check} on ${TARGET_SHA}."
+              exit 1
+            fi
+          done
+      - name: Check whether the isolated TEST Worker is configured
+        id: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$CLOUDFLARE_API_TOKEN" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::TEST Worker deployment and live parent event consent and attendance checks skipped because the TEST Cloudflare token is absent."
+          fi
+      - name: Validate target, account confirmation and isolated config
+        if: steps.worker.outputs.enabled == 'true'
+        env:
+          HALL_BUILD_COMMIT: ${{ github.sha }}
+          HALL_FREE_PLAN_CONFIRMED: ${{ vars.HALL_FREE_PLAN_CONFIRMED }}
+          VITE_HALL_BOOKING_API_URL: ${{ vars.VITE_HALL_BOOKING_API_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node --experimental-strip-types scripts/check-hall-test-deployment.mjs
       - name: Install Maintenance backend dependencies
         run: npm ci --prefix maintenance-functions --no-audit
 
@@ -57,6 +124,48 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_EMAIL_API_URL: ""
           VITE_HALL_BOOKING_API_URL: ${{ vars.VITE_HALL_BOOKING_API_URL }}
+      - name: Install existing Worker toolchain and test handler
+        if: steps.worker.outputs.enabled == 'true'
+        working-directory: email-worker
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/*.test.js
+      - name: Package reviewed TEST entry without deploying
+        if: steps.worker.outputs.enabled == 'true'
+        working-directory: email-worker
+        env:
+          WRANGLER_SEND_METRICS: "false"
+          HALL_BUILD_COMMIT: ${{ github.sha }}
+        run: npx --no-install wrangler deploy --dry-run --config wrangler.hall-test.toml --var "HALL_BUILD_COMMIT:$HALL_BUILD_COMMIT"
+      - name: Deploy isolated TEST Worker
+        if: steps.worker.outputs.enabled == 'true'
+        working-directory: email-worker
+        env:
+          WRANGLER_SEND_METRICS: "false"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+          HALL_BUILD_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          secret_file="$(mktemp)"
+          trap 'rm -f "$secret_file"' EXIT
+          export HALL_SECRET_FILE="$secret_file"
+          node --input-type=module - <<'JS'
+          import {writeFile} from 'node:fs/promises';
+          const key = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+          if (key.project_id !== 'coolock-ardlea-scouts-test' || !key.client_email?.endsWith('@coolock-ardlea-scouts-test.iam.gserviceaccount.com') || !key.private_key) throw new Error('TEST credential mismatch.');
+          await writeFile(process.env.HALL_SECRET_FILE, JSON.stringify({FIREBASE_SERVICE_ACCOUNT_EMAIL: key.client_email, FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: key.private_key}), {mode: 0o600});
+          JS
+          npx --no-install wrangler secret bulk "$secret_file" --config wrangler.hall-test.toml
+          npx --no-install wrangler deploy --config wrangler.hall-test.toml --var "HALL_BUILD_COMMIT:$HALL_BUILD_COMMIT"
+      - name: Verify public TEST identity and denied boundaries
+        if: steps.worker.outputs.enabled == 'true'
+        env:
+          VITE_HALL_BOOKING_API_URL: ${{ vars.VITE_HALL_BOOKING_API_URL }}
+          EXPECTED_WORKER_SHA: ${{ github.sha }}
+        run: node --experimental-strip-types scripts/check-test-hall-backend.mjs
       - name: Deploy reviewed Rules, indexes, Storage rules and Hosting to TEST
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
@@ -104,7 +213,14 @@ jobs:
           E2E_STABLE_ENVIRONMENT_SMOKE: "true"
           E2E_BASE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
           E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-        run: npx --no-install playwright test e2e/test-environment-smoke.spec.ts --project=chromium --project=mobile-chromium
+          test_worker_enabled: ${{ steps.worker.outputs.enabled }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "$test_worker_enabled" == "false" ]]; then
+            args+=(--grep-invert '@test-worker')
+          fi
+          npx --no-install playwright test e2e/test-environment-smoke.spec.ts --project=chromium --project=mobile-chromium "${args[@]}"
       - name: Retain failed TEST smoke evidence
         if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -117,6 +233,8 @@ jobs:
           if-no-files-found: ignore
       - name: Record TEST deployment evidence
         if: always()
+        env:
+          test_worker_enabled: ${{ steps.worker.outputs.enabled }}
         shell: bash
         run: |
           {
@@ -125,4 +243,7 @@ jobs:
             echo "- SHA: $GITHUB_SHA"
             echo "- Target: $FIREBASE_PROJECT_ID"
             echo "- Workflow run: $GITHUB_RUN_ID"
+            if [[ "$test_worker_enabled" == "false" ]]; then
+              echo '- Skipped: TEST Worker deployment, live parent event consent and live attendance (Cloudflare token absent).'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -174,12 +174,14 @@ service cloud.firestore {
     }
     function profileHasSection(section) {
       let sections = profile().sections;
-      return section in sections
-        || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in sections)
-        || (section in ["Cub", "Cub Scout", "Cub Scouts"] && "Cubs" in sections)
-        || (section == "Scout" && "Scouts" in sections)
-        || (section in ["Venture", "Venture Scout", "Venture Scouts"] && "Ventures" in sections)
-        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in sections);
+      let aliases = {
+        "Beaver": "Beavers", "Beaver Scout": "Beavers", "Beaver Scouts": "Beavers",
+        "Cub": "Cubs", "Cub Scout": "Cubs", "Cub Scouts": "Cubs",
+        "Scout": "Scouts",
+        "Venture": "Ventures", "Venture Scout": "Ventures", "Venture Scouts": "Ventures",
+        "Rover": "Rovers", "Rover Scout": "Rovers", "Rover Scouts": "Rovers"
+      };
+      return section in sections || (section is string && aliases.get(section, section) in sections);
     }
     function hasSection(section) {
       return isActiveLeader()
@@ -454,18 +456,18 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["leaderUid", "memberId", "active", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       }
       allow create: if _validateWrite3(request.resource.data);
-      function _validateWrite4(_writeData) {
+      function _validateWrite4(_writeData, _storedData) {
         return (isAdmin() || isGroupLeader())
         && _writeData.active is bool
-        && _writeData.leaderUid == resource.data.leaderUid
-        && _writeData.memberId == resource.data.memberId
-        && _writeData.createdBy == resource.data.createdBy
-        && _writeData.createdAt == resource.data.createdAt
+        && _writeData.leaderUid == _storedData.leaderUid
+        && _writeData.memberId == _storedData.memberId
+        && _writeData.createdBy == _storedData.createdBy
+        && _writeData.createdAt == _storedData.createdAt
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
-        && _writeData.diff(resource.data).affectedKeys().hasOnly(["active", "updatedBy", "updatedAt"]);
+        && _writeData.diff(_storedData).affectedKeys().hasOnly(["active", "updatedBy", "updatedAt"]);
       }
-      allow update: if _validateWrite4(request.resource.data);
+      allow update: if _validateWrite4(request.resource.data, resource.data);
       allow delete: if false;
     }
 
@@ -699,7 +701,7 @@ service cloud.firestore {
       // Preserve the proven legacy scalar rule as an independent allow path.
       // Firestore can authorize section-constrained legacy queries against this
       // rule without needing to reason about the concurrent-membership branch.
-      allow read: if isActiveLeader() && hasSection(resource.data.section);
+      allow read: if hasSection(resource.data.section);
 
       // Adult self-service can reconcile by the caller's authenticated email.
       // Rover-scoped leaders can resolve account-linked adult identities for the
@@ -1120,7 +1122,7 @@ service cloud.firestore {
       // optional legacy field can never make an unconstrained list permissive.
       allow list: if isSuperAdmin();
       function _validateWrite19(_writeData) {
-        return isActiveLeader() && hasSection(_writeData.section) && _writeData.createdBy == request.auth.uid
+        return hasSection(_writeData.section) && _writeData.createdBy == request.auth.uid
         && _writeData.get("hidden", false) != true
         && !_writeData.keys().hasAny(["visibilityChangeId", "hallResource", "hallInterval", "hallRevision"])
         && _writeData.title is string && _writeData.eventType is string
@@ -1298,7 +1300,9 @@ service cloud.firestore {
         && resource.data.title is string && resource.data.eventType is string
         && resource.data.section is string && resource.data.startDate is string && resource.data.endDate is string;
       }
-      allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent() && visibleEvent(eventId);
+      // The visibility transaction reads optional projections before touching them.
+      allow get: if isSuperAdmin() || (resource.data.get("eventId", "") == eventId
+        && isSafePublicEvent() && visibleEventForOrdinaryCaller(eventId));
       allow list: if false;
       function _validateWrite26(_writeData) {
         return writableVisibleEvent(eventId) && isActiveLeader()
@@ -1390,21 +1394,21 @@ service cloud.firestore {
         return eventId is string && visibleEventForOrdinaryCaller(eventId);
       }
       allow get: if isSuperAdmin() || (consentEventIsVisible(resource.data.get("eventId", ""))
-        && ((isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true));
+        && (hasSection(resource.data.section) || resource.data.active == true));
       // List callers bind an event ID in the query so Rules can read its visibility.
       allow list: if resource.data.audienceVersion == 3
         && resource.data.active == true
         && consentEventIsVisible(resource.data.eventId)
         && isApprovedParentForEventRecord(resource.data.eventId);
       allow list: if isSuperAdmin();
-      allow list: if isActiveLeader() && hasSection(resource.data.section)
+      allow list: if hasSection(resource.data.section)
         && consentEventIsVisible(resource.data.eventId);
       allow list: if resource.data.audienceVersion in [1, 2]
         && resource.data.active == true
         && isApprovedParentForSection(resource.data.section)
         && consentEventIsVisible(resource.data.eventId);
       function _validateWrite30(_writeData) {
-        return writableVisibleEvent(_writeData.eventId) && isActiveLeader() && hasSection(_writeData.section)
+        return writableVisibleEvent(_writeData.eventId) && hasSection(_writeData.section)
         && _writeData.createdBy == request.auth.uid
         && _writeData.eventId is string && _writeData.title is string
         && _writeData.eventType is string && _writeData.startDate is string
@@ -1414,7 +1418,7 @@ service cloud.firestore {
       allow create: if _validateWrite30(request.resource.data);
       allow update: if visibilityProjectionTouch(resource.data.eventId);
       allow update: if writableVisibleEvent(resource.data.eventId) && request.resource.data.eventId == resource.data.eventId
-        && isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && (resource.data.audienceVersion != 3 || request.resource.data.audienceVersion == 3)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
       allow delete: if false;
@@ -1440,7 +1444,7 @@ service cloud.firestore {
 
     match /consentApplications/{consentId} {
       function hasResourceSection(data) {
-        return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
+        return data.keys().hasAny(["section"]) && data.section is string && profileHasSection(data.section);
       }
       function _validateWrite34(_writeData) {
         return _writeData.status == "active"
@@ -1477,17 +1481,19 @@ service cloud.firestore {
           ? currentConsentMemberInScope(data.memberId)
           : hasResourceSection(data);
       }
-      allow get: if isAdmin() || (isActiveLeader() && (ownScouterConsent(resource.data) || scopedConsent(resource.data)));
-      allow list: if isAdmin() || (isActiveLeader() && (
-        ownScouterConsent(resource.data)
-        || (resource.data.formType == "scouter-es3-medical-advice" && hasResourceSection(resource.data))
-        || (resource.data.memberId == "" && hasResourceSection(resource.data))
+      allow get: if isActiveLeader() && (profile().role in ["admin", "super-admin"]
+        || ownScouterConsent(resource.data) || scopedConsent(resource.data));
+      allow list: if isActiveLeader() && (
+        profile().role in ["admin", "super-admin"]
+        || ownScouterConsent(resource.data)
+        || ((resource.data.formType == "scouter-es3-medical-advice" || resource.data.memberId == "")
+          && hasResourceSection(resource.data))
         || (resource.data.memberId is string && resource.data.memberId != ""
-          && currentConsentMemberInScope(resource.data.memberId))));
+          && currentConsentMemberInScope(resource.data.memberId)));
       allow read: if resource.data.memberId is string && resource.data.memberId != ""
         && isApprovedParentForMember(resource.data.memberId);
       function _validateWrite35(_writeData, _storedData) {
-        return (isActiveLeader() && (isAdmin() || scopedConsent(_storedData))
+        return (isActiveLeader() && (profile().role in ["admin", "super-admin"] || scopedConsent(_storedData))
           && _writeData.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
           && !_writeData.keys().hasAny(["scoutSection"])
           && _writeData.diff(_storedData).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
@@ -1538,13 +1544,13 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["title", "meetingType", "section", "meetingDate", "attendees", "notes", "decisions", "actions", "attachment", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       }
       allow create: if _validateWrite36(request.resource.data);
-      function _validateWrite37(_writeData) {
+      function _validateWrite37(_writeData, _storedData) {
         return isActiveLeader()
-        && ((resource.data.meetingType == "group" && isAdmin())
-          || (resource.data.meetingType == "leader" && resource.data.section is string && hasSection(resource.data.section)))
+        && ((_storedData.meetingType == "group" && isAdmin())
+          || (_storedData.meetingType == "leader" && _storedData.section is string && hasSection(_storedData.section)))
         && ((_writeData.meetingType == "group" && isAdmin() && _writeData.section == "Group")
           || (_writeData.meetingType == "leader" && _writeData.section is string && hasSection(_writeData.section)))
-        && _writeData.diff(resource.data).affectedKeys().hasOnly(["title", "meetingType", "section", "meetingDate", "attendees", "notes", "decisions", "actions", "attachment", "updatedBy", "updatedAt"])
+        && _writeData.diff(_storedData).affectedKeys().hasOnly(["title", "meetingType", "section", "meetingDate", "attendees", "notes", "decisions", "actions", "attachment", "updatedBy", "updatedAt"])
         && (!_writeData.keys().hasAny(["attachment"]) || (_writeData.attachment is map
           && _writeData.attachment.path is string
           && _writeData.attachment.path.matches("attachments/meeting-documents/" + _writeData.section + "/" + meetingId + "/[^/]+/[^/]+")
@@ -1554,7 +1560,7 @@ service cloud.firestore {
           && _writeData.attachment.keys().hasOnly(["path", "fileName", "contentType", "size"])))
         && _writeData.updatedBy == request.auth.uid;
       }
-      allow update: if _validateWrite37(request.resource.data);
+      allow update: if _validateWrite37(request.resource.data, resource.data);
       allow delete: if false;
     }
 
@@ -1583,12 +1589,12 @@ service cloud.firestore {
         && _writeData.keys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       }
       allow create: if _validateWrite38(request.resource.data);
-      function _validateWrite39(_writeData) {
+      function _validateWrite39(_writeData, _storedData) {
         return isActiveLeader()
-        && (resource.data.get("hallResource", "") != "group-hall" || _writeData.meetingDate == resource.data.meetingDate)
-        && resource.data.section is string
+        && (_storedData.get("hallResource", "") != "group-hall" || _writeData.meetingDate == _storedData.meetingDate)
+        && _storedData.section is string
         && _writeData.section is string
-        && ((hasSection(resource.data.section) && hasSection(_writeData.section)) || isGroupLeader())
+        && ((hasSection(_storedData.section) && hasSection(_writeData.section)) || isGroupLeader())
         && _writeData.status in ["open", "closed"]
         && _writeData.location is string
         && _writeData.plannedActivities is string
@@ -1599,9 +1605,9 @@ service cloud.firestore {
         && _writeData.entries.size() <= 100
         && _writeData.injuries is list
         && _writeData.updatedBy == request.auth.uid
-        && _writeData.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);
+        && _writeData.diff(_storedData).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);
       }
-      allow update: if _validateWrite39(request.resource.data);
+      allow update: if _validateWrite39(request.resource.data, resource.data);
       allow delete: if isAdmin() && resource.data.status == "closed" && resource.data.get("hallResource", "") != "group-hall";
     }
 
@@ -2790,17 +2796,17 @@ service cloud.firestore {
         && (!_writeData.keys().hasAny(["closesAt"]) || _writeData.closesAt > request.time);
       }
       allow create: if _validateWrite79(request.resource.data);
-      function _validateWrite80(_writeData) {
-        return pollCanManage(resource.data) && validPollDocument(_writeData)
-        && _writeData.diff(resource.data).affectedKeys().hasOnly(["status", "publishedAt", "closedAt", "updatedBy", "updatedAt"])
+      function _validateWrite80(_writeData, _storedData) {
+        return pollCanManage(_storedData) && validPollDocument(_writeData)
+        && _writeData.diff(_storedData).affectedKeys().hasOnly(["status", "publishedAt", "closedAt", "updatedBy", "updatedAt"])
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
-        && ((resource.data.status == "draft" && _writeData.status == "published"
+        && ((_storedData.status == "draft" && _writeData.status == "published"
               && _writeData.publishedAt == request.time)
-            || (resource.data.status == "published" && _writeData.status == "closed"
+            || (_storedData.status == "published" && _writeData.status == "closed"
               && _writeData.closedAt == request.time));
       }
-      allow update: if _validateWrite80(request.resource.data);
+      allow update: if _validateWrite80(request.resource.data, resource.data);
       allow delete: if false;
 
       match /audienceSections/{section} {
@@ -2817,15 +2823,18 @@ service cloud.firestore {
         allow get: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data);
         allow list: if pollCanManageAudienceIndex(resource.data)
           || parentCanReadIndex() || leaderCanReadIndex();
-        allow create: if isActiveLeader()
-          && pollCanManage(getAfter(/databases/$(database)/documents/polls/$(pollId)).data)
-          && getAfter(/databases/$(database)/documents/polls/$(pollId)).data.status == "draft"
-          && section in getAfter(/databases/$(database)/documents/polls/$(pollId)).data.scopeSections
+        function validAudienceSectionCreate(poll) {
+          return isActiveLeader()
+          && pollCanManage(poll)
+          && poll.status == "draft"
+          && section in poll.scopeSections
           && request.resource.data.pollId == pollId && request.resource.data.section == section
-          && request.resource.data.audienceType == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.audienceType
-          && request.resource.data.scopeType == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.scopeType
-          && request.resource.data.scopeSections == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.scopeSections
+          && request.resource.data.audienceType == poll.audienceType
+          && request.resource.data.scopeType == poll.scopeType
+          && request.resource.data.scopeSections == poll.scopeSections
           && request.resource.data.status == "draft";
+        }
+        allow create: if validAudienceSectionCreate(getAfter(/databases/$(database)/documents/polls/$(pollId)).data);
         allow update: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
           && ((resource.data.status == "draft" && request.resource.data.status == "published")
