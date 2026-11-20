@@ -12,7 +12,8 @@ type ConsentDocument = { id: string; section: string; data: DocumentData };
 
 function toRecord(id: string, data: DocumentData, sections: ReadonlyMap<string, string>): ConsentDocument {
     const currentSection = data.formType === "youth-activity-consent" ? sections.get(data.memberId) : undefined;
-    return { id, section: currentSection || data.section || "", data };
+    const submittedSection = typeof data.section === "string" ? data.section : "";
+    return { id, section: currentSection || submittedSection, data };
 }
 
 async function loadScopedDocuments(sections: string[], memberIds: string[]) {
