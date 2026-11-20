@@ -5,21 +5,22 @@ const common = {
   programme: ["weekly-meetings", "events-activities", "group-polls", "badgework", "programme-equipment"],
   "people-parents": ["member-management", "consent-management", "event-consent", "parent-communications", "family-billing"],
   "group-operations": ["group-equipment-stores", "group-section-floats", "group-subs", "group-meeting-records"],
-  "insights-records": ["attendance-insights", "reports-exports"],
+  "insights-records": ["reports-exports"],
   administration: ["roles-permissions"]
 };
+const attendance = ["attendance-insights", ...common["insights-records"]];
 const secretary = ["secretary-meeting-records"];
 const quartermaster = ["qm-equipment-stores", "qm-detailed-inventory", "qm-equipment-issues", "qm-reports"];
 export const personaAccountDestinations = ["my-profile", "info-faq", "parent-portal"];
 export type NavigationPersona = { name: string; email: string; groups: Record<string, string[]>; primary: string };
 export const navigationPersonas: NavigationPersona[] = [
-  { name: "Programme appointment", email: "test.scout.programme.scouter@example.com", groups: common, primary: "weekly-meetings" },
+  { name: "Programme appointment", email: "test.scout.programme.scouter@example.com", groups: { ...common, "insights-records": attendance }, primary: "weekly-meetings" },
   { name: "Secretary appointment", email: "test.group.secretary@example.com", groups: { ...common, secretary, "insights-records": [...common["insights-records"], "activity-log"] }, primary: "secretary-meeting-records" },
   { name: "Bosun appointment", email: "test.group.quartermaster@example.com", groups: { ...common, quartermaster }, primary: "qm-reports" },
-  { name: "People and Parents", email: "test.group.leader@example.com", groups: { ...common, "people-parents": [...common["people-parents"], "join-management"], "insights-records": [...common["insights-records"], "activity-log"], administration: ["roles-permissions", "leader-access", "settings"] }, primary: "member-management" },
+  { name: "People and Parents", email: "test.group.leader@example.com", groups: { ...common, "people-parents": [...common["people-parents"], "join-management"], "insights-records": [...attendance, "activity-log"], administration: ["roles-permissions", "leader-access", "settings"] }, primary: "member-management" },
   { name: "Group Operations", email: "test.group.chairperson@example.com", groups: { ...common, secretary }, primary: "group-meeting-records" },
   { name: "Secretary and Bosun with inactive Treasurer", email: "test.navigation.multi.appointment@example.com", groups: { ...common, secretary, quartermaster, "insights-records": [...common["insights-records"], "activity-log"] }, primary: "qm-reports" },
-  { name: "Superuser", email: "superadmin@example.com", groups: { ...common, "people-parents": [...common["people-parents"], "join-management"], secretary, quartermaster, treasurer: ["treasurer-subs", "treasurer-floats", "treasurer-reports"], "insights-records": [...common["insights-records"], "activity-log"], administration: ["roles-permissions", "leader-requests", "parent-access", "leader-access", "settings", "system-information"] }, primary: "system-information" }
+  { name: "Superuser", email: "superadmin@example.com", groups: { ...common, "people-parents": [...common["people-parents"], "join-management"], secretary, quartermaster, treasurer: ["treasurer-subs", "treasurer-floats", "treasurer-reports"], "insights-records": [...attendance, "activity-log"], administration: ["roles-permissions", "leader-requests", "parent-access", "leader-access", "settings", "system-information"] }, primary: "system-information" }
 ];
 
 export const categoryRouteSamples: Record<string, string> = {
