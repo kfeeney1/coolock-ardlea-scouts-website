@@ -96,7 +96,13 @@ requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TES
 requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST runs read-only public and authenticated smoke tests without email.");
 requireContract(testWorkflow.includes("seed-parent-consent-smoke.mjs seed"), "TEST seeds and verifies the linked-parent consent smoke fixture before browser checks.");
 requireContract(testWorkflow.includes('VITE_EMAIL_API_URL: ""'), "TEST explicitly disables email communications.");
-requireContract(!testWorkflow.includes("CLOUDFLARE_API_TOKEN") && !testWorkflow.includes("TEST_EMAIL_REDIRECT"), "TEST has no email provider or Worker secret requirement.");
+requireContract(!testWorkflow.includes("TEST_EMAIL_REDIRECT") && !testWorkflow.includes("RESEND_API_KEY"), "TEST has no email provider secret requirement.");
+const workerDeployStep = testWorkflow.indexOf("Deploy isolated TEST Worker");
+const workerVerifyStep = testWorkflow.indexOf("scripts/check-test-hall-backend.mjs");
+const smokeStep = testWorkflow.indexOf("Run read-only public, leader and parent TEST smoke");
+requireContract(workerDeployStep >= 0 && workerVerifyStep > workerDeployStep && smokeStep > workerVerifyStep
+  && testWorkflow.includes("wrangler deploy --config wrangler.hall-test.toml")
+  && testWorkflow.includes("EXPECTED_WORKER_SHA: ${{ github.sha }}"), "TEST deploys and verifies the isolated Worker before live smoke.");
 requireContract(firebase.functions?.length === 1 && firebase.functions[0].source === "maintenance-functions" && firebase.functions[0].codebase === "maintenance", "Production/default deploys only the isolated Maintenance codebase, never the TEST event backend.");
 requireContract(!firebase.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save"), "Production/default Hosting has no TEST event backend rewrite.");
 requireContract(previewWorkflow.includes("cp firebase.test.json firebase.json"), "PR previews use the TEST backend rewrite.");
