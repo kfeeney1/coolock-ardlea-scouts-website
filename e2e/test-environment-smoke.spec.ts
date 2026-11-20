@@ -60,7 +60,7 @@ test.describe("stable TEST environment smoke", () => {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   });
 
-  test("parent journey loads event consent requests for linked synthetic children", async ({ page, browser }) => {
+  test("parent journey loads event consent requests for linked synthetic children", { tag: "@test-worker" }, async ({ page, browser }) => {
     const settingLock = testSmokeContract ? await acquireParentConsentSettingLock() : null;
     let previousConsentEnabled: boolean | null = null;
     try {
@@ -105,7 +105,7 @@ test.describe("stable TEST environment smoke", () => {
     }
   });
 
-  test("Superuser reads the deployed Attendance Insights rollout and matching presentation", async ({ page, baseURL }) => {
+  test("Superuser reads the deployed Attendance Insights rollout and matching presentation", { tag: "@test-worker" }, async ({ page, baseURL }) => {
     const host = new URL(baseURL!).hostname;
     expect(stableTestSmoke
       ? ["coolock-ardlea-scouts-test.web.app", "coolock-ardlea-scouts-test.firebaseapp.com"].includes(host)
