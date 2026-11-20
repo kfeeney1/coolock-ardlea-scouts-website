@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { eventAudienceEndpoint } from "../../src/services/eventAudienceEndpoint.ts";
+import { eventAudienceEndpoint, eventDiscoveryEndpoint } from "../../src/services/eventAudienceEndpoint.ts";
 
 test("TEST event saves use Firebase Hosting without an email URL", () => {
   assert.equal(eventAudienceEndpoint({ appEnv: "test", firebaseProjectId: "coolock-ardlea-scouts-test" }), "/api/event-audience-save");
@@ -19,4 +19,13 @@ test("local emulator tests retain their local Worker endpoint", () => {
 });
 test("Production has no success fallback when its backend is missing", () => {
   assert.equal(eventAudienceEndpoint({ appEnv: "production" }), "");
+});
+
+test("TEST discovery uses the isolated Worker origin and rejects Production configuration", () => {
+  const testEnvironment = { appEnv: "test", firebaseProjectId: "coolock-ardlea-scouts-test" };
+  const hallApiUrl = "https://coolock-ardlea-scouts-hall-test.scouts.workers.dev";
+  assert.equal(eventDiscoveryEndpoint({ ...testEnvironment, hallApiUrl }), hallApiUrl + "/event-discovery");
+  assert.equal(eventDiscoveryEndpoint({ ...testEnvironment, emailApiUrl: "https://production.invalid" }), "");
+  assert.throws(() => eventDiscoveryEndpoint({ ...testEnvironment, hallApiUrl: "https://production.invalid" }), /isolated/);
+  assert.equal(eventDiscoveryEndpoint({ appEnv: "production", emailApiUrl: "https://production.invalid", hallApiUrl }), "https://production.invalid/event-audience-save");
 });

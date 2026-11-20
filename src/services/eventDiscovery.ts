@@ -1,6 +1,6 @@
 import { doc, getDocFromServer, onSnapshot, type DocumentData, type QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { eventAudienceEndpoint } from "./eventAudienceEndpoint";
+import { eventDiscoveryEndpoint } from "./eventAudienceEndpoint";
 import { requestBackend } from "./backendRequest";
 import { ServiceFailure } from "./applicationErrors";
 
@@ -9,10 +9,11 @@ export type EventDiscoveryFilter = [string, "==" | ">=" | "<=" | "<" | ">" | "in
 
 /** Discovery returns authorized paths only. SDK reads recheck Rules after any concurrent hide. */
 export async function discoverEventPaths(collection: EventDiscoveryCollection, filters: EventDiscoveryFilter[] = []) {
-  const endpoint = eventAudienceEndpoint({
+  const endpoint = eventDiscoveryEndpoint({
     appEnv: import.meta.env.VITE_APP_ENV,
     firebaseProjectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    emailApiUrl: import.meta.env.VITE_EMAIL_API_URL
+    emailApiUrl: import.meta.env.VITE_EMAIL_API_URL,
+    hallApiUrl: import.meta.env.VITE_HALL_BOOKING_API_URL
   });
   if (!endpoint) throw new ServiceFailure("Event backend is not configured.", "backend/service-not-configured");
   const user = auth.currentUser;
