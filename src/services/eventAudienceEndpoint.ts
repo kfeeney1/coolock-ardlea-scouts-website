@@ -1,3 +1,5 @@
+import { hallBookingEndpoint } from "./hallBookingEndpoint.ts";
+
 type EventBackendEnvironment = { appEnv?: string; firebaseProjectId?: string; emailApiUrl?: string };
 
 export function eventAudienceEndpoint(environment: EventBackendEnvironment): string {
@@ -9,4 +11,11 @@ export function eventAudienceEndpoint(environment: EventBackendEnvironment): str
   }
   const backendUrl = String(environment.emailApiUrl || "").trim().replace(/\/$/, "");
   return backendUrl ? `${backendUrl}/event-audience-save` : "";
+}
+
+
+export function eventDiscoveryEndpoint(environment: EventBackendEnvironment & { hallApiUrl?: string }): string {
+  if (environment.appEnv !== "test") return eventAudienceEndpoint(environment);
+  const hallEndpoint = hallBookingEndpoint(environment);
+  return hallEndpoint ? new URL("/event-discovery", hallEndpoint).href : "";
 }
