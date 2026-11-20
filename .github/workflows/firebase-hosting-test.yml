@@ -213,11 +213,11 @@ jobs:
           E2E_STABLE_ENVIRONMENT_SMOKE: "true"
           E2E_BASE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
           E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-          TEST_WORKER_ENABLED: ${{ steps.worker.outputs.enabled }}
+          test_worker_enabled: ${{ steps.worker.outputs.enabled }}
         run: |
           set -euo pipefail
           args=()
-          if [[ "$TEST_WORKER_ENABLED" == "false" ]]; then
+          if [[ "$test_worker_enabled" == "false" ]]; then
             args+=(--grep-invert '@test-worker')
           fi
           npx --no-install playwright test e2e/test-environment-smoke.spec.ts --project=chromium --project=mobile-chromium "${args[@]}"
@@ -234,7 +234,7 @@ jobs:
       - name: Record TEST deployment evidence
         if: always()
         env:
-          TEST_WORKER_ENABLED: ${{ steps.worker.outputs.enabled }}
+          test_worker_enabled: ${{ steps.worker.outputs.enabled }}
         shell: bash
         run: |
           {
@@ -243,7 +243,7 @@ jobs:
             echo "- SHA: $GITHUB_SHA"
             echo "- Target: $FIREBASE_PROJECT_ID"
             echo "- Workflow run: $GITHUB_RUN_ID"
-            if [[ "$TEST_WORKER_ENABLED" == "false" ]]; then
+            if [[ "$test_worker_enabled" == "false" ]]; then
               echo '- Skipped: TEST Worker deployment, live parent event consent and live attendance (Cloudflare token absent).'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
