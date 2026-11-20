@@ -1,4 +1,5 @@
 import type { DocumentData, Timestamp } from "firebase/firestore";
+import { errorCategory } from "./applicationErrors";
 import { readLeaderConsent } from "./leaderConsentRead";
 import { normalizeMedicationManagement } from "./consentManagementLogic";
 export { daysUntilExpiry, isConsentExpired } from "./consentDateLogic";
@@ -81,8 +82,14 @@ function mapConsent({ id, section, data }: { id: string; section: string; data: 
 }
 
 export async function loadConsentAdminRecord(consentId: string): Promise<ConsentAdminRecord | null> {
-    const [document] = await readLeaderConsent(consentId);
-    return document ? mapConsent(document) : null;
+    try {
+        const [document] = await readLeaderConsent(consentId);
+        return document ? mapConsent(document) : null;
+    } catch (error) {
+        // A denied direct read uses the same unavailable state as a missing record.
+        if (errorCategory(error) === "permission") return null;
+        throw error;
+    }
 }
 
 export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
