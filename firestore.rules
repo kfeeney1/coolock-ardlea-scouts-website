@@ -1300,7 +1300,9 @@ service cloud.firestore {
         && resource.data.title is string && resource.data.eventType is string
         && resource.data.section is string && resource.data.startDate is string && resource.data.endDate is string;
       }
-      allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent() && visibleEvent(eventId);
+      // The visibility transaction reads optional projections before touching them.
+      allow get: if isSuperAdmin() || (resource.data.get("eventId", "") == eventId
+        && isSafePublicEvent() && visibleEventForOrdinaryCaller(eventId));
       allow list: if false;
       function _validateWrite26(_writeData) {
         return writableVisibleEvent(eventId) && isActiveLeader()
