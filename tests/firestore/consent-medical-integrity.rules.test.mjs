@@ -91,6 +91,7 @@ test("only Super Admin can replace an existing canonical relationship with recon
 
 test("SW-605 linked consent follows the member's current authorized section after a transfer", async () => {
   await seed([
+    ["members/member-other-cub", { section: "Cubs", sections: ["Cubs"], status: "active" }],
     ["members/member-moved", { displayName: "Alex Scout", dateOfBirth: "2015-01-02", section: "Cubs", sections: ["Cubs"], status: "active" }],
     ["adminUsers/cub-leader", { active: true, role: "leader", sections: ["Cubs"] }],
     ["adminUsers/beaver-leader", { active: true, role: "leader", sections: ["Beavers"] }],
@@ -105,9 +106,13 @@ test("SW-605 linked consent follows the member's current authorized section afte
   const linkedQuery = db => query(collection(db, "consentApplications"), where("memberId", "==", "member-moved"));
   assert.deepEqual((await assertSucceeds(getDocs(linkedQuery(cubDb)))).docs.map(item => item.id), ["consent-moved"]);
 
+  const batchQuery = db => query(collection(db, "consentApplications"), where("memberId", "in", ["member-moved", "member-other-cub"]));
+  assert.deepEqual((await assertSucceeds(getDocs(batchQuery(cubDb)))).docs.map(item => item.id), ["consent-moved"]);
+
   const oldSectionDb = testEnv.authenticatedContext("beaver-leader", { email: "beaver@example.com" }).firestore();
   await assertFails(getDoc(doc(oldSectionDb, "consentApplications/consent-moved")));
   await assertFails(getDocs(linkedQuery(oldSectionDb)));
+  await assertFails(getDocs(batchQuery(oldSectionDb)));
   await assertFails(getDocs(query(collection(oldSectionDb, "consentApplications"), where("section", "==", "Beavers"))));
   await assertFails(updateDoc(doc(oldSectionDb, "consentApplications/consent-moved"), { status: "reviewed" }));
 
@@ -128,4 +133,22 @@ test("SW-156 linked consent supports concurrent current sections and denies unre
 
   const ventureDb = testEnv.authenticatedContext("venture-leader", { email: "venture@example.com" }).firestore();
   await assertFails(getDoc(doc(ventureDb, "consentApplications/consent-shared")));
+});
+
+
+test("section lists expose unlinked youth consent and Scouter forms within scope", async () => {
+  await seed([
+    ["adminUsers/cub-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/beaver-leader", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["consentApplications/unlinked", { ...consent, section: "Cubs", memberId: "", submittedAt: new Date() }],
+    ["consentApplications/scouter", { formType: "scouter-es3-medical-advice", section: "Cubs", submittedByUid: "another-leader" }]
+  ]);
+  const cubs = testEnv.authenticatedContext("cub-leader").firestore();
+  const beavers = testEnv.authenticatedContext("beaver-leader").firestore();
+  const sectionQuery = (db, field, value) => query(collection(db, "consentApplications"),
+    where("section", "==", "Cubs"), where(field, "==", value));
+  for (const [field, value, expected] of [["memberId", "", "unlinked"], ["formType", "scouter-es3-medical-advice", "scouter"]]) {
+    assert.deepEqual((await assertSucceeds(getDocs(sectionQuery(cubs, field, value)))).docs.map(item => item.id), [expected]);
+    await assertFails(getDocs(sectionQuery(beavers, field, value)));
+  }
 });

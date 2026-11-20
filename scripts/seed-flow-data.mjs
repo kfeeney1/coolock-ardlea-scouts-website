@@ -204,7 +204,7 @@ async function seed() {
     emergencyContactPhone: "0878000201"
   }, false);
   delete unlinkedVentureConsent.memberId;
-  await set("consentApplications", "TEST_flow_consent_venture_unlinked", unlinkedVentureConsent);
+  await set("consentApplications", "TEST_flow_consent_venture_unlinked", { ...unlinkedVentureConsent, memberId: "" });
   await set("consentApplications", "TEST_flow_consent_scouter", {
     memberId: "TEST_uid_scout_section_leader",
     section: "Scouter",
