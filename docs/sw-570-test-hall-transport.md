@@ -27,11 +27,11 @@ An account owner must configure the protected GitHub **test** environment with:
 
 Use a TEST service account with only the Firestore access needed by the existing authoritative handler. Repository variables/secrets are deployment configuration, not a Council permission source. No credentials or billing configuration were changed in this session.
 
-## Manual TEST deployment and evidence
+## Automatic TEST deployment and evidence
 
-After this PR merges, allow normal TEST Hosting deployment and current-main CI to complete. The TEST frontend must be rebuilt with the configured dedicated origin. Then manually dispatch **Hall Booking TEST Manual Deploy** on main. This does not deploy Hosting, Rules, Firebase Functions or Production.
+A push to main starts **Firebase TEST Deploy**. It waits for CI on the release SHA, deploys and verifies the isolated Worker, then deploys Firebase and runs live smoke. The GitHub `test` environment supplies the configured Worker origin and Cloudflare deployment token. Re-run failed jobs in Firebase TEST Deploy after correcting a deployment configuration error.
 
-The workflow checks out current main, requires its successful quality, E2E, Rules and dependency-audit check runs, validates the exact TEST target/configuration and owner Free-plan confirmation, validates the existing TEST credential, and verifies Hosting metadata matches that revision. It runs Worker tests, packages the separate config with `--dry-run`, installs only TEST credentials, and deploys only the fixed TEST Worker. Its deployment uses the same concurrency group as TEST Hosting. It never invokes default/Production Wrangler configuration. The workflow is not automatically dispatched by this PR.
+The workflow checks out the triggering main commit and waits for Quality, Playwright E2E, Firebase Rules and Branch Protection Audit on that revision. It validates the TEST project and Free-plan confirmation, runs Worker tests, packages the isolated config with a dry run, and publishes the Worker with TEST credentials. After Firebase Hosting is published it verifies the frontend revision and runs the browser smoke tests.
 
 `X-Hall-Backend-Commit` and `/health` identify the actual Worker revision. The postdeploy script verifies matching project/revision and denied anonymous, Production-origin and email-route requests, plus TEST CORS. It sends no valid identity, booking mutation or enquiry. Its result explicitly says `functionalAcceptance:false`; metadata and negative probes are insufficient for SW-561. If a step fails, treat the workflow as failed and inspect the actual deployment state before continuing; there is no claim of atomic deployment/secret rollback.
 
