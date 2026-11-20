@@ -113,8 +113,8 @@ for (const doc of consents) {
   const data = doc.data();
   if (data.formType === "youth-activity-consent") {
     for (const field of ["childName", "childDOB", "consentFrom", "consentTo", "medicationManagement"]) if (!(field in data)) fail(`consentApplications/${doc.id} missing youth field ${field}`);
-    if (doc.id !== "TEST_flow_consent_venture_unlinked" && !("memberId" in data)) fail(`consentApplications/${doc.id} missing youth field memberId`);
-    if (doc.id === "TEST_flow_consent_venture_unlinked" && "memberId" in data) fail(`consentApplications/${doc.id} must begin unlinked for SW-218`);
+    if (doc.id !== "TEST_flow_consent_venture_unlinked" && (typeof data.memberId !== "string" || !data.memberId)) fail(`consentApplications/${doc.id} missing linked youth memberId`);
+    if (doc.id === "TEST_flow_consent_venture_unlinked" && data.memberId !== "") fail(`consentApplications/${doc.id} must have an empty memberId for SW-218`);
     if (data.consentFrom !== relativeDate(-10) || data.consentTo !== relativeDate(330)) fail(`consentApplications/${doc.id} active consent window is not time-stable`);
   }
   if (data.formType === "scouter-es3-medical-advice") {
