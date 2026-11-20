@@ -262,6 +262,7 @@ export default function SiteSettings() {
                         <ScheduleExperienceSettings />
                         <MeetingExperienceSettings />
                         <AttendanceExperienceSettings />
+                        <AttendanceExperienceSettings reports />
                         <MaintenanceExperienceSettings />
                         <CalendarExperienceSettings />
                         <LeaderTrainingExperienceSettings />

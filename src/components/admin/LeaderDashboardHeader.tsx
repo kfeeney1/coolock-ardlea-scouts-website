@@ -1,3 +1,5 @@
+import { useAttendanceExperience } from "../../hooks/useAttendanceExperience";
+import { attendanceReportScope } from "../../security/attendanceReportAccess";
 import { useCalendarAccess } from "../../hooks/useCalendarAccess";
 import { useMaintenanceAccess } from "../../hooks/useMaintenanceAccess";
 import RedesignedLeaderNavigation from "./RedesignedLeaderNavigation";
@@ -44,11 +46,15 @@ export default function LeaderDashboardHeader({ compact = false }: { compact?: b
  const [signOutError, setSignOutError] = useState("");
  const [themeSaving, setThemeSaving] = useState<ThemeName | null>(null);
  const [themeError, setThemeError] = useState("");
+ const reportsEnabled = useAttendanceExperience("reportsExperience");
+ const showReports = reportsEnabled && attendanceReportScope(adminProfile, "aggregate").allowed;
+ const reportsItem: LeaderNavItem = { ...dashboardNavItem, id: "reports", label: "Reports", path: "/leader/reports/home", exactPath: true };
+ const topLevelItems = showReports ? [dashboardNavItem, reportsItem] : [dashboardNavItem];
  const canView = leaderNavigationFilter(adminProfile);
- const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && calendar.allowed ? [calendarNavItem] : []), ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(canView) })).filter((group) => group.items.length > 0);
+ const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && calendar.allowed ? [calendarNavItem] : []), ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(item => canView(item) && !(showReports && item.id === "attendance-insights")) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountNavItems.filter(canView);
  const presentationGroups = redesigned ? redesignedNavigationGroups(visibleGroups) : visibleGroups;
- const activeNavigation = resolveLeaderNavigation(location.pathname.startsWith("/maintenance/") ? "/maintenance/tasks" : `${location.pathname}${location.search}${location.hash}`, presentationGroups, [dashboardNavItem, ...visibleAccountItems]);
+ const activeNavigation = resolveLeaderNavigation(location.pathname.startsWith("/maintenance/") ? "/maintenance/tasks" : `${location.pathname}${location.search}${location.hash}`, presentationGroups, [...topLevelItems, ...visibleAccountItems]);
  const activeCategory = activeNavigation?.groupId ?? null;
  const currentItem = activeNavigation?.item;
  useEffect(() => { setMobileGroupOpen(activeCategory); }, [activeCategory]);
@@ -90,7 +96,7 @@ export default function LeaderDashboardHeader({ compact = false }: { compact?: b
   {!compact && <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: "1.75rem", md: "3rem" } }}>Leader Dashboard</Typography></Box>}
   <Button ref={menuButtonRef} fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={handleMenuToggle} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, borderRadius: compact ? 2 : undefined, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
   <Collapse in={menuOpen && menuHistoryReady} timeout={0}><Box id="leader-navigation" component="nav" aria-label="Leader navigation" inert={!menuOpen || !menuHistoryReady} sx={{ display: menuOpen && menuHistoryReady ? "block" : "none", mt: 1.5 }}>
-   <Box sx={{ mb: 1.5 }}>{navButton(dashboardNavItem)}</Box>
+   <Box sx={{ mb: 1.5 }}>{topLevelItems.map(navButton)}</Box>
    {redesigned ? <RedesignedLeaderNavigation groups={visibleGroups} expanded={mobileGroupOpen} setExpanded={setMobileGroupOpen} renderItem={navButton} /> : <>
    <Box data-testid="leader-navigation-mobile" sx={{ display: { xs: "block", md: "none" } }}><Stack spacing={1}>{visibleGroups.map((group) => { const expanded=mobileGroupOpen===group.id; const containsActive=group.items.some((item)=>currentItem?.id === item.id); const slug=group.label.toLowerCase().replace(/[^a-z0-9]+/g,"-"); const buttonId=`leader-nav-${slug}-button`; const panelId=`leader-nav-${slug}`; return <Paper key={group.label} variant="outlined" sx={{borderRadius:2,overflow:"hidden"}}><Button id={buttonId} fullWidth color="secondary" aria-expanded={expanded} aria-controls={panelId} onClick={()=>setMobileGroupOpen((open)=>open===group.id?null:group.id)} endIcon={<ExpandMoreIcon sx={{transform:expanded?"rotate(180deg)":"none",transition:"transform 160ms ease"}}/>} sx={{minHeight:48,px:1.5,justifyContent:"space-between",fontWeight:containsActive?800:700}}>{group.label}</Button><Collapse in={expanded} timeout={0}><Stack id={panelId} role="region" aria-labelledby={buttonId} inert={!expanded} spacing={0.25} sx={{display:expanded?"flex":"none",px:1,pb:1}}>{group.items.map(navButton)}</Stack></Collapse></Paper>; })}</Stack></Box>
    <Box data-testid="leader-navigation-desktop" sx={{display:{xs:"none",md:"grid"},gridTemplateColumns:"repeat(2, minmax(0, 1fr))",gap:1.5,alignItems:"start",minWidth:0}}>{[0,1].map((column)=><Stack key={column} spacing={1.5} data-testid={`leader-navigation-column-${column + 1}`} sx={{minWidth:0}}>{visibleGroups.filter((_,index)=>index%2===column).map((group)=><Paper key={group.label} variant="outlined" sx={{p:1.5,borderRadius:2,minWidth:0}}><Typography variant="overline" color="text.secondary" sx={{display:"block",px:1.5,pb:0.5,fontWeight:800,letterSpacing:0.8}}>{group.label}</Typography><Stack spacing={0.25}>{group.items.map(navButton)}</Stack></Paper>)}</Stack>)}</Box>

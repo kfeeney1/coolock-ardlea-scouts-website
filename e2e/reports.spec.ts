@@ -1,3 +1,5 @@
+import { loginAsLeader } from "./support/authentication-helpers";
+import { scheduleFixtureDb } from "./support/schedule-fixtures";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
@@ -112,4 +114,53 @@ test("Pixel 7 report result actions fit the viewport and keep application state"
   await dialog.getByRole("button", { name: "Keep working" }).click();
   await expect(page).toHaveURL(/\/leader\/reports$/);
   await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
+});
+
+test("administrator can open aggregate attendance but cannot open named attendance or the matrix", async ({ page }, testInfo) => {
+  chromiumOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await login(page);
+  for (const url of ["/leader/attendance", "/leader/attendance?view=matrix"]) {
+    await page.goto(url);
+    await expect(page.getByText("You do not have access to this report.")).toBeVisible();
+    await expect(page.getByTestId("attendance-member-card")).toHaveCount(0);
+  }
+  await page.goto("/leader/attendance?view=trends");
+  await expect(page.getByRole("heading", { name: "Attendance trends" })).toBeVisible();
+  await expect(page.getByText("Scope: All sections")).toBeVisible();
+});
+
+test("Reports rollout preserves attendance grants in both switch states", async ({ page, browser, baseURL }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium" || !password, "Use the seeded desktop Chromium project.");
+  const setting = scheduleFixtureDb().doc("siteSettings/reportsExperience");
+  const previous = await setting.get();
+  const session = await browser.newContext({ baseURL });
+  try {
+    await loginAsLeader(page, { email: process.env.E2E_LEADER_EMAIL || "test.scout.programme.scouter@example.com", password: password! });
+    const denied = await session.newPage();
+    await loginAsLeader(denied, { email: "test.navigation.multi.appointment@example.com", password: password! });
+
+    for (const version of ["existing", "redesigned"]) {
+      await setting.set({ version });
+      await denied.goto("/leader/reports/home");
+      await expect(denied.getByText("You do not have access to these reports.")).toBeVisible();
+      await denied.goto("/leader/attendance?view=trends");
+      await expect(denied.getByText("You do not have access to this report.")).toBeVisible();
+
+      await page.goto("/leader/reports/home");
+      if (version === "redesigned") {
+        await expect(page.getByRole("heading", { name: "Reports", exact: true })).toBeVisible();
+        await page.getByRole("link", { name: "Attendance Insights", exact: true }).click();
+      }
+      await expect(page).toHaveURL(/\/leader\/attendance$/);
+      await expect(page.getByText(/Scope:/)).toContainText("Scouts");
+      await page.getByRole("combobox", { name: "Section" }).click();
+      await expect(page.getByRole("option", { name: "Cubs", exact: true })).toHaveCount(0);
+      await page.keyboard.press("Escape");
+    }
+  } finally {
+    await session.close();
+    if (previous.exists) await setting.set(previous.data()!);
+    else await setting.delete();
+  }
 });

@@ -9,9 +9,9 @@ const operationalRouteGroups = [
   ["records and reporting", ["/leader/meetings", "/leader/attendance", "/leader/reports"]]
 ] as const;
 
-async function loginAdmin(page: Page) {
+async function loginAdmin(page: Page, email = adminEmail) {
   await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(adminEmail!);
+  await page.getByLabel("Email address").fill(email!);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
@@ -113,7 +113,7 @@ test.describe("Stage 20.6 mobile operational pass", () => {
   });
 
   test("member and attendance records preserve the mobile record-to-detail-to-Back flow", async ({ page }) => {
-    await loginAdmin(page);
+    await loginAdmin(page, process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com");
     await page.goto("/leader/members");
 
     const memberCard = page.locator('[data-testid^="member-card-"]').first();

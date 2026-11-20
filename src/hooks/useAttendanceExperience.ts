@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { watchAttendanceExperience, type AttendanceExperienceVersion } from "../services/attendanceExperienceSettings";
 
 /** Presentation only: callers retain canonical loading, scope and authorization. */
-export function useAttendanceExperience() {
-  const [version, setVersion] = useState<AttendanceExperienceVersion>("existing");
-  useEffect(() => watchAttendanceExperience(setVersion, () => setVersion("existing")), []);
-  return version === "redesigned";
+export function useExperienceVersion(experience: "attendanceExperience" | "reportsExperience" = "attendanceExperience") {
+  const [version, setVersion] = useState<AttendanceExperienceVersion | null>(null);
+  useEffect(() => watchAttendanceExperience(setVersion, () => setVersion("existing"), experience), [experience]);
+  return version;
+}
+
+export function useAttendanceExperience(experience?: "attendanceExperience" | "reportsExperience") {
+  return useExperienceVersion(experience) === "redesigned";
 }
