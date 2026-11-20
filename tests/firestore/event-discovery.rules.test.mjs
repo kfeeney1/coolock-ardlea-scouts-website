@@ -122,6 +122,17 @@ test("hide and restore remove all existing projections while preserving records 
   assert.equal((await getDocs(collection(db, "events/visible/visibilityHistory"))).size, 2);
 });
 
+test("only Super Admin can read a missing public projection during an event visibility change", async () => {
+  const path = "publicEvents/unprojected";
+  const superDb = env.authenticatedContext("super").firestore();
+  const adminDb = env.authenticatedContext("admin").firestore();
+  const publicDb = env.unauthenticatedContext().firestore();
+  const snapshot = await assertSucceeds(getDoc(doc(superDb, path)));
+  assert.equal(snapshot.exists(), false);
+  await assertFails(getDoc(doc(adminDb, path)));
+  await assertFails(getDoc(doc(publicDb, path)));
+});
+
 test("discovery rejects arbitrary collections, invalid filters, anonymous private scans and forged tokens", async () => {
   const call = (body, authorization) => discoverEventDocuments(new Request("https://worker.test", {headers: authorization ? {Authorization: authorization} : {}}), body, {base, serviceToken: async () => "owner"});
   assert.equal((await call({collection: "members", filters: []})).status, 400);
