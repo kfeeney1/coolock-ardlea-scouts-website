@@ -97,10 +97,7 @@ requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST r
 requireContract(testWorkflow.includes("seed-parent-consent-smoke.mjs seed"), "TEST seeds and verifies the linked-parent consent smoke fixture before browser checks.");
 requireContract(testWorkflow.includes('VITE_EMAIL_API_URL: ""'), "TEST explicitly disables email communications.");
 requireContract(!testWorkflow.includes("CLOUDFLARE_API_TOKEN") && !testWorkflow.includes("TEST_EMAIL_REDIRECT"), "TEST has no email provider or Worker secret requirement.");
-requireContract(firebase.functions?.length === 2 && firebase.functions.some(entry => entry.source === "functions" && entry.codebase === "consent") && firebase.functions?.some(entry => entry.source === "maintenance-functions" && entry.codebase === "maintenance"), "Consent and Maintenance use separate Functions codebases.");
-requireContract(productionWorkflow.includes("--only functions:consent:leaderConsentRead ") &&
-  testDeployScript.includes('firebaseDeployArgs("functions:consent:leaderConsentRead", configPath)'),
-  "Both protected deployments select only the consent reader from its codebase.");
+requireContract(firebase.functions?.length === 1 && firebase.functions[0].source === "maintenance-functions" && firebase.functions[0].codebase === "maintenance", "Production/default deploys only the isolated Maintenance codebase, never the TEST event backend.");
 requireContract(!firebase.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save"), "Production/default Hosting has no TEST event backend rewrite.");
 requireContract(previewWorkflow.includes("cp firebase.test.json firebase.json"), "PR previews use the TEST backend rewrite.");
 
@@ -115,8 +112,6 @@ requireContract(!playwrightWorkflow.includes("secrets.VITE_EMAIL_API_URL"), "Nor
 requireContract(!exactProjectReference(playwrightWorkflow, PROD), "Normal Playwright CI contains no exact production Firebase target.");
 requireContract(!exactProjectReference(playwrightWorkflow, TEST), "Normal Playwright CI contains no TEST Firebase target; it remains emulator-only.");
 
-requireContract(firebaseTest.functions?.length === 2 && firebaseTest.functions.some(entry => entry.source === "functions" && entry.codebase === "consent") && firebaseTest.functions?.some(entry => entry.source === "maintenance-functions"), "TEST has separate Consent and Maintenance codebases.");
-
 if (failures.length > 0) {
   console.error(`\nFirebase deployment configuration check failed with ${failures.length} issue(s).`);
   process.exit(1);
@@ -124,4 +119,4 @@ if (failures.length > 0) {
 
 console.log("\nFirebase deployment configuration check passed.");
 
-requireContract(firebaseTest.functions?.length === 2 && firebaseTest.functions.some(entry => entry.source === "functions" && entry.codebase === "consent") && firebaseTest.functions?.some(entry => entry.codebase === "maintenance"), "TEST has separate Consent and Maintenance codebases.");
+requireContract(firebaseTest.functions?.length === 1 && firebaseTest.functions[0].source === "maintenance-functions", "Maintenance has an isolated Functions codebase; event saves retain their existing direct path.");

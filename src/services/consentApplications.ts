@@ -197,6 +197,7 @@ export async function submitYouthConsent(data: YouthConsentData): Promise<string
     const ref = await addDoc(collection(db, "consentApplications"), {
         ...canonicalData,
         section: scoutSection,
+        memberId: "",
         childName: clean(data.childName, 150),
         medicalFurtherInfo: clean(data.medicalFurtherInfo, 3000),
         gpName: clean(data.gpName, 150),
