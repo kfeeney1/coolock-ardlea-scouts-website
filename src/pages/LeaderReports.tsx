@@ -1,3 +1,4 @@
+import { attendanceReportScope } from "../security/attendanceReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import DateRangeFields from "../components/DateRangeFields";
 import {
@@ -88,8 +89,11 @@ export default function LeaderReports() {
         return () => { cancelled = true; };
     }, [scope]);
 
+    const aggregateScope = attendanceReportScope(adminProfile, "aggregate");
     const filteredEvents = useMemo(() => filterEventsByDateRange(events, fromDate, toDate), [events, fromDate, toDate]);
-    const insights = useMemo(() => buildReportingInsights(members, filteredEvents), [members, filteredEvents]);
+    const aggregateEvents = aggregateScope.isAdmin ? filteredEvents :
+        filteredEvents.filter(event => aggregateScope.sections.includes(event.section));
+    const insights = useMemo(() => buildReportingInsights(members, aggregateEvents), [members, aggregateEvents]);
 
     useEffect(() => {
         if (selectedEventId && filteredEvents.some((event) => event.id === selectedEventId)) return;
@@ -124,18 +128,19 @@ export default function LeaderReports() {
     };
 
     const exportEventOverview = async () => {
-        if (filteredEvents.length === 0) return;
-        downloadCsv(`event-overview-${new Date().toISOString().slice(0, 10)}.csv`, eventOverviewCsv(filteredEvents));
-        await auditExport("Event overview exported", "event-overview", "Event overview", `Exported summary totals for ${filteredEvents.length} events in date range ${dateRangeLabel}.`);
+        if (!aggregateScope.allowed || aggregateEvents.length === 0) return;
+        downloadCsv(`event-overview-${new Date().toISOString().slice(0, 10)}.csv`, eventOverviewCsv(aggregateEvents));
+        await auditExport("Event overview exported", "event-overview", "Event overview", `Exported summary totals for ${aggregateEvents.length} events in date range ${dateRangeLabel}.`);
     };
 
     const exportAttendanceTrends = async () => {
-        if (filteredEvents.length === 0) return;
-        downloadCsv(`attendance-trends-${new Date().toISOString().slice(0, 10)}.csv`, attendanceTrendCsv(filteredEvents));
-        await auditExport("Attendance trends exported", "attendance-trends", "Attendance trends", `Exported attendance trends for ${filteredEvents.length} events in date range ${dateRangeLabel}.`);
+        if (!aggregateScope.allowed || aggregateEvents.length === 0) return;
+        downloadCsv(`attendance-trends-${new Date().toISOString().slice(0, 10)}.csv`, attendanceTrendCsv(aggregateEvents));
+        await auditExport("Attendance trends exported", "attendance-trends", "Attendance trends", `Exported attendance trends for ${aggregateEvents.length} events in date range ${dateRangeLabel}.`);
     };
 
     const printSummary = async () => {
+        if (!aggregateScope.allowed) return;
         await auditExport("Report summary printed", "reports-print", "Reports summary", `Opened print view for report scope ${scopeLabel} and date range ${dateRangeLabel}.`);
         window.print();
     };
@@ -218,7 +223,7 @@ export default function LeaderReports() {
 
                         <FinanceReportsPanel />
 
-                        <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="printable-report-summary">
+                        {aggregateScope.allowed && <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="printable-report-summary">
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
                                 <Box>
                                     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Printable operational summary</Typography>
@@ -226,7 +231,7 @@ export default function LeaderReports() {
                                 </Box>
                                 <Button variant="outlined" color="secondary" onClick={() => void printSummary()}>Print Summary</Button>
                             </Stack>
-                        </Paper>
+                        </Paper>}
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" }, gap: 3 }}>
                             <Paper variant="outlined" sx={{ p: 3 }} data-testid="membership-summary-report">
@@ -242,17 +247,20 @@ export default function LeaderReports() {
                                 <Button variant="contained" color="success" sx={{ mt: 2.5 }} disabled={members.length === 0} onClick={() => void exportMembers()}>Export Member CSV</Button>
                             </Paper>
 
+                            {aggregateScope.allowed && <>
                             <Paper variant="outlined" sx={{ p: 3 }} data-testid="event-overview-report">
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Event overview</Typography>
                                 <Typography color="text.secondary" sx={{ mt: 1 }}>One row per event in the selected date range with status, consent requirement and recorded attendance/consent totals.</Typography>
-                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} disabled={filteredEvents.length === 0} onClick={() => void exportEventOverview()}>Export Event Overview</Button>
+                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} disabled={aggregateEvents.length === 0} onClick={() => void exportEventOverview()}>Export Event Overview</Button>
                             </Paper>
 
                             <Paper variant="outlined" sx={{ p: 3 }} data-testid="attendance-trends-report">
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Attendance trends</Typography>
                                 <Typography color="text.secondary" sx={{ mt: 1 }}>Event-by-event recorded responses, attending/not-attending totals and attendance rate for the selected date range.</Typography>
-                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} disabled={filteredEvents.length === 0} onClick={() => void exportAttendanceTrends()}>Export Attendance Trends</Button>
+                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} disabled={aggregateEvents.length === 0} onClick={() => void exportAttendanceTrends()}>Export Attendance Trends</Button>
                             </Paper>
+
+                            </>}
 
                             <Paper variant="outlined" sx={{ p: 3 }} data-testid="event-detail-report">
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Event attendance & consent</Typography>

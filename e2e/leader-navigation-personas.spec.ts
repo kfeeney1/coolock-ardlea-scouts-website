@@ -102,7 +102,7 @@ for (const redesigned of [false, true]) {
         await page.keyboard.press("Escape");
         await expect(nav).toBeHidden();
 
-        const samples = [...new Set([persona.primary, ...expectedCategories.map((id) => categoryRouteSamples[id]), "my-profile"] )];
+        const samples = [...new Set([persona.primary, ...expectedCategories.map((id) => expected[id].includes(categoryRouteSamples[id]) ? categoryRouteSamples[id] : expected[id][0]), "my-profile"] )];
         for (const id of samples) {
           const item = byId.get(id)!;
           const destination = await expose(id);

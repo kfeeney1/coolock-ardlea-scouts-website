@@ -1,9 +1,10 @@
+import { attendanceReportScope } from "../security/attendanceReportAccess.ts";
 import { effectivePermissionsFor } from "../security/permissionRegistry.ts";
 import { settingsMenuDestination } from "../security/settingsNavigationPolicy.ts";
 import { activeScoutingAppointments, normalizeScoutingAppointment, normalizeScoutingAppointmentAssignments } from "../security/scoutingAppointments.ts";
 import type { LeaderNavItem } from "./leaderNavigation.ts";
 
-type Profile = { role: string; scoutingRole: string; appointments?: unknown };
+type Profile = { role: string; scoutingRole: string; appointments?: unknown; sections?: string[] };
 
 import { navigationPermissions as NAVIGATION_PERMISSIONS } from "./leaderNavigation.ts";
 export { navigationPermissions as NAVIGATION_PERMISSIONS } from "./leaderNavigation.ts";
@@ -17,6 +18,7 @@ export function leaderNavigationFilter(profile: Profile | null) {
   const admin = has("navigation.appointment-views.all");
   return (item: LeaderNavItem) => {
     if (!profile || !has("leader.portal.access") || item.legacyOnly) return false;
+    if (item.id === "attendance-insights" && !attendanceReportScope(profile, "named").allowed) return false;
     if (["settings", "treasurer-settings"].includes(item.id) && settingsMenuDestination(profile) !== item.id) return false;
     const required = Object.hasOwn(NAVIGATION_PERMISSIONS, item.id) ? NAVIGATION_PERMISSIONS[item.id] : [];
     if (required.length === 0 || !has(...required)) return false;

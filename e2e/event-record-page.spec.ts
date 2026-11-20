@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type TestInfo } from "@playwright/test";
-import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
+import { acquireParentConsentSettingLock } from "./helpers/parent-consent-setting";
 import { loginAsLeader } from "./support/authentication-helpers";
+import { scheduleFixtureDb } from "./support/schedule-fixtures";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
@@ -280,12 +281,30 @@ test("direct Create Event route remains protected", async ({ page }, testInfo) =
 
 test("Super Admin hides and restores an event while ordinary admins lose record and list access", async ({ page, browser }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  const db = scheduleFixtureDb();
+  const consentSettings = db.doc("siteSettings/parentConsent");
+  const publicNavigation = db.doc("siteSettings/publicNavigation");
   const releaseConsentSettingLock = await acquireParentConsentSettingLock();
-  let previousConsentSetting: boolean | null = null;
+  let restoreConsentSettings: (() => Promise<unknown>) | undefined;
   let parentContext: BrowserContext | undefined;
   let ordinaryContext: BrowserContext | undefined;
   try {
-    previousConsentSetting = await setParentConsentEnabled(browser, true);
+    const previousSettings = await db.getAll(consentSettings, publicNavigation);
+    if (previousSettings.some((snapshot) => snapshot.get("parentConsentEnabled") !== true)) {
+      restoreConsentSettings = () => {
+        const batch = db.batch();
+        for (const snapshot of previousSettings) {
+          const data = snapshot.data();
+          if (data) batch.set(snapshot.ref, data);
+          else batch.delete(snapshot.ref);
+        }
+        return batch.commit();
+      };
+      await db.batch()
+        .set(consentSettings, { parentConsentEnabled: true }, { merge: true })
+        .set(publicNavigation, { parentConsentEnabled: true }, { merge: true })
+        .commit();
+    }
     await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password!});
     await page.goto("/leader/events/create");
     const title = `TEST visibility ${Date.now()}`;
@@ -359,11 +378,13 @@ test("Super Admin hides and restores an event while ordinary admins lose record 
     await expect(consentPage.getByRole("heading", {name: title, exact: true})).toBeVisible();
   } finally {
     try {
-      await ordinaryContext?.close();
-      await parentContext?.close();
-      if (previousConsentSetting !== null) await setParentConsentEnabled(browser, previousConsentSetting);
+      await restoreConsentSettings?.();
     } finally {
-      await releaseConsentSettingLock();
+      try {
+        await Promise.all([ordinaryContext?.close(), parentContext?.close()]);
+      } finally {
+        await releaseConsentSettingLock();
+      }
     }
   }
 });

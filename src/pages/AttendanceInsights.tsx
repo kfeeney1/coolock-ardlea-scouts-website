@@ -1,3 +1,5 @@
+import AttendanceTrends from "./AttendanceTrends";
+import { attendanceReportScope } from "../security/attendanceReportAccess";
 import AttendanceMatrix from "../components/admin/AttendanceMatrix";
 import { useAttendanceExperience } from "../hooks/useAttendanceExperience";
 import { Link, useSearchParams } from "react-router-dom";
@@ -32,7 +34,7 @@ import { loadAttendanceInsightMembers, loadEventReportRecords } from "../service
 import type { EventReportRecord } from "../services/reportingLogic";
 import { buildScoutPeriods, findScoutPeriod } from "../services/scoutPeriods";
 import { sortScoutSections } from "../services/sectionOrder.ts";
-import { loadWeeklyAccess, loadWeeklyMeetings } from "../services/weeklyTracker";
+import { loadWeeklyMeetings } from "../services/weeklyTracker";
 import type { WeeklyMeetingRecord } from "../services/weeklyTracker";
 
 function formatDate(value: string): string {
@@ -51,7 +53,17 @@ function rateLabel(rate: number | null): string {
 }
 
 export default function AttendanceInsights() {
-    const { adminProfile } = useAdminAuth();
+    const { adminProfile, user } = useAdminAuth();
+    const [params] = useSearchParams();
+    const trends = params.get("view") === "trends";
+    const scope = useMemo(() => attendanceReportScope(adminProfile, trends ? "aggregate" : "named"), [adminProfile, trends]);
+    if (!scope.allowed) return <Container><LeaderDashboardHeader /><LeaderPageHeader title="Attendance History & Insights" /><Alert severity="error">You do not have access to this report.</Alert></Container>;
+    const key = JSON.stringify([user?.uid, scope]);
+    return trends ? <AttendanceTrends key={key} scope={scope} /> : <AttendanceReport key={key} scope={scope} />;
+}
+
+function AttendanceReport({ scope }: { scope: ReturnType<typeof attendanceReportScope> }) {
+    const { isAdmin, sections } = scope;
     const matrixEnabled = useAttendanceExperience();
     const [searchParams] = useSearchParams();
     const matrixOnly = searchParams.get("view") === "matrix";
@@ -69,9 +81,6 @@ export default function AttendanceInsights() {
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
     const [historyType, setHistoryType] = useState<"meetings" | "events">("meetings");
 
-    const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-    const sections = useMemo(() => adminProfile?.sections ?? [], [adminProfile?.sections]);
-    const scope = useMemo(() => ({ isAdmin, sections }), [isAdmin, sections]);
     const dateRange = useMemo(() => ({ from: fromDate || undefined, to: toDate || undefined }), [fromDate, toDate]);
     const scoutPeriods = useMemo(() => buildScoutPeriods(), []);
 
@@ -84,11 +93,10 @@ export default function AttendanceInsights() {
             setLoading(true);
             setError("");
             try {
-                const weeklyAccess = await loadWeeklyAccess();
                 const [loadedMembers, loadedEvents, loadedMeetings] = await Promise.all([
                     loadAttendanceInsightMembers(scope),
                     matrixOnly ? Promise.resolve([] as EventReportRecord[]) : loadEventReportRecords(scope),
-                    loadWeeklyMeetings(sections, isAdmin, weeklyAccess.canViewAll)
+                    loadWeeklyMeetings(sections, isAdmin)
                 ]);
                 if (!cancelled) {
                     setMembers(loadedMembers);
@@ -110,8 +118,8 @@ export default function AttendanceInsights() {
     );
     const availableSections = useMemo(
         () => sortScoutSections(matrixEnabled
-            ? members.flatMap(member => [member.section, ...member.sections]).filter(section => isAdmin || sections.includes(section))
-            : insights.map(item => item.section).filter(Boolean)),
+            ? members.flatMap(member => [member.section, ...member.sections])
+            : insights.map(item => item.section).filter(Boolean)).filter(section => isAdmin || sections.includes(section)),
         [matrixEnabled, members, insights, isAdmin, sections]
     );
     const matrix = useMemo(() => matrixEnabled ? buildAttendanceMatrix(members, meetings, { ...dateRange, section: sectionFilter, search }) : null, [matrixEnabled, members, meetings, dateRange, sectionFilter, search]);
