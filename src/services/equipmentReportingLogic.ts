@@ -77,7 +77,13 @@ function csvCell(value: unknown): string {
 }
 
 const row = (values: unknown[]) => values.map(csvCell).join(",");
-const csv = (header: string[], rows: unknown[][]) => [row(header), ...rows.map(row)].join("\r\n");
+export type EquipmentReportRows = { header: string[]; rows: unknown[][] };
+const reportRows = (header: string[], rows: unknown[][]): EquipmentReportRows => ({ header, rows });
+export const equipmentReportCsv = ({ header, rows }: EquipmentReportRows) => [row(header), ...rows.map(row)].join("\r\n");
+
+function asCsv<Args extends unknown[]>(build: (...args: Args) => EquipmentReportRows) {
+  return (...args: Args) => equipmentReportCsv(build(...args));
+}
 
 function filterItems(items: EquipmentReportItem[], filters: EquipmentReportFilters): EquipmentReportItem[] {
   return items.filter((item) => {
@@ -155,7 +161,7 @@ function operationalDetails(itemId: string, sources: EquipmentOperationalSources
   };
 }
 
-export function equipmentInventoryCsv(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}, sources: EquipmentOperationalSources = {}): string {
+export function equipmentInventoryRows(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}, sources: EquipmentOperationalSources = {}): EquipmentReportRows {
   const body = filterItems(items, filters)
     .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
     .map((item) => {
@@ -180,10 +186,10 @@ export function equipmentInventoryCsv(items: EquipmentReportItem[], filters: Equ
         item.notes
       ];
     });
-  return csv(["Equipment", "Category", "Location", "Tracking", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable", "Damage", "Current checkout", "Last checked in", "Last used", "Replacement value each (€)", "Total replacement value (€)", "Archived", "Notes"], body);
+  return reportRows(["Equipment", "Category", "Location", "Tracking", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable", "Damage", "Current checkout", "Last checked in", "Last used", "Replacement value each (€)", "Total replacement value (€)", "Archived", "Notes"], body);
 }
 
-export function equipmentAssetRegisterCsv(items: EquipmentReportItem[]): string {
+export function equipmentAssetRegisterRows(items: EquipmentReportItem[]): EquipmentReportRows {
   const body = items
     .filter((item) => !item.archived || Boolean(item.disposalDate))
     .sort((a, b) => (a.assetRegisterSection || "Equipment").localeCompare(b.assetRegisterSection || "Equipment") || a.name.localeCompare(b.name))
@@ -197,51 +203,51 @@ export function equipmentAssetRegisterCsv(items: EquipmentReportItem[]): string 
       item.replacementValue === null ? "" : money(item.replacementValue * item.totalQuantity),
       item.assetRegisterSection || "Equipment"
     ]);
-  return csv(["Date Purchased", "Quantity", "Description", "Category Fixture & Fittings Equipment Other", "Replacement Value", "Date Sold or Disposed of", "Total Replacement Value", "Register Section"], body);
+  return reportRows(["Date Purchased", "Quantity", "Description", "Category Fixture & Fittings Equipment Other", "Replacement Value", "Date Sold or Disposed of", "Total Replacement Value", "Register Section"], body);
 }
 
-export function equipmentByLocationCsv(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}): string {
+export function equipmentByLocationRows(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const scoped = filterItems(items, filters).sort((a, b) => a.location.localeCompare(b.location) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-  return csv(["Location", "Equipment", "Category", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable"], scoped.map((item) => [item.location, item.name, item.category, item.condition, item.totalQuantity, available(item), item.checkedOutQuantity, item.unavailableQuantity]));
+  return reportRows(["Location", "Equipment", "Category", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable"], scoped.map((item) => [item.location, item.name, item.category, item.condition, item.totalQuantity, available(item), item.checkedOutQuantity, item.unavailableQuantity]));
 }
 
-export function equipmentByCategoryCsv(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}): string {
+export function equipmentByCategoryRows(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const scoped = filterItems(items, filters).sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-  return csv(["Category", "Equipment", "Location", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable"], scoped.map((item) => [item.category, item.name, item.location, item.condition, item.totalQuantity, available(item), item.checkedOutQuantity, item.unavailableQuantity]));
+  return reportRows(["Category", "Equipment", "Location", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable"], scoped.map((item) => [item.category, item.name, item.location, item.condition, item.totalQuantity, available(item), item.checkedOutQuantity, item.unavailableQuantity]));
 }
 
-export function currentSectionHoldingsCsv(loans: EquipmentReportLoan[], filters: EquipmentReportFilters = {}): string {
+export function currentSectionHoldingsRows(loans: EquipmentReportLoan[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const rows = filterLoans(loans, filters)
     .filter((loan) => loan.status === "open" && !isReservation(loan))
     .flatMap((loan) => loan.lines.map((line) => [loan.section, line.itemName, outstanding(line), loan.expectedReturnDate, loan.id]).filter((entry) => Number(entry[2]) > 0));
-  return csv(["Section", "Equipment", "Outstanding quantity", "Expected return", "Checkout ID"], rows);
+  return reportRows(["Section", "Equipment", "Outstanding quantity", "Expected return", "Checkout ID"], rows);
 }
 
-export function overdueEquipmentCsv(loans: EquipmentReportLoan[], today: string, filters: EquipmentReportFilters = {}): string {
+export function overdueEquipmentRows(loans: EquipmentReportLoan[], today: string, filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const rows = filterLoans(loans, filters)
     .filter((loan) => loan.status === "open" && !isReservation(loan) && loan.expectedReturnDate < today)
     .flatMap((loan) => loan.lines.map((line) => [loan.section, line.itemName, outstanding(line), loan.expectedReturnDate, loan.id]).filter((entry) => Number(entry[2]) > 0));
-  return csv(["Section", "Equipment", "Outstanding quantity", "Expected return", "Checkout ID"], rows);
+  return reportRows(["Section", "Equipment", "Outstanding quantity", "Expected return", "Checkout ID"], rows);
 }
 
-export function repairMaintenanceCsv(_items: EquipmentReportItem[], incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): string {
+export function repairMaintenanceRows(_items: EquipmentReportItem[], incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const rows = filterIncidents(incidents, filters)
     .filter((incident) => incident.status !== "resolved" && (incident.type === "damaged" || incident.type === "maintenance"))
     .map((incident) => [incident.itemName, incident.itemCategory, incident.itemLocation, incident.quantity, incident.type, incident.status, incident.section, dateValue(incident.reportedAt), incident.description]);
-  return csv(["Equipment", "Category", "Location", "Quantity", "Issue", "Status", "Section", "Reported", "Description"], rows);
+  return reportRows(["Equipment", "Category", "Location", "Quantity", "Issue", "Status", "Section", "Reported", "Description"], rows);
 }
 
-export function missingLostEquipmentCsv(incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): string {
+export function missingLostEquipmentRows(incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const rows = filterIncidents(incidents, filters).filter((incident) => incident.status !== "resolved" && ["missing", "lost"].includes(incident.type)).map((incident) => [incident.itemName, incident.itemCategory, incident.itemLocation, incident.quantity, incident.type, incident.status, incident.section, dateValue(incident.reportedAt), incident.description]);
-  return csv(["Equipment", "Category", "Location", "Quantity", "Issue", "Status", "Section", "Reported", "Description"], rows);
+  return reportRows(["Equipment", "Category", "Location", "Quantity", "Issue", "Status", "Section", "Reported", "Description"], rows);
 }
 
-export function lossDamageHistoryCsv(incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): string {
+export function lossDamageHistoryRows(incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const rows = filterIncidents(incidents, filters).filter((incident) => ["damaged", "lost", "missing"].includes(incident.type)).map((incident) => [incident.itemName, incident.quantity, incident.type, incident.status, incident.section, dateValue(incident.reportedAt), incident.description, incident.resolutionType, dateValue(incident.resolvedAt), incident.resolutionNotes]);
-  return csv(["Equipment", "Quantity", "Issue", "Status", "Section", "Reported", "Description", "Resolution", "Resolved", "Resolution notes"], rows);
+  return reportRows(["Equipment", "Quantity", "Issue", "Status", "Section", "Reported", "Description", "Resolution", "Resolved", "Resolution notes"], rows);
 }
 
-export function equipmentUsageCsv(loans: EquipmentReportLoan[], filters: EquipmentReportFilters = {}): string {
+export function equipmentUsageRows(loans: EquipmentReportLoan[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const totals = new Map<string, { itemName: string; issued: number; returned: number; incident: number; transactions: number }>();
   for (const loan of filterLoans(loans, filters).filter((entry) => !isReservation(entry))) {
     for (const line of loan.lines) {
@@ -254,14 +260,26 @@ export function equipmentUsageCsv(loans: EquipmentReportLoan[], filters: Equipme
       totals.set(line.itemId, current);
     }
   }
-  return csv(["Equipment", "Checkout transactions", "Quantity issued", "Quantity returned", "Incident quantity"], [...totals.values()].sort((a, b) => b.issued - a.issued || a.itemName.localeCompare(b.itemName)).map((entry) => [entry.itemName, entry.transactions, entry.issued, entry.returned, entry.incident]));
+  return reportRows(["Equipment", "Checkout transactions", "Quantity issued", "Quantity returned", "Incident quantity"], [...totals.values()].sort((a, b) => b.issued - a.issued || a.itemName.localeCompare(b.itemName)).map((entry) => [entry.itemName, entry.transactions, entry.issued, entry.returned, entry.incident]));
 }
 
-export function writeOffReplacementCsv(items: EquipmentReportItem[], incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): string {
+export function writeOffReplacementRows(items: EquipmentReportItem[], incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): EquipmentReportRows {
   const values = new Map(filterItems(items, filters).map((item) => [item.id, item.replacementValue]));
   const rows = filterIncidents(incidents, filters).filter((incident) => incident.resolutionType === "written-off").map((incident) => {
     const each = values.get(incident.itemId) ?? null;
     return [incident.itemName, incident.quantity, dateValue(incident.resolvedAt), incident.section, incident.resolutionNotes, money(each), each === null ? "" : money(each * incident.quantity)];
   });
-  return csv(["Equipment", "Quantity written off", "Resolved", "Section", "Reason / notes", "Replacement value each (€)", "Estimated replacement value (€)"], rows);
+  return reportRows(["Equipment", "Quantity written off", "Resolved", "Section", "Reason / notes", "Replacement value each (€)", "Estimated replacement value (€)"], rows);
 }
+
+export const equipmentInventoryCsv = asCsv(equipmentInventoryRows);
+export const equipmentAssetRegisterCsv = asCsv(equipmentAssetRegisterRows);
+export const equipmentByLocationCsv = asCsv(equipmentByLocationRows);
+export const equipmentByCategoryCsv = asCsv(equipmentByCategoryRows);
+export const currentSectionHoldingsCsv = asCsv(currentSectionHoldingsRows);
+export const overdueEquipmentCsv = asCsv(overdueEquipmentRows);
+export const repairMaintenanceCsv = asCsv(repairMaintenanceRows);
+export const missingLostEquipmentCsv = asCsv(missingLostEquipmentRows);
+export const lossDamageHistoryCsv = asCsv(lossDamageHistoryRows);
+export const equipmentUsageCsv = asCsv(equipmentUsageRows);
+export const writeOffReplacementCsv = asCsv(writeOffReplacementRows);

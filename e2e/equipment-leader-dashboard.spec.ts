@@ -1,15 +1,15 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 
-const adminEmail = process.env.E2E_ADMIN_EMAIL;
-const adminPassword = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
+const quartermasterEmail = "test.group.quartermaster@example.com";
+const password = process.env.E2E_TEST_USER_PASSWORD;
 
 test.describe("Equipment & Stores leader navigation", () => {
-  test.skip(!adminEmail || !adminPassword, "Admin E2E credentials are required.");
+  test.skip(!password, "Quartermaster E2E credentials are required.");
 
   test("SW-320 QM report navigation preserves its equipment view on desktop and mobile", async ({ page }) => {
     await page.goto("/leader/login");
-    await page.getByLabel(/email/i).fill(adminEmail!);
-    await page.getByLabel(/password/i).fill(adminPassword!);
+    await page.getByLabel(/email/i).fill(quartermasterEmail);
+    await page.getByLabel(/password/i).fill(password!);
     await page.getByRole("button", { name: /sign in/i }).click();
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
@@ -33,8 +33,8 @@ test.describe("Equipment & Stores leader navigation", () => {
   test("shows the Leader Dashboard and expandable menu on Android-sized mobile", async ({ page }, testInfo: TestInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "Mobile equipment navigation runs once on the canonical Pixel 7 project.");
     await page.goto("/leader/login");
-    await page.getByLabel(/email/i).fill(adminEmail!);
-    await page.getByLabel(/password/i).fill(adminPassword!);
+    await page.getByLabel(/email/i).fill(quartermasterEmail);
+    await page.getByLabel(/password/i).fill(password!);
     await page.getByRole("button", { name: /sign in/i }).click();
     await expect(page).toHaveURL(/\/leader$/);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();

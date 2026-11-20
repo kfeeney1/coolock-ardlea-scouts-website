@@ -1,3 +1,4 @@
+import { equipmentReportAccess } from "../security/equipmentReportAccess.ts";
 import { attendanceReportScope } from "../security/attendanceReportAccess.ts";
 import { effectivePermissionsFor } from "../security/permissionRegistry.ts";
 import { settingsMenuDestination } from "../security/settingsNavigationPolicy.ts";
@@ -18,6 +19,7 @@ export function leaderNavigationFilter(profile: Profile | null) {
   const admin = has("navigation.appointment-views.all");
   return (item: LeaderNavItem) => {
     if (!profile || !has("leader.portal.access") || item.legacyOnly) return false;
+    if (item.id === "qm-reports") return equipmentReportAccess(profile).canOpen;
     if (item.id === "attendance-insights" && !attendanceReportScope(profile, "named").allowed) return false;
     if (["settings", "treasurer-settings"].includes(item.id) && settingsMenuDestination(profile) !== item.id) return false;
     const required = Object.hasOwn(NAVIGATION_PERMISSIONS, item.id) ? NAVIGATION_PERMISSIONS[item.id] : [];

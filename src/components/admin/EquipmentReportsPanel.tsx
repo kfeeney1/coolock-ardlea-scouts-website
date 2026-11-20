@@ -1,21 +1,23 @@
-import { Box, Button, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import DateRangeFields from "../DateRangeFields";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentIncident } from "../../services/equipmentIncidents";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
 import {
-  currentSectionHoldingsCsv,
-  equipmentByCategoryCsv,
-  equipmentByLocationCsv,
-  equipmentInventoryCsv,
+  currentSectionHoldingsRows,
+  equipmentReportCsv,
+  type EquipmentReportRows,
+  equipmentByCategoryRows,
+  equipmentByLocationRows,
+  equipmentInventoryRows,
   equipmentAssetRegisterCsv,
-  equipmentUsageCsv,
-  lossDamageHistoryCsv,
-  missingLostEquipmentCsv,
-  overdueEquipmentCsv,
-  repairMaintenanceCsv,
-  writeOffReplacementCsv,
+  equipmentUsageRows,
+  lossDamageHistoryRows,
+  missingLostEquipmentRows,
+  overdueEquipmentRows,
+  repairMaintenanceRows,
+  writeOffReplacementRows,
   type EquipmentReportFilters
 } from "../../services/equipmentReportingLogic";
 
@@ -38,7 +40,7 @@ type Props = {
   items: EquipmentItem[];
   loans: EquipmentLoan[];
   incidents: EquipmentIncident[];
-  canManage: boolean;
+  canExport: boolean;
 };
 
 function downloadCsv(filename: string, content: string) {
@@ -53,7 +55,7 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function EquipmentReportsPanel({ items, loans, incidents, canManage }: Props) {
+export default function EquipmentReportsPanel({ items, loans, incidents, canExport }: Props) {
   const [report, setReport] = useState<ReportId>("inventory");
   const [section, setSection] = useState("all");
   const [itemId, setItemId] = useState("all");
@@ -62,6 +64,8 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
   const [status, setStatus] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+
+  const [preview, setPreview] = useState<{ label: string; data: EquipmentReportRows } | null>(null);
 
   const sections = useMemo(() => [...new Set(loans.map((loan) => loan.section).filter(Boolean))].sort(), [loans]);
   const categories = useMemo(() => [...new Set(items.map((item) => item.category).filter(Boolean))].sort(), [items]);
@@ -73,30 +77,31 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
   const today = new Date().toISOString().slice(0, 10);
 
   const build = (id: ReportId) => {
-    if (id === "inventory") return equipmentInventoryCsv(items, filters, operationalSources);
-    if (id === "location") return equipmentByLocationCsv(items, filters);
-    if (id === "category") return equipmentByCategoryCsv(items, filters);
-    if (id === "holdings") return currentSectionHoldingsCsv(loans, filters);
-    if (id === "overdue") return overdueEquipmentCsv(loans, today, filters);
-    if (id === "repair") return repairMaintenanceCsv(items, incidents, filters);
-    if (id === "missing") return missingLostEquipmentCsv(incidents, filters);
-    if (id === "history") return lossDamageHistoryCsv(incidents, filters);
-    if (id === "usage") return equipmentUsageCsv(loans, filters);
-    return writeOffReplacementCsv(items, incidents, filters);
+    if (id === "inventory") return equipmentInventoryRows(items, filters, operationalSources);
+    if (id === "location") return equipmentByLocationRows(items, filters);
+    if (id === "category") return equipmentByCategoryRows(items, filters);
+    if (id === "holdings") return currentSectionHoldingsRows(loans, filters);
+    if (id === "overdue") return overdueEquipmentRows(loans, today, filters);
+    if (id === "repair") return repairMaintenanceRows(items, incidents, filters);
+    if (id === "missing") return missingLostEquipmentRows(incidents, filters);
+    if (id === "history") return lossDamageHistoryRows(incidents, filters);
+    if (id === "usage") return equipmentUsageRows(loans, filters);
+    return writeOffReplacementRows(items, incidents, filters);
   };
 
   const exportReport = (id: ReportId) => {
+    if (!canExport) return;
     const label = REPORTS.find(([value]) => value === id)?.[1] ?? "Equipment Report";
-    downloadCsv(`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${today}.csv`, build(id));
+    downloadCsv(`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${today}.csv`, equipmentReportCsv(build(id)));
   };
 
-  return <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-reports-panel">
+  return <Paper sx={{ minWidth: 0, p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-reports-panel">
     <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2 }}>
       <Box>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>Equipment Reports</Typography>
       </Box>
-      {canManage && <Button variant="contained" color="success" onClick={() => downloadCsv(`all-equipment-${today}.csv`, equipmentInventoryCsv(items, {}, operationalSources))} data-testid="export-all-equipment-csv">Export all equipment CSV</Button>}
-      {canManage && <Button variant="outlined" onClick={() => downloadCsv(`equipment-asset-register-${today}.csv`, equipmentAssetRegisterCsv(items))} data-testid="export-equipment-asset-register">Export asset register</Button>}
+      {canExport && <Button variant="contained" color="success" onClick={() => downloadCsv(`all-equipment-${today}.csv`, equipmentReportCsv(equipmentInventoryRows(items, {}, operationalSources)))} data-testid="export-all-equipment-csv">Export all equipment CSV</Button>}
+      {canExport && <Button variant="outlined" onClick={() => downloadCsv(`equipment-asset-register-${today}.csv`, equipmentAssetRegisterCsv(items))} data-testid="export-equipment-asset-register">Export asset register</Button>}
     </Stack>
 
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3,minmax(0,1fr))" }, gap: 1.5 }}>
@@ -109,7 +114,20 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
         <MenuItem value="all">All statuses</MenuItem><MenuItem value="active">Active stock</MenuItem><MenuItem value="archived">Archived stock</MenuItem><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="reported">Reported</MenuItem><MenuItem value="investigating">Investigating</MenuItem><MenuItem value="resolved">Resolved</MenuItem><MenuItem value="written-off">Written off</MenuItem>
       </TextField>
       <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From date" endLabel="To date" onStartDateChange={setFromDate} onEndDateChange={setToDate} />
-      <Button variant="outlined" onClick={() => exportReport(report)} data-testid="export-selected-equipment-report">Export selected report CSV</Button>
+      <Button variant="outlined" onClick={() => setPreview({ label: REPORTS.find(([id]) => id === report)?.[1] ?? "Equipment report", data: build(report) })}>Generate preview</Button>
+      {canExport && <Button variant="outlined" onClick={() => exportReport(report)} data-testid="export-selected-equipment-report">Export selected report CSV</Button>}
     </Box>
+    {preview && <Box sx={{ mt: 3 }} aria-live="polite">
+      <Typography component="h2" variant="h6">{preview.label} preview</Typography>
+      {preview.data.rows.length === 0 ? <Typography>No rows match the report filters.</Typography> :
+        <TableContainer tabIndex={0} role="region" aria-label={preview.label} sx={{ maxHeight: 540, maxWidth: "100%" }}>
+          <Table size="small" stickyHeader>
+            <TableHead><TableRow>{preview.data.header.map(title => <TableCell key={title}>{title}</TableCell>)}</TableRow></TableHead>
+            <TableBody>{preview.data.rows.map((cells, index) => <TableRow key={index}>
+              {cells.map((cell, column) => <TableCell key={preview.data.header[column]} sx={{ minWidth: 100 }}>{String(cell ?? "")}</TableCell>)}
+            </TableRow>)}</TableBody>
+          </Table>
+        </TableContainer>}
+    </Box>}
   </Paper>;
 }

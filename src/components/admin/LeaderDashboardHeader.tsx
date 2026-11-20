@@ -1,3 +1,4 @@
+import { equipmentReportAccess } from "../../security/equipmentReportAccess";
 import { useAttendanceExperience } from "../../hooks/useAttendanceExperience";
 import { attendanceReportScope } from "../../security/attendanceReportAccess";
 import { useCalendarAccess } from "../../hooks/useCalendarAccess";
@@ -47,11 +48,11 @@ export default function LeaderDashboardHeader({ compact = false }: { compact?: b
  const [themeSaving, setThemeSaving] = useState<ThemeName | null>(null);
  const [themeError, setThemeError] = useState("");
  const reportsEnabled = useAttendanceExperience("reportsExperience");
- const showReports = reportsEnabled && attendanceReportScope(adminProfile, "aggregate").allowed;
+ const showReports = reportsEnabled && (attendanceReportScope(adminProfile, "aggregate").allowed || equipmentReportAccess(adminProfile).canOpen);
  const reportsItem: LeaderNavItem = { ...dashboardNavItem, id: "reports", label: "Reports", path: "/leader/reports/home", exactPath: true };
  const topLevelItems = showReports ? [dashboardNavItem, reportsItem] : [dashboardNavItem];
  const canView = leaderNavigationFilter(adminProfile);
- const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && calendar.allowed ? [calendarNavItem] : []), ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(item => canView(item) && !(showReports && item.id === "attendance-insights")) })).filter((group) => group.items.length > 0);
+ const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && calendar.allowed ? [calendarNavItem] : []), ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(item => canView(item) && !(showReports && ["attendance-insights", "qm-reports"].includes(item.id))) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountNavItems.filter(canView);
  const presentationGroups = redesigned ? redesignedNavigationGroups(visibleGroups) : visibleGroups;
  const activeNavigation = resolveLeaderNavigation(location.pathname.startsWith("/maintenance/") ? "/maintenance/tasks" : `${location.pathname}${location.search}${location.hash}`, presentationGroups, [...topLevelItems, ...visibleAccountItems]);

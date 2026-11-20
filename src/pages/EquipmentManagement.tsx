@@ -1,3 +1,4 @@
+import { equipmentReportAccess } from "../security/equipmentReportAccess";
 import { applicationErrorMessage, UserInputError } from "../services/applicationErrors.ts";
 import {
   Alert,
@@ -260,7 +261,7 @@ export default function EquipmentManagement({ inventoryOnly = false }: { invento
 
       {!inventoryOnly && canManage && <Button component={Link} to="/leader/equipment/inventory?view=quartermaster" variant="outlined" sx={{ mb: 2, mr: 1, minHeight: 44, width: { xs: "100%", sm: "auto" } }}>Open Detailed Inventory</Button>}
       {inventoryOnly && <Button component={Link} to="/leader/equipment?view=quartermaster" variant="outlined" sx={{ mb: 2, minHeight: 44 }}>Back to Equipment & Stores</Button>}
-      {!inventoryOnly && hasLoaded && canManage && <Button component={Link} to="/leader/qm-reports" variant="outlined" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" } }}>Open QM Reports</Button>}
+      {!inventoryOnly && hasLoaded && equipmentReportAccess(adminProfile).canOpen && <Button component={Link} to="/leader/qm-reports" variant="outlined" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" } }}>Open QM Reports</Button>}
       {!inventoryOnly && hasLoaded && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
       {!inventoryOnly && hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} showIssueList={false} showDescription={false} viewAllTo={`/leader/equipment/issues${navigationView ? `?view=${encodeURIComponent(navigationView)}` : ""}`} onChanged={refresh} onError={setError} />}
       {!inventoryOnly && hasLoaded && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}

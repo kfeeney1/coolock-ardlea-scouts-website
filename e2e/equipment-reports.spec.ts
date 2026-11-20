@@ -2,9 +2,9 @@ import { expect, test, type Download, type Page, type TestInfo } from "@playwrig
 
 type Credentials = { email: string; password: string };
 
-function adminCredentials(): Credentials | null {
-  const email = process.env.E2E_ADMIN_EMAIL?.trim();
-  const password = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
+function quartermasterCredentials(): Credentials | null {
+  const email = "test.group.quartermaster@example.com";
+  const password = process.env.E2E_TEST_USER_PASSWORD;
   return email && password ? { email, password } : null;
 }
 
@@ -29,8 +29,8 @@ function desktopOnly(testInfo: TestInfo) {
 
 test("equipment manager sees the operational overview and can generate, open and download inventory reports", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
-  const account = adminCredentials();
-  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
+  const account = quartermasterCredentials();
+  test.skip(!account, "Configure the seeded E2E Quartermaster account to run this check.");
   await loginLeader(page, account!);
 
   await page.goto("/leader/equipment");
@@ -101,8 +101,8 @@ test("equipment manager sees the operational overview and can generate, open and
 
 test("recorded equipment damage subsequently appears in the inventory report", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
-  const account = adminCredentials();
-  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
+  const account = quartermasterCredentials();
+  test.skip(!account, "Configure the seeded E2E Quartermaster account to run this check.");
   const runId = `${testInfo.workerIndex}-${Date.now()}`;
   const itemName = `TEST Report Damage ${runId}`;
   const damageNote = `Bent frame regression ${runId}`;
@@ -175,10 +175,27 @@ test("ordinary leaders cannot access equipment reports", async ({ page }, testIn
   await expect(page.getByTestId("export-equipment-asset-register")).toHaveCount(0);
   await expect(page.getByTestId("export-all-equipment-csv")).toHaveCount(0);
 
+  await page.goto("/leader/qm-reports");
+  await expect(page.getByText("You do not have access to equipment reports.")).toBeVisible();
+  await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
+
   await page.goto("/leader/equipment/issues");
   await expect(page.getByTestId("page-qm-equipment-issues")).toBeVisible();
   const issuePanel = page.getByTestId("equipment-incidents-panel");
   await expect(issuePanel).toBeVisible();
   await expect(issuePanel.getByRole("button", { name: "Start investigation" })).toHaveCount(0);
   await expect(issuePanel.getByRole("button", { name: "Resolve" })).toHaveCount(0);
+});
+
+test("Group Leader can generate a report preview without CSV export", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  const password = process.env.E2E_TEST_USER_PASSWORD;
+  test.skip(!password, "Configure the seeded E2E Group Leader account.");
+  await loginLeader(page, { email: "test.group.leader@example.com", password: password! });
+  await page.goto("/leader/qm-reports");
+  const panel = page.getByTestId("equipment-reports-panel");
+  await panel.getByRole("button", { name: "Generate preview" }).click();
+  await expect(panel.getByRole("heading", { name: "Inventory Summary preview" })).toBeVisible();
+  await expect(panel.getByRole("cell", { name: "TEST Patrol Tents", exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: /export/i })).toHaveCount(0);
 });
