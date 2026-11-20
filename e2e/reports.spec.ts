@@ -131,7 +131,9 @@ test("administrator can open aggregate attendance but cannot open named attendan
 });
 
 test("Reports rollout preserves attendance grants in both switch states", async ({ page, browser, baseURL }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium" || !password, "Use the seeded desktop Chromium project.");
+  chromiumOnly(testInfo);
+  test.skip(testInfo.project.name !== "chromium", "Reports rollout assertions run once on desktop Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   const setting = scheduleFixtureDb().doc("siteSettings/reportsExperience");
   const previous = await setting.get();
   const session = await browser.newContext({ baseURL });
