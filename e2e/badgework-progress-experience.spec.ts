@@ -53,7 +53,7 @@ for(const redesigned of [false,true]) for(const others of [false,true]) test(`Pr
 
 test("Progress retains exact-stage filters, scoped CSV and matrix entry into the same member/skill/stage",async({page})=>{
   await configureBadgework(true);
-  await loginAsLeader(page,{email:"superadmin@example.com",password:password!});await page.goto("/leader/badgework");
+  await loginAsLeader(page,{email:"test.scout.programme.scouter@example.com",password:password!});await page.goto("/leader/badgework");
   await page.getByRole("textbox",{name:"Search children"}).fill("SW546");
   await page.getByRole("button",{name:"Filters",exact:true}).click();
   await page.getByRole("combobox",{name:"Adventure Skill"}).click();await page.getByRole("option",{name:"Camping",exact:true}).click();
@@ -121,4 +121,30 @@ test("An existing recording draft survives enabling the redesign and the next vi
   await page.getByRole("button",{name:"Discard",exact:true}).click();expect(await savedProgressSnapshot()).toEqual(before);
   await page.reload();await expect(page.getByRole("heading",{name:"Progress",exact:true})).toBeVisible();
   await expect(page.getByTestId("badgework-experience")).toHaveAttribute("data-experience","redesigned");
+});
+
+test("Badgework report limits the section selector and CSV to the reporting appointment", async ({ page }) => {
+  await loginAsLeader(page, { email: "test.scout.programme.scouter@example.com", password: password! });
+  await page.goto("/leader/reports/badgework");
+  await expect(page.getByText("Scope: Scouts", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: progressMemberName })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "SW546 Other Member" })).toHaveCount(0);
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await expect(page.getByRole("option", { name: "Cubs" })).toHaveCount(0);
+  await page.getByRole("option", { name: "Scouts" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export filtered CSV" }).click();
+  const file = await download;
+  const csv = await readFile((await file.path())!, "utf8");
+  expect(csv).toContain(progressMemberName);
+  expect(csv).not.toContain("SW546 Other Member");
+});
+
+test("Group Secretary views Badgework Progress across sections without CSV", async ({ page }) => {
+  await loginAsLeader(page, { email: "test.group.secretary@example.com", password: password! });
+  await page.goto("/leader/reports/badgework");
+  await expect(page.getByText("Scope: All sections", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: progressMemberName })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "SW546 Other Member" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export filtered CSV" })).toHaveCount(0);
 });

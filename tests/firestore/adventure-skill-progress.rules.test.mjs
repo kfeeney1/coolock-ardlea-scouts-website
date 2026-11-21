@@ -290,6 +290,18 @@ test("a leader without an eligible section appointment cannot write weekly-meeti
   ));
 });
 
+test("legacy Group Secretary can list requirements and awards across sections", async () => {
+  await seed([
+    ["adminUsers/legacy-secretary", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/legacy-secretary", { active: true, scoutingRole: "Group Secretary", organisationSection: "Group" }],
+    ["members/member-beavers", { section: "Beavers", sections: ["Beavers"], status: "active" }],
+  ]);
+  const db = testEnv.authenticatedContext("legacy-secretary").firestore();
+  for (const part of ["requirements", "awards"]) {
+    await assertSucceeds(getDocs(collection(db, `memberAdventureSkillProgress/member-beavers/${part}`)));
+  }
+});
+
 test("progress follows the member when their section changes", async () => {
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],

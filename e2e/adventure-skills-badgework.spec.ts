@@ -93,7 +93,7 @@ test.describe("Adventure Skills badgework", () => {
     await page.getByRole("button", { name: "Child cards" }).click();
     await page.getByRole("button", { name: /Awaiting award · \d+/ }).click();
     await page.getByRole("button", { name: /All shown · \d+/ }).click();
-    await expect(page.getByRole("button", { name: "Export filtered CSV" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Export filtered CSV" })).toHaveCount(0);
     const overviewMember = page.getByTestId(`badgework-overview-member-${firstMemberId}`);
     await expect(overviewMember).toBeVisible();
     await expect(overviewMember.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping`) })).toBeVisible();

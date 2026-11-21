@@ -1,3 +1,4 @@
+import { badgeworkReportAccess } from "../../security/badgeworkReportAccess.ts";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography, Chip } from "@mui/material";
 import { useState } from "react";
@@ -16,9 +17,8 @@ import { setStageAwardForMembers, type MemberAdventureProgress } from "../../ser
 import { adventureSkillOverview } from "../../services/adventureSkillOverviewLogic.ts";
 import { badgeworkProgressFilterCounts, matchesBadgeworkLevelFilter, matchesBadgeworkLevelNumber, matchesBadgeworkProgressFilter, type BadgeworkExactLevelFilter, type BadgeworkLevelFilter, type BadgeworkProgressFilter } from "../../services/adventureSkillOverviewFilterLogic.ts";
 import { badgeworkAwardCandidates, groupAwardCandidates, type BadgeworkAwardCandidate } from "../../services/adventureSkillAwardQueueLogic.ts";
-import { adventureSkillProgressCsv, badgeworkExportFilename } from "../../services/adventureSkillProgressCsv.ts";
+import { downloadBadgeworkProgressCsv } from "../../services/adventureSkillProgressCsv.ts";
 import { adventureSkillColour } from "../../services/adventureSkillPresentation.ts";
-import { assertOperationalExportAllowed } from "../../services/exportGovernance.ts";
 
 type Props = {
   activeMemberCount: number;
@@ -46,20 +46,9 @@ function skillOption(skillId: string, name: string) {
   </Stack>;
 }
 
-function downloadCsv(filename: string, csv: string) {
-  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 export default function BadgeworkOverview({ redesigned = false, awardsMode = false, activeMemberCount, error, loaded, loading, members, onOpenMemberSkill, onRetry, onSearchChange, onSectionChange, progressByMemberId, search, section, sections }: Props) {
   const { adminProfile } = useAdminAuth();
+  const { exportSections } = badgeworkReportAccess(adminProfile);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [skillFilter, setSkillFilter] = useState("all");
@@ -110,11 +99,11 @@ export default function BadgeworkOverview({ redesigned = false, awardsMode = fal
       const counts = badgeworkProgressFilterCounts(levelFilteredMembers.map((member) => member.id), progressByMemberId, skillFilter, exactLevelFilter);
       const filteredMembers = levelFilteredMembers.filter((member) => matchesBadgeworkProgressFilter(progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] }, skillFilter, attentionFilter, exactLevelFilter));
       const queueCandidates = badgeworkAwardCandidates(filteredMembers, progressByMemberId).filter((candidate) => (skillFilter === "all" || candidate.skillId === skillFilter) && matchesBadgeworkLevelNumber(candidate.stage, levelFilter) && (exactLevelFilter === "all" || candidate.stage === Number(exactLevelFilter)));
+      const exportMembers = filteredMembers.filter(member => exportSections.includes(member.section));
       const exportProgress = () => {
-        const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-        assertOperationalExportAllowed("badgework-progress", { isAdmin, sections: adminProfile?.sections ?? [] });
-        downloadCsv(badgeworkExportFilename(skillFilter), adventureSkillProgressCsv(filteredMembers, progressByMemberId, skillFilter));
-        void recordAuditEvent({ category: "member", action: "badgework-progress-exported", targetId: skillFilter, targetLabel: "Badgework progress", description: `Exported filtered badgework progress for ${filteredMembers.length} children.`, section: section === "all" ? "All permitted sections" : section });
+        if (exportMembers.length === 0) return;
+        downloadBadgeworkProgressCsv(exportMembers, progressByMemberId, skillFilter);
+        void recordAuditEvent({ category: "member", action: "badgework-progress-exported", targetId: skillFilter, targetLabel: "Badgework progress", description: `Exported filtered badgework progress for ${exportMembers.length} children.`, section: exportSections.join(", ") });
       };
       const awardSelectedReady = async (selectedCandidates: readonly BadgeworkAwardCandidate[]) => {
         if (selectedCandidates.length === 0) return;
@@ -137,7 +126,7 @@ export default function BadgeworkOverview({ redesigned = false, awardsMode = fal
         <Button size="small" color="info" variant={attentionFilter === "in-progress" ? "contained" : "outlined"} onClick={() => setAttentionFilter("in-progress")}>Started · {counts["in-progress"]}</Button></>}
         <Button size="small" color="warning" variant={attentionFilter === "awaiting-award" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awaiting-award")}>{awardsMode ? "Ready to award" : "Awaiting award"} · {counts["awaiting-award"]}</Button>
         <Button size="small" color="success" variant={attentionFilter === "awarded" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awarded")}>{awardsMode ? "Award history" : "Awarded"} · {counts.awarded}</Button>
-        <Button size="small" color="success" variant="contained" disabled={filteredMembers.length === 0} onClick={exportProgress} sx={{ ml: { sm: "auto" } }}>Export filtered CSV</Button>
+        {exportSections.length > 0 && <Button size="small" color="success" variant="contained" disabled={exportMembers.length === 0} onClick={exportProgress} sx={{ ml: { sm: "auto" } }}>Export filtered CSV</Button>}
       </Stack></Paper>
       {!awardsMode && <Paper variant="outlined" sx={{ p: 1.5 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
