@@ -982,13 +982,20 @@ service cloud.firestore {
       }
       allow read, write: if false;
 
+      function hasLegacyBadgeworkGroupRead() {
+        let path = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return exists(path) && get(path).data.get("appointments", []) == []
+          && hasGroupAppointment(get(path).data, groupLeadershipRoles().concat(["group secretary"]));
+      }
+
       match /requirements/{requirementId} {
         allow get, list: if isApprovedParentForMember(memberId)
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
             && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
-              || isGroupLeaderOrSecretary()
-              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)));
+              || hasLegacyBadgeworkGroupRead()
+              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)
+              || isGroupLeaderOrSecretary()));
         // The member read in canWriteAdventureRequirement also proves existence. Avoid a
         // separate exists() call so a ten-member atomic batch stays within Rules' 20-call cap.
         function _validateWrite16(_writeData) {
