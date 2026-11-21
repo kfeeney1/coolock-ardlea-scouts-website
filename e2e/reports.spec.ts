@@ -140,7 +140,7 @@ test("Reports rollout preserves attendance grants in both switch states", async 
   try {
     await loginAsLeader(page, { email: process.env.E2E_LEADER_EMAIL || "test.scout.programme.scouter@example.com", password: password! });
     const denied = await session.newPage();
-    await loginAsLeader(denied, { email: "test.navigation.multi.appointment@example.com", password: password! });
+    await loginAsLeader(denied, { email: "test.group.secretary@example.com", password: password! });
 
     for (const version of ["existing", "redesigned"]) {
       await setting.set({ version });

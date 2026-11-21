@@ -243,7 +243,7 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("leader-nav-secretary-reports")).toHaveCount(0);
 
     await page.goto("/leader/qm-reports");
-    await expect(page.getByText("Quartermaster / Bo’sun equipment-management access is required.")).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "You do not have access to equipment reports." })).toBeVisible();
     await expect(page.getByTestId("qm-report-content")).toHaveCount(0);
   });
 
