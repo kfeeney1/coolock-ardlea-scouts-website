@@ -1,3 +1,5 @@
+import { badgeworkReportAccess } from "../security/badgeworkReportAccess";
+import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { saveAdventureSkillDraft } from "../services/adventureSkillDraftSave.ts";
 import { useBadgeworkMeetingAttendance } from "../hooks/useBadgeworkMeetingAttendance";
 import { useBadgeworkExperience } from "../hooks/useBadgeworkExperience";
@@ -45,6 +47,7 @@ type DiscardAction = { kind: "skill"; skillId: string } | { kind: "stage"; stage
 
 export default function BadgeworkTracking() {
   const navigate = useNavigate();
+  const { adminProfile } = useAdminAuth();
   const experience = useBadgeworkExperience();
   const [searchParams] = useSearchParams();
   const sourceContext = useMemo(() => badgeworkSourceContextFromParams(searchParams), [searchParams]);
@@ -251,6 +254,7 @@ export default function BadgeworkTracking() {
     <Box data-testid="badgework-experience" data-experience={experience.redesigned ? "redesigned" : "existing"} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="xl">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Adventure Skills Badgework" description="Choose the children first, then record and save their Adventure Skills competency changes." />
+      {!sourceContext && badgeworkReportAccess(adminProfile).canOpen && <Button component="a" href="/leader/reports/badgework" variant="outlined" sx={{ mb: 2, minHeight: 44 }}>Open Badgework Progress report</Button>}
       <BadgeworkModeNavigation disabled={experience.redesigned && saving} redesigned={experience.redesigned} mode={mode} step={workflowStep} onAwards={() => requestDiscardAction({ kind: "awards" })} onOverview={openOverviewMode} onRecord={openRecordMode} />
       {experience.changed && <Alert severity="info" sx={{ mb: 2 }}>The badgework layout setting changed. This visit keeps its current layout and edits. Save or discard changes before reloading.</Alert>}
       {sourceContext && <Alert severity="info" sx={{ mb: 2 }} action={<Button component="a" href={sourceContext.returnTo} color="inherit" size="small">Back to {sourceLabel(sourceContext.sourceType)}</Button>}>Recording badgework from {sourceLabel(sourceContext.sourceType)}. The attending children have been preselected; confirm the members before continuing.</Alert>}

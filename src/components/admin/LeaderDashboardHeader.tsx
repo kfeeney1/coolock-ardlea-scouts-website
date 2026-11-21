@@ -1,3 +1,4 @@
+import { badgeworkReportAccess } from "../../security/badgeworkReportAccess";
 import { equipmentReportAccess } from "../../security/equipmentReportAccess";
 import { useAttendanceExperience } from "../../hooks/useAttendanceExperience";
 import { attendanceReportScope } from "../../security/attendanceReportAccess";
@@ -48,7 +49,7 @@ export default function LeaderDashboardHeader({ compact = false }: { compact?: b
  const [themeSaving, setThemeSaving] = useState<ThemeName | null>(null);
  const [themeError, setThemeError] = useState("");
  const reportsEnabled = useAttendanceExperience("reportsExperience");
- const showReports = reportsEnabled && (attendanceReportScope(adminProfile, "aggregate").allowed || equipmentReportAccess(adminProfile).canOpen);
+ const showReports = reportsEnabled && (attendanceReportScope(adminProfile, "aggregate").allowed || equipmentReportAccess(adminProfile).canOpen || badgeworkReportAccess(adminProfile).canOpen);
  const reportsItem: LeaderNavItem = { ...dashboardNavItem, id: "reports", label: "Reports", path: "/leader/reports/home", exactPath: true };
  const topLevelItems = showReports ? [dashboardNavItem, reportsItem] : [dashboardNavItem];
  const canView = leaderNavigationFilter(adminProfile);

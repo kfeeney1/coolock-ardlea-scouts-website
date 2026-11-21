@@ -35,3 +35,19 @@ export function badgeworkExportFilename(skillId: string, date = new Date()): str
   const scope = skill?.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-skills";
   return `badgework-progress-${scope}-${date.toISOString().slice(0, 10)}.csv`;
 }
+
+
+export function downloadBadgeworkProgressCsv(
+  members: readonly MemberRecord[],
+  progress: ReadonlyMap<string, MemberAdventureProgress>,
+  skillId: string
+) {
+  const url = URL.createObjectURL(new Blob(["\uFEFF", adventureSkillProgressCsv(members, progress, skillId)], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = badgeworkExportFilename(skillId);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
