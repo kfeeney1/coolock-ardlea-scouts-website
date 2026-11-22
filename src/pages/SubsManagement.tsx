@@ -1,4 +1,4 @@
-import { groupSubsReportAccess } from "../security/groupSubsReportAccess";
+import { groupFinanceReportAccess } from "../security/groupFinanceReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -34,7 +34,7 @@ export default function SubsManagement() {
   const location = useLocation();
   const navigationView = searchParams.get("view");
   const pageIdentity = navigationView === "treasurer" ? "treasurer-subs" : navigationView === "group-operations" ? "group-subs" : "subs";
-  const groupReportAccess = groupSubsReportAccess(adminProfile);
+  const groupReportAccess = groupFinanceReportAccess(adminProfile);
   const canGroupReport = Boolean(adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole));
   const authorisedSections = useMemo(() => authorisedSubsSections(adminProfile?.sections ?? [], canGroupReport), [adminProfile?.sections, canGroupReport]);
   const [tab, setTab] = useState(0);

@@ -4,14 +4,14 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import SubsBalancesReport from "../components/admin/SubsBalancesReport";
-import { groupSubsReportAccess } from "../security/groupSubsReportAccess";
+import { groupFinanceReportAccess } from "../security/groupFinanceReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors";
 import { loadSubsAssignments, loadSubsPayments, loadSubsPolicies } from "../services/subsLedger";
 import { resolveCurrentSubsPolicy, type SubsAssignment, type SubsPayment, type SubsRatePolicy } from "../services/subsLogic";
 
 export default function GroupSubsReport() {
   const { adminProfile, user } = useAdminAuth();
-  const access = groupSubsReportAccess(adminProfile);
+  const access = groupFinanceReportAccess(adminProfile);
   return <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
     <LeaderDashboardHeader />
     <LeaderPageHeader title="Group Subs Report" />
