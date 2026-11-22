@@ -16,7 +16,7 @@ export const REPORTING_READ_BUDGETS = Object.freeze({
     maxInitialQueryOperations: 12,
     maxExportQueryOperationsAfterInitialLoad: 0,
     initialDatasets: Object.freeze(["members", "events"]),
-    rationale: "Reports load one member and one event dataset per permitted section. Event exports must reuse the already-loaded member snapshot rather than re-reading members."
+    rationale: "Reports load one member and one event dataset per permitted section. The Event Consent Status report loads one scoped event dataset and, for section-scoped names, one member dataset. Selecting an event uses that loaded snapshot."
   }),
   financeReports: Object.freeze({
     surface: "Section Floats reporting",
@@ -60,9 +60,9 @@ export function validateReportingReadBudgetContract(contract = REPORTING_READ_BU
 }
 
 export async function validateReportingReadBudgetSource(rootDir = process.cwd()) {
-  const [overview, reporting, leaderReports, financePanel] = await Promise.all([
+  const [overview, consentReport, leaderReports, financePanel] = await Promise.all([
     readFile(resolve(rootDir, "src/services/adminOverview.ts"), "utf8"),
-    readFile(resolve(rootDir, "src/services/reporting.ts"), "utf8"),
+    readFile(resolve(rootDir, "src/pages/EventConsentStatusReport.tsx"), "utf8"),
     readFile(resolve(rootDir, "src/pages/LeaderReports.tsx"), "utf8"),
     readFile(resolve(rootDir, "src/components/admin/FinanceReportsPanel.tsx"), "utf8")
   ]);
@@ -78,9 +78,9 @@ export async function validateReportingReadBudgetSource(rootDir = process.cwd())
   requireSource(errors, overview, "readLeaderConsent()", "Leader overview must use the current-section-authorised consent reader.");
 
   requireSource(errors, leaderReports, "Promise.all([loadMemberReportRows(scope), loadEventReportRecords(scope)])", "Reports must keep the initial Firestore snapshot to the member and event datasets.");
-  requireSource(errors, reporting, "const memberReportCache = new Map", "Reports must retain the member snapshot cache used by event exports.");
-  requireSource(errors, reporting, "const cachedRows = memberReportCache.get(scopeKey(scope));", "Event exports must check the loaded member snapshot before any Firestore fallback.");
-  requireSource(errors, reporting, "if (cachedRows) return eventReportMembers(event, cachedRows);", "Event exports must return from the cached member snapshot without an extra read.");
+  requireSource(errors, consentReport, "loadEventReportRecords(scope)", "Event Consent Status must use scoped event discovery.");
+  requireSource(errors, consentReport, "access.group ? [] : loadNamedMembershipRows(scope)", "Aggregate event consent must avoid member reads and section reporting must scope its member query.");
+  requireSource(errors, consentReport, "setSelectedId(change.target.value)", "Event selection must use the already loaded snapshot.");
 
   requireSource(errors, financePanel, "permittedSections.map((item) => loadFinanceTransactions(item))", "Finance reporting must keep transaction reads section-scoped.");
   requireSource(errors, financePanel, "permittedSections.map((item) => loadFinanceReceipts(item))", "Finance reporting must keep receipt reads section-scoped.");

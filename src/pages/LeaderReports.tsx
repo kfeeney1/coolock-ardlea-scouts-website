@@ -1,3 +1,4 @@
+import { eventConsentReportAccess } from "../security/eventConsentReportAccess";
 import { downloadCsv } from "../services/downloadCsv";
 import { membershipTotalsAccess, namedMembershipAccess } from "../security/membershipTotalsAccess";
 import { attendanceReportScope } from "../security/attendanceReportAccess";
@@ -9,11 +10,7 @@ import {
     Button,
     CircularProgress,
     Container,
-    FormControl,
-    InputLabel,
-    MenuItem,
     Paper,
-    Select,
     Stack,
     Typography
 } from "@mui/material";
@@ -26,18 +23,15 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { recordAuditEvent } from "../services/auditLog";
 import { formatSiteDate } from "../services/siteDateFormat";
-import { loadEventReportMembers, loadEventReportRecords, loadMembershipCountRows, loadMemberReportRows, loadNamedMembershipRows } from "../services/reporting";
+import { loadEventReportRecords, loadMembershipCountRows, loadMemberReportRows, loadNamedMembershipRows } from "../services/reporting";
 import type { EventReportRecord, MemberReportRow } from "../services/reportingLogic";
 import {
     attendanceTrendCsv,
     buildReportingInsights,
     eventOverviewCsv,
-    eventRosterCsv,
     filterEventsByDateRange,
     memberReportCsv,
     membershipSummaryCsv,
-    outstandingConsentCsv,
-    slug
 } from "../services/reportingLogic";
 
 export default function LeaderReports() {
@@ -47,11 +41,9 @@ export default function LeaderReports() {
     const pageIdentity = navigationView === "insights" ? "reports-exports" : navigationView === "treasurer" ? "treasurer-reports" : "leader-reports";
     const [members, setMembers] = useState<MemberReportRow[]>([]);
     const [events, setEvents] = useState<EventReportRecord[]>([]);
-    const [selectedEventId, setSelectedEventId] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [loading, setLoading] = useState(true);
-    const [exportingEvent, setExportingEvent] = useState(false);
     const [error, setError] = useState("");
 
     const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
@@ -68,7 +60,6 @@ export default function LeaderReports() {
                 if (!cancelled) {
                     setMembers(memberRows);
                     setEvents(eventRows);
-                    setSelectedEventId((current) => current || eventRows[0]?.id || "");
                 }
             } catch (loadError) {
                 if (!cancelled) setError(applicationErrorMessage(loadError, "Unable to load reporting data for your permitted sections.", "LeaderReports"));
@@ -85,12 +76,6 @@ export default function LeaderReports() {
         filteredEvents.filter(event => aggregateScope.sections.includes(event.section));
     const insights = useMemo(() => buildReportingInsights(members, aggregateEvents), [members, aggregateEvents]);
 
-    useEffect(() => {
-        if (selectedEventId && filteredEvents.some((event) => event.id === selectedEventId)) return;
-        setSelectedEventId(filteredEvents[0]?.id || "");
-    }, [filteredEvents, selectedEventId]);
-
-    const selectedEvent = filteredEvents.find((event) => event.id === selectedEventId) || null;
     const scopeLabel = isAdmin ? "All sections" : sections.length > 0 ? sections.join(", ") : "No sections assigned";
     const activeMembers = members.filter((member) => member.status === "active").length;
     const consentEvents = filteredEvents.filter((event) => event.consentRequired).length;
@@ -148,26 +133,6 @@ export default function LeaderReports() {
         if (!aggregateScope.allowed) return;
         await auditExport("Report summary printed", "reports-print", "Reports summary", `Opened print view for report scope ${scopeLabel} and date range ${dateRangeLabel}.`);
         window.print();
-    };
-
-    const withSelectedEventMembers = async (kind: "roster" | "consent") => {
-        if (!selectedEvent) return;
-        setExportingEvent(true);
-        setError("");
-        try {
-            const eventMembers = await loadEventReportMembers(selectedEvent, scope);
-            if (kind === "roster") {
-                downloadCsv(`${slug(selectedEvent.title)}-attendance-consent.csv`, eventRosterCsv(selectedEvent, eventMembers));
-                await auditExport("Event report exported", selectedEvent.id, selectedEvent.title, `Exported attendance and consent status for ${eventMembers.length} active members.`, selectedEvent.section);
-            } else {
-                downloadCsv(`${slug(selectedEvent.title)}-outstanding-consent.csv`, outstandingConsentCsv(selectedEvent, eventMembers));
-                await auditExport("Outstanding consent report exported", selectedEvent.id, selectedEvent.title, "Exported members whose consent is still outstanding for this event.", selectedEvent.section);
-            }
-        } catch (exportError) {
-            setError(applicationErrorMessage(exportError, "Unable to export that event report.", "LeaderReports"));
-        } finally {
-            setExportingEvent(false);
-        }
     };
 
     return (
@@ -267,17 +232,9 @@ export default function LeaderReports() {
 
                             </>}
 
-                            <Paper variant="outlined" sx={{ p: 3 }} data-testid="event-detail-report">
-                                <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Event attendance & consent</Typography>
-                                <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>Select an event in the current date range for a full operational roster or a focused outstanding-consent list.</Typography>
-                                <Stack spacing={2}>
-                                    <FormControl fullWidth><InputLabel>Event</InputLabel><Select label="Event" value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>{filteredEvents.map((event) => <MenuItem key={event.id} value={event.id}>{event.startDate ? formatSiteDate(event.startDate) : "No date"} — {event.title} ({event.section})</MenuItem>)}</Select></FormControl>
-                                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                                        <Button variant="contained" color="success" disabled={!selectedEvent || exportingEvent} onClick={() => void withSelectedEventMembers("roster")}>{exportingEvent ? "Preparing Export…" : "Export Event CSV"}</Button>
-                                        <Button variant="outlined" color="secondary" disabled={!selectedEvent || exportingEvent || !selectedEvent.consentRequired} onClick={() => void withSelectedEventMembers("consent")}>Export Outstanding Consent</Button>
-                                    </Stack>
-                                </Stack>
-                            </Paper>
+                            {eventConsentReportAccess(adminProfile).canOpen && <Paper variant="outlined" sx={{ p: 3 }}>
+                                <Button component={Link} to="/leader/reports/event-consent" variant="outlined">Open Event Consent Status</Button>
+                            </Paper>}
                         </Box>
                     </Stack>
                 )}
