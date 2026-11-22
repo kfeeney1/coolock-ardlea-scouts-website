@@ -29,7 +29,7 @@ type Props = {
   onPaymentDateChange: (value: string) => void;
   onNoteChange: (value: string) => void;
   onReviewPayment: () => void;
-  onExportMember: () => void;
+  onExportMember?: () => void;
 };
 
 /** Payment presentation; authorisation, validation and ledger mutations stay in SubsManagement. */
@@ -116,7 +116,7 @@ export default function SubsPaymentPanel({
             </Button>
             <Stack direction={{ xs: "column", sm: "row" }} sx={{ mt: 4, justifyContent: "space-between" }}>
               <Typography variant="h6">Payment history</Typography>
-              {selectedAssignment && selectedBalance && (
+              {selectedAssignment && selectedBalance && onExportMember && (
                 <Button variant="outlined" onClick={onExportMember}>
                   Download member CSV
                 </Button>
