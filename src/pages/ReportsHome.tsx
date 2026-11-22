@@ -1,3 +1,4 @@
+import { eventConsentReportAccess } from "../security/eventConsentReportAccess";
 import { membershipTotalsAccess, namedMembershipAccess } from "../security/membershipTotalsAccess";
 import { meetingReportAccess } from "../security/meetingReportAccess";
 import { badgeworkReportAccess } from "../security/badgeworkReportAccess";
@@ -20,6 +21,7 @@ export default function ReportsHome() {
   const meetings = meetingReportAccess(adminProfile);
   const membership = membershipTotalsAccess(adminProfile);
   const memberList = namedMembershipAccess(adminProfile);
+  const consent = eventConsentReportAccess(adminProfile);
   const hasReports = aggregate.allowed || equipment || badgework.canOpen || meetings.canOpen || membership.canOpen;
   if (hasReports && version === null) return <CircularProgress aria-label="Loading Reports" />;
   if (hasReports && version === "existing") {
@@ -58,6 +60,10 @@ export default function ReportsHome() {
         {memberList.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography color="text.secondary">{memberList.group ? "All sections" : memberList.sections.join(", ")}</Typography>
           <Button component={Link} to="/leader/reports/member-list" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Member List Report</Button>
+        </Paper>}
+        {consent.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography color="text.secondary">{consent.group ? "Group events" : consent.sections.join(", ")}</Typography>
+          <Button component={Link} to="/leader/reports/event-consent" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Event Consent Status</Button>
         </Paper>}
       </Stack>}
   </Container>;
