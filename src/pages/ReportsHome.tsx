@@ -1,4 +1,4 @@
-import { membershipTotalsAccess } from "../security/membershipTotalsAccess";
+import { membershipTotalsAccess, namedMembershipAccess } from "../security/membershipTotalsAccess";
 import { meetingReportAccess } from "../security/meetingReportAccess";
 import { badgeworkReportAccess } from "../security/badgeworkReportAccess";
 import { equipmentReportAccess } from "../security/equipmentReportAccess";
@@ -19,6 +19,7 @@ export default function ReportsHome() {
   const badgework = badgeworkReportAccess(adminProfile);
   const meetings = meetingReportAccess(adminProfile);
   const membership = membershipTotalsAccess(adminProfile);
+  const memberList = namedMembershipAccess(adminProfile);
   const hasReports = aggregate.allowed || equipment || badgework.canOpen || meetings.canOpen || membership.canOpen;
   if (hasReports && version === null) return <CircularProgress aria-label="Loading Reports" />;
   if (hasReports && version === "existing") {
@@ -53,6 +54,10 @@ export default function ReportsHome() {
         {membership.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography color="text.secondary">{membership.group ? "All sections" : membership.sections.join(", ")}</Typography>
           <Button component={Link} to="/leader/reports/membership" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Membership Totals</Button>
+        </Paper>}
+        {memberList.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography color="text.secondary">{memberList.group ? "All sections" : memberList.sections.join(", ")}</Typography>
+          <Button component={Link} to="/leader/reports/member-list" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Member List Report</Button>
         </Paper>}
       </Stack>}
   </Container>;

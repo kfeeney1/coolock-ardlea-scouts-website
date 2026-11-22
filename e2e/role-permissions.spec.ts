@@ -139,7 +139,7 @@ test.describe("leader permissions", () => {
     await expect(page).toHaveURL(/\/leader\/reports\?view=insights$/);
     await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByText(/Report scope:/)).toContainText("Scouts");
-    await expect(page.getByRole("button", { name: "Export Member CSV" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Export Member CSV" })).toHaveCount(0);
 
     await page.goto("/leader/access");
     await expect(page.getByText("Administrator access is required.")).toBeVisible();
