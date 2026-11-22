@@ -1,7 +1,8 @@
+import { groupSubsReportAccess } from "../security/groupSubsReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import SubsFamilyAccountPanel from "../components/admin/SubsFamilyAccountPanel";
@@ -33,6 +34,7 @@ export default function SubsManagement() {
   const location = useLocation();
   const navigationView = searchParams.get("view");
   const pageIdentity = navigationView === "treasurer" ? "treasurer-subs" : navigationView === "group-operations" ? "group-subs" : "subs";
+  const groupReportAccess = groupSubsReportAccess(adminProfile);
   const canGroupReport = Boolean(adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole));
   const authorisedSections = useMemo(() => authorisedSubsSections(adminProfile?.sections ?? [], canGroupReport), [adminProfile?.sections, canGroupReport]);
   const [tab, setTab] = useState(0);
@@ -206,8 +208,9 @@ export default function SubsManagement() {
       return false;
     }
   }, [amount, method, paymentDate, period, selectedAssignment]);
+  const canExportMember = !canGroupReport || groupReportAccess.canExport;
   const exportMember = () => {
-    if (!selectedAssignment || !selectedBalance) return;
+    if (!canExportMember || !selectedAssignment || !selectedBalance) return;
     download(`subs-${selectedAssignment.memberName}-${period}.csv`, csv([["Member", "Section", "Scout year", "Rate category", "Family classification", "Child position", "Amount due (cents)", "Total paid (cents)", "Remaining (cents)"], [selectedAssignment.memberName, selectedAssignment.section, period, rateCategoryLabel(selectedAssignment.category), selectedAssignment.familyType ? familyTypeLabel(selectedAssignment.familyType) : "Legacy classification", selectedAssignment.familyPosition ? String(selectedAssignment.familyPosition) : "", String(selectedBalance.dueCents), String(selectedBalance.paidCents), String(selectedBalance.remainingCents)], [], ["Payment date", "Method", "Amount (cents)", "Correction of", "Note"], ...memberPayments.map((p) => [p.paymentDate, paymentMethodLabel(p.method), String(p.amountCents), p.reversalOfPaymentId, p.note])]));
   };
   return (
@@ -281,9 +284,10 @@ export default function SubsManagement() {
           onPaymentDateChange={(value) => { setPaymentDate(value); paymentOperationId.current = ""; }}
           onNoteChange={(value) => { setNote(value); paymentOperationId.current = ""; }}
           onReviewPayment={reviewPayment}
-          onExportMember={exportMember}
+          onExportMember={canExportMember ? exportMember : undefined}
         />}
-        {activeTab === 1 && <SubsBalancesReport assignments={visibleAssignments} payments={visiblePayments} policies={policies} period={period} setPeriod={setPeriod} section={effectiveSection} sections={authorisedSections} canGroupReport={canGroupReport} />}
+        {activeTab === 1 && groupReportAccess.canOpen && <Button component={Link} to="/leader/reports/subs" sx={{ mb: 2, minHeight: 44 }}>Open Group Subs Report</Button>}
+        {activeTab === 1 && <SubsBalancesReport assignments={visibleAssignments} payments={visiblePayments} policies={policies} period={period} setPeriod={setPeriod} section={effectiveSection} canGroupReport={canGroupReport} canExport={groupReportAccess.canExport} />}
         {activeTab === 2 && canGroupReport && <Paper id="family-billing" variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><SubsFamilyAccountPanel members={members} policies={policies} assignments={assignments} defaultPolicyId={currentPolicy?.id ?? ""} saving={saving} onSaving={setSaving} onMessage={setMessage} onError={setError} onReload={load} /></Paper>}
         <Dialog open={confirmOpen} onClose={() => !saving && setConfirmOpen(false)}>
           <DialogTitle>Confirm subs payment</DialogTitle>

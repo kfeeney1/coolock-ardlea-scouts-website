@@ -1,3 +1,4 @@
+import { groupSubsReportAccess } from "../../security/groupSubsReportAccess";
 import { meetingReportAccess } from "../../security/meetingReportAccess";
 import { badgeworkReportAccess } from "../../security/badgeworkReportAccess";
 import { equipmentReportAccess } from "../../security/equipmentReportAccess";
@@ -50,7 +51,7 @@ export default function LeaderDashboardHeader({ compact = false }: { compact?: b
  const [themeSaving, setThemeSaving] = useState<ThemeName | null>(null);
  const [themeError, setThemeError] = useState("");
  const reportsEnabled = useAttendanceExperience("reportsExperience");
- const showReports = reportsEnabled && (attendanceReportScope(adminProfile, "aggregate").allowed || equipmentReportAccess(adminProfile).canOpen || badgeworkReportAccess(adminProfile).canOpen || meetingReportAccess(adminProfile).canOpen);
+ const showReports = reportsEnabled && (attendanceReportScope(adminProfile, "aggregate").allowed || equipmentReportAccess(adminProfile).canOpen || badgeworkReportAccess(adminProfile).canOpen || meetingReportAccess(adminProfile).canOpen || groupSubsReportAccess(adminProfile).canOpen);
  const reportsItem: LeaderNavItem = { ...dashboardNavItem, id: "reports", label: "Reports", path: "/leader/reports/home", exactPath: true };
  const topLevelItems = showReports ? [dashboardNavItem, reportsItem] : [dashboardNavItem];
  const canView = leaderNavigationFilter(adminProfile);

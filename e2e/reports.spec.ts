@@ -223,3 +223,13 @@ test("Event Consent Status denies ordinary Scouters and omits legacy consent CSV
   await expect(page.getByRole("button", { name: "Export Outstanding Consent" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Export Event CSV" })).toHaveCount(0);
 });
+
+test("Group Leader sees group Subs balances without the Treasurer CSV action", async ({ page }, testInfo) => {
+  chromiumOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await loginAsLeader(page, { email: "test.group.leader@example.com", password: password! });
+  await page.goto("/leader/reports/subs");
+  await expect(page.getByTestId("subs-balances-report")).toBeVisible();
+  await expect(page.getByText("Scope: All authorised sections")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download balance CSV" })).toHaveCount(0);
+});

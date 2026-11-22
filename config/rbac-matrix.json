@@ -47,6 +47,7 @@
     "/leader/reports": "leader",
     "/leader/reports/badgework": "leader-badgework-report-policy",
     "/leader/reports/meetings": "leader-meeting-report-policy",
+    "/leader/reports/subs": "leader-group-subs-report-policy",
     "/leader/reports/event-consent": "leader-event-consent-report-policy",
     "/leader/reports/member-list": "leader-named-membership-policy",
     "/leader/reports/membership": "leader-membership-totals-policy",
