@@ -3,11 +3,13 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const leaderReportsSource = readFileSync(new URL("../../src/pages/LeaderReports.tsx", import.meta.url), "utf8");
+const csvDownloadSource = readFileSync(new URL("../../src/services/downloadCsv.ts", import.meta.url), "utf8");
 const generatedReportDialogSource = readFileSync(new URL("../../src/components/admin/GeneratedReportDialog.tsx", import.meta.url), "utf8");
 const accessibilityDoc = readFileSync(new URL("../../docs/report-accessibility.md", import.meta.url), "utf8");
 
 test("current report surface keeps machine-readable HTML/CSV alternatives", () => {
-  assert.match(leaderReportsSource, /text\/csv;charset=utf-8/);
+  assert.match(leaderReportsSource, /downloadCsv\(/);
+  assert.match(csvDownloadSource, /text\/csv;charset=utf-8/);
   assert.match(leaderReportsSource, /window\.print\(\)/);
   assert.match(generatedReportDialogSource, /data-testid="open-generated-report"/);
   assert.match(generatedReportDialogSource, /data-testid="download-generated-report"/);
