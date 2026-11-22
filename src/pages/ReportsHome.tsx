@@ -1,4 +1,4 @@
-import { groupSubsReportAccess } from "../security/groupSubsReportAccess";
+import { groupFinanceReportAccess } from "../security/groupFinanceReportAccess";
 import { eventConsentReportAccess } from "../security/eventConsentReportAccess";
 import { membershipTotalsAccess, namedMembershipAccess } from "../security/membershipTotalsAccess";
 import { meetingReportAccess } from "../security/meetingReportAccess";
@@ -23,8 +23,8 @@ export default function ReportsHome() {
   const membership = membershipTotalsAccess(adminProfile);
   const memberList = namedMembershipAccess(adminProfile);
   const consent = eventConsentReportAccess(adminProfile);
-  const subs = groupSubsReportAccess(adminProfile);
-  const hasReports = aggregate.allowed || equipment || badgework.canOpen || meetings.canOpen || membership.canOpen || subs.canOpen;
+  const finance = groupFinanceReportAccess(adminProfile);
+  const hasReports = aggregate.allowed || equipment || badgework.canOpen || meetings.canOpen || membership.canOpen || finance.canOpen;
   if (hasReports && version === null) return <CircularProgress aria-label="Loading Reports" />;
   if (hasReports && version === "existing") {
     const legacyPath = named.allowed ? "/leader/attendance" : aggregate.allowed ? "/leader/attendance?view=trends" : equipment ? "/leader/qm-reports" : badgework.canOpen ? "/leader/reports/badgework" : meetings.canOpen ? "/leader/reports/meetings" : membership.canOpen ? "/leader/reports/membership" : "/leader/reports/subs";
@@ -67,7 +67,11 @@ export default function ReportsHome() {
           <Typography color="text.secondary">{consent.group ? "Group events" : consent.sections.join(", ")}</Typography>
           <Button component={Link} to="/leader/reports/event-consent" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Event Consent Status</Button>
         </Paper>}
-        {subs.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
+        {finance.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography color="text.secondary">All sections</Typography>
+          <Button component={Link} to="/leader/reports/floats" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Group Section Floats Report</Button>
+        </Paper>}
+        {finance.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography color="text.secondary">All sections</Typography>
           <Button component={Link} to="/leader/reports/subs" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Group Subs Report</Button>
         </Paper>}

@@ -7,9 +7,9 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Section Floats reporting checks run once on desktop Chromium.");
 }
 
-async function login(page: Page) {
+async function login(page: Page, email = leaderEmail) {
   await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(leaderEmail!);
+  await page.getByLabel("Email address").fill(email!);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
@@ -143,4 +143,26 @@ test("Section Floats labels stay separate from default and selected filter value
   await page.reload();
   await expectReadable("Section", "finance-report-section-label", "All permitted sections");
   await expectReadable("Outgoing category", "finance-report-category-label", "All outgoing categories");
+});
+
+test("Group Leader can view group Section Floats without CSV or print", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await login(page, "test.group.leader@example.com");
+  await page.goto("/leader/reports/floats");
+  const panel = page.getByTestId("finance-reporting");
+  await expect(panel.getByRole("combobox", { name: "Section" })).toHaveText("All permitted sections");
+  await expect(panel.getByText("Monthly float movement", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Export Section Floats CSV" })).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Print / Save PDF" })).toHaveCount(0);
+});
+
+test("Group Treasurer gets both Section Floats report actions", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await login(page, "test.group.treasurer@example.com");
+  await page.goto("/leader/reports/floats");
+  const panel = page.getByTestId("finance-reporting");
+  await expect(panel.getByRole("button", { name: "Export Section Floats CSV" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Print / Save PDF" })).toBeVisible();
 });

@@ -1,3 +1,5 @@
+import { groupFinanceReportAccess } from "../../security/groupFinanceReportAccess";
+import { Link } from "react-router-dom";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
@@ -29,12 +31,25 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-type Props = { initialSection?: string };
+type Props = { initialSection?: string; standalone?: boolean };
 
-export default function FinanceReportsPanel({ initialSection = "" }: Props) {
-  const { adminProfile } = useAdminAuth();
+export default function FinanceReportsPanel({ initialSection = "", standalone = false }: Props) {
+  const { adminProfile, user } = useAdminAuth();
+  const groupAccess = groupFinanceReportAccess(adminProfile);
   const allFinance = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
   const permittedSections = useMemo(() => allFinance ? GROUP_SECTIONS : (adminProfile?.sections ?? []), [adminProfile, allFinance]);
+  if ((standalone || allFinance) && !groupAccess.canOpen) {
+    return <Alert severity="error">You do not have access to the group Section Floats report.</Alert>;
+  }
+  return <FloatReport key={JSON.stringify([user?.uid, permittedSections, allFinance])}
+    initialSection={initialSection} permittedSections={permittedSections}
+    canExport={!allFinance || groupAccess.canExport} canPrint={!allFinance || (standalone && groupAccess.canExport)}
+    showGroupLink={allFinance && !standalone} />;
+}
+
+function FloatReport({ initialSection, permittedSections, canExport, canPrint, showGroupLink }: {
+  initialSection: string; permittedSections: string[]; canExport: boolean; canPrint: boolean; showGroupLink: boolean;
+}) {
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);
   const [section, setSection] = useState(initialSection);
@@ -79,19 +94,20 @@ export default function FinanceReportsPanel({ initialSection = "" }: Props) {
   }, [filtered, receipts]);
 
   const exportCsv = () => {
-    if (filtered.length === 0) return;
+    if (!canExport || loading || error || filtered.length === 0) return;
     downloadCsv(`section-floats-${new Date().toISOString().slice(0, 10)}.csv`, financeReportCsv(filtered, filteredReceipts));
     void recordAuditEvent({ category: "finance", action: "finance-report-exported", targetId: "section-floats-report", targetLabel: "Section Floats report", description: `Exported ${filtered.length} float transactions with ${summary.missingReceiptCount} missing money-out receipts.`, section: section || "All permitted sections" });
   };
 
   const printReport = () => {
+    if (!canPrint || loading || error || filtered.length === 0) return;
     void recordAuditEvent({ category: "finance", action: "finance-report-printed", targetId: "section-floats-report", targetLabel: "Section Floats report", description: `Opened printable Section Floats report for ${filtered.length} transactions.`, section: section || "All permitted sections" });
     window.print();
   };
 
-  return <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }} data-testid="finance-reporting">
+  return <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, ...(showGroupLink ? { "@media print": { display: "none" } } : {}) }} data-testid="finance-reporting">
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Section Floats reporting</Typography>
-    <Typography color="text.secondary" sx={{ mt: 0.5 }}>Review float movement, monthly totals and missing receipts. CSV exports use the same permission-scoped data shown here.</Typography>
+    <Typography color="text.secondary" sx={{ mt: 0.5 }}>Review float movement, monthly totals and missing receipts.</Typography>
 
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
     <Box sx={{ mt: 2.5, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
@@ -112,10 +128,11 @@ export default function FinanceReportsPanel({ initialSection = "" }: Props) {
       <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="Float from date" endLabel="Float to date" onStartDateChange={setFromDate} onEndDateChange={setToDate} />
     </Box>
 
-    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2, "@media print": { display: "none" } }}>
       <Button variant="outlined" onClick={() => { setSection(""); setCategory(""); setFromDate(""); setToDate(""); }}>Clear float filters</Button>
-      <Button variant="contained" color="success" disabled={loading || filtered.length === 0} onClick={exportCsv}>Export Section Floats CSV</Button>
-      <Button variant="outlined" color="secondary" disabled={loading || filtered.length === 0} onClick={printReport}>Print / Save PDF</Button>
+      {canExport && <Button variant="contained" color="success" disabled={loading || Boolean(error) || filtered.length === 0} onClick={exportCsv}>Export Section Floats CSV</Button>}
+      {canPrint && <Button variant="outlined" color="secondary" disabled={loading || Boolean(error) || filtered.length === 0} onClick={printReport}>Print / Save PDF</Button>}
+      {showGroupLink && <Button component={Link} to="/leader/reports/floats" variant="outlined">Open Group Section Floats Report</Button>}
     </Stack>
 
     {loading ? <Typography color="text.secondary" sx={{ mt: 3 }}>Loading Section Floats report…</Typography> : <>
