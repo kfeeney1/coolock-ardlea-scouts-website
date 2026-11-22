@@ -166,3 +166,25 @@ test("Reports rollout preserves attendance grants in both switch states", async 
     else await setting.delete();
   }
 });
+
+test("Membership Totals exposes section aggregates and CSV without group print", async ({ page }, testInfo) => {
+  chromiumOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await loginAsLeader(page, { email: "test.beaver.section.leader@example.com", password: password! });
+  await page.goto("/leader/reports/membership");
+  await expect(page.getByText("Scope: Beavers", { exact: true })).toBeVisible();
+  const table = page.getByRole("table", { name: "Membership totals" });
+  await expect(table.getByRole("rowheader", { name: "Beavers", exact: true })).toBeVisible();
+  await expect(table.getByRole("rowheader", { name: "Scouts", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Export Membership Summary" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Print / Save PDF" })).toHaveCount(0);
+});
+
+test("ordinary Scouter cannot open Membership Totals directly", async ({ page }, testInfo) => {
+  chromiumOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await loginAsLeader(page, { email: "test.multi.section.leader@example.com", password: password! });
+  await page.goto("/leader/reports/membership");
+  await expect(page.getByRole("alert").filter({ hasText: "You do not have access to this report." })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Membership totals" })).toHaveCount(0);
+});

@@ -125,15 +125,26 @@ export function memberReportCsv(rows: MemberReportRow[]): string {
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
-export function membershipSummaryCsv(rows: MemberReportRow[]): string {
-    const sections = [...new Set(rows.map((row) => row.section))].sort((a, b) => a.localeCompare(b));
-    const header = ["Section", "Active", "Inactive", "Left", "Total"];
-    const body = sections.map((section) => {
-        const scoped = rows.filter((row) => row.section === section);
-        return [section, scoped.filter((row) => row.status === "active").length, scoped.filter((row) => row.status === "inactive").length, scoped.filter((row) => row.status === "left").length, scoped.length].map(csvCell).join(",");
+export type MembershipCountRow = Pick<MemberReportRow, "section" | "status">;
+
+export function membershipTotals(rows: readonly MembershipCountRow[]) {
+    const count = (section: string, records: readonly MembershipCountRow[]) => ({
+        section,
+        active: records.filter(row => row.status === "active").length,
+        inactive: records.filter(row => row.status === "inactive").length,
+        left: records.filter(row => row.status === "left").length,
+        total: records.length
     });
-    const total = ["All permitted sections", rows.filter((row) => row.status === "active").length, rows.filter((row) => row.status === "inactive").length, rows.filter((row) => row.status === "left").length, rows.length].map(csvCell).join(",");
-    return [header.map(csvCell).join(","), ...body, total].join("\r\n");
+    const sections = [...new Set(rows.map(row => row.section))].sort((a, b) => a.localeCompare(b));
+    return [...sections.map(section => count(section, rows.filter(row => row.section === section))),
+        count("All permitted sections", rows)];
+}
+
+export function membershipSummaryCsv(rows: readonly MembershipCountRow[]): string {
+    const header = ["Section", "Active", "Inactive", "Left", "Total"];
+    const body = membershipTotals(rows).map(row =>
+        [row.section, row.active, row.inactive, row.left, row.total].map(csvCell).join(","));
+    return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
 function attendanceLabel(value: string): string {

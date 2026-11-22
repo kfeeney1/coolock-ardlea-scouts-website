@@ -3,7 +3,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "../firebase";
 import type { AttendanceInsightMember } from "./attendanceInsightsLogic";
-import { eventReportMembers, type EventReportMember, type EventReportRecord, type MemberReportRow } from "./reportingLogic";
+import { eventReportMembers, type EventReportMember, type EventReportRecord, type MemberReportRow, type MembershipCountRow } from "./reportingLogic";
 import { canonicalMemberSections } from "./memberSectionCore.mjs";
 
 type Scope = {
@@ -62,6 +62,14 @@ function canonicalMember(item: Awaited<ReturnType<typeof scopedDocs>>[number]) {
     if (!displayName || !section || !MEMBER_STATUSES.has(status)) return null;
     const sections = canonicalMemberSections(data.sections, section);
     return { id: item.id, data, displayName, section, sections, status };
+}
+
+export async function loadMembershipCountRows(scope: Scope): Promise<MembershipCountRow[]> {
+    const docs = await scopedDocs("members", scope);
+    return docs.flatMap(item => {
+        const member = canonicalMember(item);
+        return member ? [{ section: member.section, status: member.status }] : [];
+    });
 }
 
 export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRow[]> {

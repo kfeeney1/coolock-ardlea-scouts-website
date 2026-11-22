@@ -1,3 +1,4 @@
+import { membershipTotalsAccess } from "../security/membershipTotalsAccess";
 import { meetingReportAccess } from "../security/meetingReportAccess";
 import { badgeworkReportAccess } from "../security/badgeworkReportAccess";
 import { equipmentReportAccess } from "../security/equipmentReportAccess";
@@ -17,10 +18,11 @@ export default function ReportsHome() {
   const equipment = equipmentReportAccess(adminProfile).canOpen;
   const badgework = badgeworkReportAccess(adminProfile);
   const meetings = meetingReportAccess(adminProfile);
-  const hasReports = aggregate.allowed || equipment || badgework.canOpen || meetings.canOpen;
+  const membership = membershipTotalsAccess(adminProfile);
+  const hasReports = aggregate.allowed || equipment || badgework.canOpen || meetings.canOpen || membership.canOpen;
   if (hasReports && version === null) return <CircularProgress aria-label="Loading Reports" />;
   if (hasReports && version === "existing") {
-    const legacyPath = named.allowed ? "/leader/attendance" : aggregate.allowed ? "/leader/attendance?view=trends" : equipment ? "/leader/qm-reports" : badgework.canOpen ? "/leader/reports/badgework" : "/leader/reports/meetings";
+    const legacyPath = named.allowed ? "/leader/attendance" : aggregate.allowed ? "/leader/attendance?view=trends" : equipment ? "/leader/qm-reports" : badgework.canOpen ? "/leader/reports/badgework" : meetings.canOpen ? "/leader/reports/meetings" : "/leader/reports/membership";
     return <Navigate to={legacyPath} replace />;
   }
   return <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
@@ -47,6 +49,10 @@ export default function ReportsHome() {
         {meetings.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography color="text.secondary">{meetings.group ? "All sections and group meetings" : meetings.sections.join(", ")}</Typography>
           <Button component={Link} to="/leader/reports/meetings" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Meeting Records Report</Button>
+        </Paper>}
+        {membership.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography color="text.secondary">{membership.group ? "All sections" : membership.sections.join(", ")}</Typography>
+          <Button component={Link} to="/leader/reports/membership" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Membership Totals</Button>
         </Paper>}
       </Stack>}
   </Container>;

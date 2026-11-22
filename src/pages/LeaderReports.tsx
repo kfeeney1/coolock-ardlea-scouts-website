@@ -1,3 +1,5 @@
+import { downloadCsv } from "../services/downloadCsv";
+import { membershipTotalsAccess } from "../security/membershipTotalsAccess";
 import { attendanceReportScope } from "../security/attendanceReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import DateRangeFields from "../components/DateRangeFields";
@@ -16,7 +18,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -24,7 +26,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { recordAuditEvent } from "../services/auditLog";
 import { formatSiteDate } from "../services/siteDateFormat";
-import { loadEventReportMembers, loadEventReportRecords, loadMemberReportRows } from "../services/reporting";
+import { loadEventReportMembers, loadEventReportRecords, loadMembershipCountRows, loadMemberReportRows } from "../services/reporting";
 import type { EventReportRecord, MemberReportRow } from "../services/reportingLogic";
 import {
     attendanceTrendCsv,
@@ -37,18 +39,6 @@ import {
     outstandingConsentCsv,
     slug
 } from "../services/reportingLogic";
-
-function downloadCsv(filename: string, csv: string) {
-    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
 
 export default function LeaderReports() {
     const { adminProfile } = useAdminAuth();
@@ -121,10 +111,18 @@ export default function LeaderReports() {
         await auditExport("Member report exported", "member-report", "Member report", `Exported ${members.length} member rows. Export excludes date of birth, medical and emergency-contact fields.`);
     };
 
+    const membershipAccess = membershipTotalsAccess(adminProfile);
     const exportMembershipSummary = async () => {
-        if (members.length === 0) return;
-        downloadCsv(`membership-summary-${new Date().toISOString().slice(0, 10)}.csv`, membershipSummaryCsv(members));
-        await auditExport("Membership summary exported", "membership-summary", "Membership summary", `Exported membership totals for ${members.length} records in the permitted scope.`);
+        if (!membershipAccess.canOpen) return;
+        try {
+            const totals = await loadMembershipCountRows({ isAdmin: membershipAccess.group, sections: membershipAccess.sections });
+            if (!totals.length) return;
+            const scope = membershipAccess.group ? "All sections" : membershipAccess.sections.join(", ");
+            downloadCsv(`membership-summary-${new Date().toISOString().slice(0, 10)}.csv`, membershipSummaryCsv(totals));
+            await auditExport("Membership summary exported", "membership-summary", "Membership summary", `Exported membership totals for ${totals.length} records in the permitted scope.`, scope);
+        } catch (failure) {
+            setError(applicationErrorMessage(failure, "Unable to export membership totals.", "LeaderReports"));
+        }
     };
 
     const exportEventOverview = async () => {
@@ -234,11 +232,12 @@ export default function LeaderReports() {
                         </Paper>}
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" }, gap: 3 }}>
-                            <Paper variant="outlined" sx={{ p: 3 }} data-testid="membership-summary-report">
+                            {membershipAccess.canOpen && <Paper variant="outlined" sx={{ p: 3 }} data-testid="membership-summary-report">
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Membership summary</Typography>
                                 <Typography color="text.secondary" sx={{ mt: 1 }}>Section totals split into active, inactive and left members, plus an overall total.</Typography>
-                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} disabled={members.length === 0} onClick={() => void exportMembershipSummary()}>Export Membership Summary</Button>
-                            </Paper>
+                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} onClick={() => void exportMembershipSummary()}>Export Membership Summary</Button>
+                                <Button component={Link} to="/leader/reports/membership" sx={{ mt: 2.5 }}>Open Membership Totals</Button>
+                            </Paper>}
 
                             <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-list-report">
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Member list</Typography>
