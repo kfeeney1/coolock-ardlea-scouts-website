@@ -3,8 +3,16 @@ import { activeScoutingAppointments, normalizeScoutingAppointmentAssignments } f
 type Profile = { role: string; scoutingRole?: string; appointments?: unknown; sections?: string[] };
 
 export function membershipTotalsAccess(profile: Profile | null) {
+  return membershipAccess(profile, true);
+}
+
+export function namedMembershipAccess(profile: Profile | null) {
+  return membershipAccess(profile, false);
+}
+
+function membershipAccess(profile: Profile | null, includeAdmin: boolean) {
   const assignments = activeScoutingAppointments(normalizeScoutingAppointmentAssignments(profile?.appointments, profile?.scoutingRole));
-  const group = (profile?.role === "super-admin" || profile?.role === "admin") || assignments.some(({ appointment, scope }) =>
+  const group = (profile?.role === "super-admin" || (includeAdmin && profile?.role === "admin")) || assignments.some(({ appointment, scope }) =>
     scope === "Group" && (appointment === "Group Leader" || appointment === "Group Secretary"));
   const legacy = !Array.isArray(profile?.appointments) || profile.appointments.length === 0;
   const sections = (profile?.sections ?? []).filter(section => assignments.some(({ appointment, scope }) =>

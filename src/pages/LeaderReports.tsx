@@ -1,5 +1,5 @@
 import { downloadCsv } from "../services/downloadCsv";
-import { membershipTotalsAccess } from "../security/membershipTotalsAccess";
+import { membershipTotalsAccess, namedMembershipAccess } from "../security/membershipTotalsAccess";
 import { attendanceReportScope } from "../security/attendanceReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import DateRangeFields from "../components/DateRangeFields";
@@ -26,7 +26,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { recordAuditEvent } from "../services/auditLog";
 import { formatSiteDate } from "../services/siteDateFormat";
-import { loadEventReportMembers, loadEventReportRecords, loadMembershipCountRows, loadMemberReportRows } from "../services/reporting";
+import { loadEventReportMembers, loadEventReportRecords, loadMembershipCountRows, loadMemberReportRows, loadNamedMembershipRows } from "../services/reporting";
 import type { EventReportRecord, MemberReportRow } from "../services/reportingLogic";
 import {
     attendanceTrendCsv,
@@ -105,10 +105,17 @@ export default function LeaderReports() {
     const auditExport = (action: string, targetId: string, targetLabel: string, description: string, section = scopeLabel) =>
         recordAuditEvent({ category: "system", action, targetId, targetLabel, description, section });
 
+    const namedAccess = namedMembershipAccess(adminProfile);
     const exportMembers = async () => {
-        if (members.length === 0) return;
-        downloadCsv(`member-report-${new Date().toISOString().slice(0, 10)}.csv`, memberReportCsv(members));
-        await auditExport("Member report exported", "member-report", "Member report", `Exported ${members.length} member rows. Export excludes date of birth, medical and emergency-contact fields.`);
+        if (!namedAccess.group) return;
+        try {
+            const rows = await loadNamedMembershipRows({ isAdmin: true, sections: [] });
+            if (!rows.length) return;
+            downloadCsv(`member-report-${new Date().toISOString().slice(0, 10)}.csv`, memberReportCsv(rows));
+            await auditExport("Member report exported", "member-report", "Member report", `Exported ${rows.length} member rows with approved guardian contact fields.`, "All sections");
+        } catch (failure) {
+            setError(applicationErrorMessage(failure, "Unable to export the member list.", "LeaderReports"));
+        }
     };
 
     const membershipAccess = membershipTotalsAccess(adminProfile);
@@ -239,12 +246,11 @@ export default function LeaderReports() {
                                 <Button component={Link} to="/leader/reports/membership" sx={{ mt: 2.5 }}>Open Membership Totals</Button>
                             </Paper>}
 
-                            <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-list-report">
+                            {namedAccess.canOpen && <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-list-report">
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Member list</Typography>
-                                <Typography color="text.secondary" sx={{ mt: 1 }}>{members.length} member record{members.length === 1 ? "" : "s"} available in your scope.</Typography>
-                                <Typography variant="body2" sx={{ mt: 1.5 }}>Includes member name, section, status, parent/guardian name, email and mobile number.</Typography>
-                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} disabled={members.length === 0} onClick={() => void exportMembers()}>Export Member CSV</Button>
-                            </Paper>
+                                <Button component={Link} to="/leader/reports/member-list" sx={{ mt: 2.5 }}>Open Member List Report</Button>
+                                {namedAccess.group && <Button variant="contained" color="success" sx={{ mt: 2.5 }} onClick={() => void exportMembers()}>Export Member CSV</Button>}
+                            </Paper>}
 
                             {aggregateScope.allowed && <>
                             <Paper variant="outlined" sx={{ p: 3 }} data-testid="event-overview-report">

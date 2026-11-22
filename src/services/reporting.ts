@@ -72,7 +72,17 @@ export async function loadMembershipCountRows(scope: Scope): Promise<MembershipC
     });
 }
 
+export async function loadNamedMembershipRows(scope: Scope): Promise<MemberReportRow[]> {
+    return readMemberReportRows(scope, scope.isAdmin);
+}
+
 export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRow[]> {
+    const rows = await readMemberReportRows(scope, false);
+    memberReportCache.set(scopeKey(scope), rows);
+    return rows;
+}
+
+async function readMemberReportRows(scope: Scope, includeContacts: boolean): Promise<MemberReportRow[]> {
     const docs = await scopedDocs("members", scope);
     const rows = docs
         .flatMap((item) => {
@@ -83,13 +93,12 @@ export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRo
                 displayName: member.displayName,
                 section: member.section,
                 status: member.status,
-                parentName: stringValue(member.data, "parentName"),
-                emailAddress: stringValue(member.data, "emailAddress"),
-                mobileNumber: stringValue(member.data, "mobileNumber")
+                parentName: includeContacts ? stringValue(member.data, "parentName") : "",
+                emailAddress: includeContacts ? stringValue(member.data, "emailAddress") : "",
+                mobileNumber: includeContacts ? stringValue(member.data, "mobileNumber") : ""
             }];
         })
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
-    memberReportCache.set(scopeKey(scope), rows);
     return rows;
 }
 
