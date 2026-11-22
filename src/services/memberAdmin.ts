@@ -225,7 +225,7 @@ function clean(value: string, max: number): string {
 export { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLogic";
 export { loadMemberConsentSummaries, type MemberConsentSummary } from "./memberConsentSummary";
 
-export async function loadMembers(): Promise<MemberRecord[]> {
+export async function loadMembers(reportScope?: { group: boolean; sections: readonly string[] }): Promise<MemberRecord[]> {
   const user = auth.currentUser;
   if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
@@ -242,8 +242,9 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   const isAdmin = profile.role === "admin" || profile.role === "super-admin";
   const isGroupFinanceOfficer = organisation?.active === true
     && hasGroupFinanceAppointment(organisation.appointments, organisation.scoutingRole);
-  const leaderSections = normalizeLeaderSections(profile);
-  const legacyDocs = isAdmin || isGroupFinanceOfficer
+  const leaderSections = normalizeLeaderSections(profile).filter(section => !reportScope || reportScope.sections.includes(section));
+  const readAll = reportScope ? reportScope.group : isAdmin || isGroupFinanceOfficer;
+  const legacyDocs = readAll
     ? []
     : (await Promise.all(
         leaderSections.flatMap((section) => storageSectionAliases(section).map((storedSection) =>
@@ -255,7 +256,7 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   // be discarded if Firestore cannot authorize one of the additive sections[]
   // queries. Each concurrent-membership query is isolated so established
   // single-section records remain readable while sections[] records are added.
-  const concurrentDocs = isAdmin || isGroupFinanceOfficer
+  const concurrentDocs = readAll
     ? []
     : (await Promise.all(
         leaderSections.map(async (section) => {
@@ -268,7 +269,7 @@ export async function loadMembers(): Promise<MemberRecord[]> {
         })
       )).flat();
 
-  const docs = isAdmin || isGroupFinanceOfficer
+  const docs = readAll
     ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
     : legacyDocs.concat(concurrentDocs);
 
