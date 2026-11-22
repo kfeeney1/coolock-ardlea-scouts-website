@@ -1,3 +1,4 @@
+import { meetingReportAccess } from "../security/meetingReportAccess";
 import { badgeworkReportAccess } from "../security/badgeworkReportAccess";
 import { equipmentReportAccess } from "../security/equipmentReportAccess";
 import { Alert, Button, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
@@ -15,10 +16,11 @@ export default function ReportsHome() {
   const aggregate = attendanceReportScope(adminProfile, "aggregate");
   const equipment = equipmentReportAccess(adminProfile).canOpen;
   const badgework = badgeworkReportAccess(adminProfile);
-  const hasReports = aggregate.allowed || equipment || badgework.canOpen;
+  const meetings = meetingReportAccess(adminProfile);
+  const hasReports = aggregate.allowed || equipment || badgework.canOpen || meetings.canOpen;
   if (hasReports && version === null) return <CircularProgress aria-label="Loading Reports" />;
   if (hasReports && version === "existing") {
-    const legacyPath = named.allowed ? "/leader/attendance" : aggregate.allowed ? "/leader/attendance?view=trends" : equipment ? "/leader/qm-reports" : "/leader/reports/badgework";
+    const legacyPath = named.allowed ? "/leader/attendance" : aggregate.allowed ? "/leader/attendance?view=trends" : equipment ? "/leader/qm-reports" : badgework.canOpen ? "/leader/reports/badgework" : "/leader/reports/meetings";
     return <Navigate to={legacyPath} replace />;
   }
   return <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
@@ -41,6 +43,10 @@ export default function ReportsHome() {
         {badgework.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography color="text.secondary">{badgework.group ? "All sections" : badgework.exportSections.join(", ")}</Typography>
           <Button component={Link} to="/leader/reports/badgework" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Badgework Progress</Button>
+        </Paper>}
+        {meetings.canOpen && <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography color="text.secondary">{meetings.group ? "All sections and group meetings" : meetings.sections.join(", ")}</Typography>
+          <Button component={Link} to="/leader/reports/meetings" fullWidth sx={{ minHeight: 44, justifyContent: "flex-start" }}>Meeting Records Report</Button>
         </Paper>}
       </Stack>}
   </Container>;

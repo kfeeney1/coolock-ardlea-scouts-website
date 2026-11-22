@@ -46,6 +46,7 @@
     "/leader/profile/consent": "leader",
     "/leader/reports": "leader",
     "/leader/reports/badgework": "leader-badgework-report-policy",
+    "/leader/reports/meetings": "leader-meeting-report-policy",
     "/leader/reports/home": "leader-attendance-report-policy",
     "/leader/qm-reports": "leader-equipment-report-policy",
     "/leader/attendance": "leader-attendance-report-policy",

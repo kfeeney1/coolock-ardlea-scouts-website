@@ -243,3 +243,24 @@ test("unusable meeting document leaves manual workflow available", async ({ page
   await page.getByLabel("Meeting title").fill(`TEST Manual After Parse Failure retry-${testInfo.retry}`);
   await expect(page.getByRole("button", { name: "Save Meeting" })).toBeEnabled();
 });
+
+test("Secretary can read group and section minutes from the report", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await login(page, "test.group.secretary@example.com");
+  await page.goto("/leader/reports/meetings");
+  await expect(page.getByRole("heading", { name: fixtureTitle, exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: groupFixtureTitle, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /edit|export|print/i })).toHaveCount(0);
+});
+
+test("Section Leader report excludes group and other section records", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await login(page, "test.beaver.section.leader@example.com");
+  await page.goto("/leader/reports/meetings");
+  await expect(page.getByText("Scope: Beavers", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status").or(page.getByRole("article").first())).toBeVisible();
+  await expect(page.getByRole("heading", { name: fixtureTitle, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: groupFixtureTitle, exact: true })).toHaveCount(0);
+});
