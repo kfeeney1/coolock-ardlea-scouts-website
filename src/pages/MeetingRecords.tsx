@@ -1,7 +1,8 @@
+import { meetingReportAccess } from "../security/meetingReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import MeetingRecordImportReview from "../components/MeetingRecordImportReview";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -265,6 +266,7 @@ export default function MeetingRecords() {
       <LeaderDashboardHeader />
       <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 }, mb: 3 }}>
         <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Meeting Records</Typography>
+        {meetingReportAccess(adminProfile).canOpen && <Button component={Link} to="/leader/reports/meetings" variant="outlined" sx={{ minHeight: 44, mb: 2 }}>Open Meeting Records Report</Button>}
         <Typography color="text.secondary">Record Group Council, Group Leaders and section leader meetings, including attendance, minutes, decisions and follow-up actions.</Typography>
       </Paper>
 

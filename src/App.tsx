@@ -51,6 +51,7 @@ const LeaderReports = lazy(() => import("./pages/LeaderReports"));
 const QuartermasterReports = lazy(() => import("./pages/QuartermasterReports"));
 const AttendanceInsights = lazy(() => import("./pages/AttendanceInsights"));
 const LeaderCommunications = lazy(() => import("./pages/LeaderCommunications"));
+const MeetingRecordsReport = lazy(() => import("./pages/MeetingRecordsReport"));
 const MeetingRecords = lazy(() => import("./pages/MeetingRecords"));
 const WeeklySectionTracker = lazy(loadWeeklySectionTracker);
 const CreateWeeklyMeetingPage = lazy(() => import("./pages/CreateWeeklyMeetingPage"));
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="/leader/activity" element={protectedRoute(<ActivityLog />)} />
         <Route path="/leader/profile" element={protectedRoute(<LeaderProfile />)} />
         <Route path="/leader/profile/consent" element={protectedRoute(<ScouterConsentPage />)} />
+        <Route path="/leader/reports/meetings" element={protectedRoute(<MeetingRecordsReport />)} />
         <Route path="/leader/reports/home" element={protectedRoute(<ReportsHome />)} />
         <Route path="/leader/reports" element={protectedRoute(<LeaderReports />)} />
         <Route path="/leader/qm-reports" element={protectedRoute(<QuartermasterReports />)} />
