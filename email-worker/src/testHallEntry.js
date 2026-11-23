@@ -1,3 +1,4 @@
+import { handleFinancialSummary } from "./financialSummary.js";
 import { handleChairpersonReports } from "./chairpersonReports.js";
 import { handleMemberMedical } from "./memberMedical.js";
 import {handleYouthConsentStatus} from "./youthConsentStatus.js";
@@ -57,11 +58,11 @@ export async function handleTestHallRequest(request, env, getToken = serviceAcce
   headers["X-Hall-Backend-Commit"] = env.HALL_BUILD_COMMIT;
   const path = new URL(request.url).pathname;
   if (path === "/health" && request.method === "GET") return reply(200, {service: "hall-bookings-test", environment: "test", project: hallTestProject, commit: env.HALL_BUILD_COMMIT});
-  if (path !== "/hall-bookings" && path !== "/event-discovery" && path !== "/youth-consent-status" && path !== "/member-medical" && path !== "/chairperson-reports") return reply(404, {ok: false, error: "Route not found."});
+  if (path !== "/hall-bookings" && path !== "/event-discovery" && path !== "/youth-consent-status" && path !== "/member-medical" && path !== "/chairperson-reports" && path !== "/financial-summary") return reply(404, {ok: false, error: "Route not found."});
   if (!permitted) return reply(403, {ok: false, error: "TEST origin required."});
-  if (path === "/youth-consent-status" || path === "/member-medical" || path === "/chairperson-reports") {
+  if (path === "/youth-consent-status" || path === "/member-medical" || path === "/chairperson-reports" || path === "/financial-summary") {
     if (request.method === "POST" && !tokenProject(request)) return reply(401, {ok: false});
-    const handlers = { "/member-medical": handleMemberMedical, "/youth-consent-status": handleYouthConsentStatus, "/chairperson-reports": handleChairpersonReports };
+    const handlers = { "/member-medical": handleMemberMedical, "/youth-consent-status": handleYouthConsentStatus, "/chairperson-reports": handleChairpersonReports, "/financial-summary": handleFinancialSummary };
       const handler = handlers[path];
     return handler(request, {
       base: `https://firestore.googleapis.com/v1/projects/${hallTestProject}/databases/(default)/documents`,
