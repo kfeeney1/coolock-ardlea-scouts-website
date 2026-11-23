@@ -11,6 +11,8 @@ test("Report discovery preserves role-specific scope across appointments", () =>
   assert.equal(reports.find(row => row.label === "Attendance Insights")?.scope, "Beavers");
   assert.equal(reports.find(row => row.label === "Member List Report")?.scope, "Beavers");
   assert.equal(new Set(reports.map(row => row.path)).size, reports.length);
+  assert.equal(reports.find(row => row.path === "/leader/reports/floats?view=section")?.scope, "Beavers");
+  assert.equal(reports.find(row => row.path === "/leader/reports/floats")?.scope, "All sections");
   assert.equal(isReportDestination("/leader/attendance", "?view=matrix", reports), true);
   assert.equal(isReportDestination("/leader/qm-reports", "", reports), false);
   assert.deepEqual(reportDestinations({ role: "leader", scoutingRole: "Scouter", sections: ["Scouts"] }), []);

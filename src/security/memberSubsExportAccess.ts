@@ -4,12 +4,14 @@ import { activeScoutingAppointments, normalizeScoutingAppointmentAssignments } f
 type Profile = { role: string; scoutingRole?: string; appointments?: unknown; sections?: string[] };
 
 export function memberSubsExportAccess(profile: Profile | null) {
-  const group = groupFinanceReportAccess(profile).canExport;
+  return { group: groupFinanceReportAccess(profile).canExport, sections: sectionFinanceReportSections(profile) };
+}
+
+export function sectionFinanceReportSections(profile: Profile | null) {
   const legacy = !Array.isArray(profile?.appointments) || profile.appointments.length === 0;
   const appointments = activeScoutingAppointments(normalizeScoutingAppointmentAssignments(profile?.appointments, profile?.scoutingRole));
-  const sections = (profile?.sections ?? []).filter(section => section !== "Group" && appointments.some(({ appointment, scope }) =>
+  return (profile?.sections ?? []).filter(section => section !== "Group" && appointments.some(({ appointment, scope }) =>
     appointment === "Section Leader" && (scope === section || (legacy && scope === "Group"))));
-  return { group, sections };
 }
 
 export function canExportMemberSubs(

@@ -1,3 +1,4 @@
+import { sectionFinanceReportSections } from "../security/memberSubsExportAccess.ts";
 import { attendanceReportScope } from "../security/attendanceReportAccess.ts";
 import { badgeworkReportAccess } from "../security/badgeworkReportAccess.ts";
 import { equipmentReportAccess } from "../security/equipmentReportAccess.ts";
@@ -16,6 +17,7 @@ export function reportDestinations(profile: Parameters<typeof attendanceReportSc
   const membership = membershipTotalsAccess(profile);
   const memberList = namedMembershipAccess(profile);
   const consent = eventConsentReportAccess(profile);
+  const financeSections = sectionFinanceReportSections(profile);
   const finance = groupFinanceReportAccess(profile).canOpen;
   return [
     { allowed: named.allowed, path: "/leader/attendance", label: "Attendance Insights", scope: sectionScope(named.isAdmin, named.sections) },
@@ -28,6 +30,7 @@ export function reportDestinations(profile: Parameters<typeof attendanceReportSc
     { allowed: consent.canOpen, path: "/leader/reports/youth-consent", label: "Youth Consent Status", scope: sectionScope(consent.group, consent.sections) },
     { allowed: consent.canOpen, path: "/leader/reports/event-consent", label: "Event Consent Status", scope: consent.group ? "Group events" : consent.sections.join(", ") },
     { allowed: finance, path: "/leader/reports/subs", label: "Group Subs Report", scope: "All sections" },
+    { allowed: financeSections.length > 0, path: "/leader/reports/floats?view=section", label: "Section Floats Report", scope: financeSections.join(", ") },
     { allowed: finance, path: "/leader/reports/floats", label: "Group Section Floats Report", scope: "All sections" }
   ].filter(item => item.allowed);
 }

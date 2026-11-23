@@ -1,7 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
-const leaderEmail = process.env.E2E_LEADER_EMAIL;
+const leaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Section Floats reporting checks run once on desktop Chromium.");
@@ -165,4 +165,28 @@ test("Group Treasurer gets both Section Floats report actions", async ({ page },
   const panel = page.getByTestId("finance-reporting");
   await expect(panel.getByRole("button", { name: "Export Section Floats CSV" })).toBeVisible();
   await expect(panel.getByRole("button", { name: "Print / Save PDF" })).toBeVisible();
+});
+
+test("direct Section Floats reports enforce the section appointment", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await login(page);
+  await page.goto("/leader/reports/floats?view=section");
+  const panel = page.getByTestId("finance-reporting");
+  await expect(panel.getByRole("button", { name: "Export Section Floats CSV" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Print / Save PDF" })).toBeVisible();
+  await panel.getByRole("combobox", { name: "Section" }).click();
+  await expect(page.getByRole("option", { name: "Scouts", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Cubs", exact: true })).toHaveCount(0);
+  await page.goto("/leader/reports/floats");
+  await expect(page.getByText("You do not have access to this Section Floats report.")).toBeVisible();
+
+});
+
+test("Programme Scouters cannot open the Section Floats report through a direct link", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E credentials.");
+  await login(page, "test.scout.programme.scouter@example.com");
+  await page.goto("/leader/reports/floats?view=section");
+  await expect(page.getByText("You do not have access to this Section Floats report.")).toBeVisible();
 });

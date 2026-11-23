@@ -4,7 +4,7 @@ import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import DateRangeFields from "../DateRangeFields";
-import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
+import { sectionFinanceReportSections } from "../../security/memberSubsExportAccess";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { recordAuditEvent } from "../../services/auditLog";
 import { loadFinanceTransactions } from "../../services/financeLedger";
@@ -31,20 +31,20 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-type Props = { initialSection?: string; standalone?: boolean };
+type Props = { initialSection?: string; scope?: "group" | "section" };
 
-export default function FinanceReportsPanel({ initialSection = "", standalone = false }: Props) {
+export default function FinanceReportsPanel({ initialSection = "", scope }: Props) {
   const { adminProfile, user } = useAdminAuth();
   const groupAccess = groupFinanceReportAccess(adminProfile);
-  const allFinance = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
-  const permittedSections = useMemo(() => allFinance ? GROUP_SECTIONS : (adminProfile?.sections ?? []), [adminProfile, allFinance]);
-  if ((standalone || allFinance) && !groupAccess.canOpen) {
-    return <Alert severity="error">You do not have access to the group Section Floats report.</Alert>;
+  const group = scope === "group" || (scope !== "section" && groupAccess.canOpen);
+  const permittedSections = useMemo(() => group ? GROUP_SECTIONS : sectionFinanceReportSections(adminProfile), [adminProfile, group]);
+  if (group ? !groupAccess.canOpen : permittedSections.length === 0) {
+    return scope ? <Alert severity="error">You do not have access to this Section Floats report.</Alert> : null;
   }
-  return <FloatReport key={JSON.stringify([user?.uid, permittedSections, allFinance])}
+  return <FloatReport key={JSON.stringify([user?.uid, permittedSections, group])}
     initialSection={initialSection} permittedSections={permittedSections}
-    canExport={!allFinance || groupAccess.canExport} canPrint={!allFinance || (standalone && groupAccess.canExport)}
-    showGroupLink={allFinance && !standalone} />;
+    canExport={!group || groupAccess.canExport} canPrint={!group || (scope === "group" && groupAccess.canExport)}
+    showGroupLink={group && !scope} />;
 }
 
 function FloatReport({ initialSection, permittedSections, canExport, canPrint, showGroupLink }: {
@@ -52,7 +52,7 @@ function FloatReport({ initialSection, permittedSections, canExport, canPrint, s
 }) {
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);
-  const [section, setSection] = useState(initialSection);
+  const [section, setSection] = useState(permittedSections.includes(initialSection) ? initialSection : "");
   const [category, setCategory] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
