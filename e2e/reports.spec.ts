@@ -233,3 +233,35 @@ test("Group Leader sees group Subs balances without the Treasurer CSV action", a
   await expect(page.getByText("Scope: All authorised sections")).toBeVisible();
   await expect(page.getByRole("button", { name: "Download balance CSV" })).toHaveCount(0);
 });
+
+test("Treasurer has one Reports menu entry with the redesign enabled", async ({ page }, testInfo) => {
+  chromiumOnly(testInfo);
+  test.skip(testInfo.project.name !== "chromium", "Reports rollout assertions run once on desktop Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  const setting = scheduleFixtureDb().doc("siteSettings/reportsExperience");
+  const previous = await setting.get();
+  try {
+    await setting.set({ version: "existing" });
+    await loginAsLeader(page, { email: "test.group.treasurer@example.com", password: password! });
+    const toggle = page.locator('button[aria-controls="leader-navigation"]');
+    await toggle.click();
+    await expect(page.getByRole("navigation", { name: "Leader navigation" }).getByRole("link", { name: "Reports", exact: true })).toHaveCount(1);
+    await expect(page.getByTestId("leader-nav-reports")).toHaveCount(0);
+
+    await setting.set({ version: "redesigned" });
+    const reports = page.getByTestId("leader-nav-reports");
+    await expect(reports).toBeVisible();
+    await expect(page.getByTestId("leader-nav-treasurer-reports")).toHaveCount(0);
+    await expect(page.getByTestId("leader-nav-reports-exports")).toHaveCount(0);
+    await reports.click();
+    await expect(page.getByRole("link", { name: "Legacy Reports & Exports", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Membership Totals", exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: "Group Subs Report", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Group Subs Report", exact: true })).toBeVisible();
+    await toggle.click();
+    await expect(reports).toHaveAttribute("aria-current", "page");
+  } finally {
+    if (previous.exists) await setting.set(previous.data()!);
+    else await setting.delete();
+  }
+});

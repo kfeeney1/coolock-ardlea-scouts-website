@@ -1,9 +1,5 @@
-import { groupFinanceReportAccess } from "../../security/groupFinanceReportAccess";
-import { meetingReportAccess } from "../../security/meetingReportAccess";
-import { badgeworkReportAccess } from "../../security/badgeworkReportAccess";
-import { equipmentReportAccess } from "../../security/equipmentReportAccess";
+import { isReportDestination, reportDestinations, reportMenuKeepsItem, reportsMenuPath } from "../../navigation/reportDestinations";
 import { useAttendanceExperience } from "../../hooks/useAttendanceExperience";
-import { attendanceReportScope } from "../../security/attendanceReportAccess";
 import { useCalendarAccess } from "../../hooks/useCalendarAccess";
 import { useMaintenanceAccess } from "../../hooks/useMaintenanceAccess";
 import RedesignedLeaderNavigation from "./RedesignedLeaderNavigation";
@@ -51,16 +47,17 @@ export default function LeaderDashboardHeader({ compact = false }: { compact?: b
  const [themeSaving, setThemeSaving] = useState<ThemeName | null>(null);
  const [themeError, setThemeError] = useState("");
  const reportsEnabled = useAttendanceExperience("reportsExperience");
- const showReports = reportsEnabled && (attendanceReportScope(adminProfile, "aggregate").allowed || equipmentReportAccess(adminProfile).canOpen || badgeworkReportAccess(adminProfile).canOpen || meetingReportAccess(adminProfile).canOpen || groupFinanceReportAccess(adminProfile).canOpen);
- const reportsItem: LeaderNavItem = { ...dashboardNavItem, id: "reports", label: "Reports", path: "/leader/reports/home", exactPath: true };
+ const reports = reportDestinations(adminProfile);
+ const showReports = reportsEnabled && reports.length > 0;
+ const reportsItem: LeaderNavItem = { ...dashboardNavItem, id: "reports", label: "Reports", path: reportsMenuPath, exactPath: true };
  const topLevelItems = showReports ? [dashboardNavItem, reportsItem] : [dashboardNavItem];
  const canView = leaderNavigationFilter(adminProfile);
- const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && calendar.allowed ? [calendarNavItem] : []), ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(item => canView(item) && !(showReports && ["attendance-insights", "qm-reports"].includes(item.id))) })).filter((group) => group.items.length > 0);
+ const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && calendar.allowed ? [calendarNavItem] : []), ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(item => canView(item) && reportMenuKeepsItem(item.id, reportsEnabled)) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountNavItems.filter(canView);
  const presentationGroups = redesigned ? redesignedNavigationGroups(visibleGroups) : visibleGroups;
  const activeNavigation = resolveLeaderNavigation(location.pathname.startsWith("/maintenance/") ? "/maintenance/tasks" : `${location.pathname}${location.search}${location.hash}`, presentationGroups, [...topLevelItems, ...visibleAccountItems]);
  const activeCategory = activeNavigation?.groupId ?? null;
- const currentItem = activeNavigation?.item;
+ const currentItem = showReports && isReportDestination(location.pathname, location.search, reports) ? reportsItem : activeNavigation?.item;
  useEffect(() => { setMobileGroupOpen(activeCategory); }, [activeCategory]);
  // Busy UI is local to this header. Clear any completed/stale state when the
  // authenticated identity or route changes; the ref still prevents a second
