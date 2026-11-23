@@ -149,7 +149,8 @@ test("Reports rollout preserves attendance grants in both switch states", async 
       await denied.goto("/leader/attendance?view=trends");
       await expect(denied.getByText("You do not have access to this report.")).toBeVisible();
 
-      await page.goto("/leader/reports/home");
+      // The existing Reports experience can redirect before the document load event.
+      await page.goto("/leader/reports/home", { waitUntil: "commit" });
       if (version === "redesigned") {
         await expect(page.getByRole("heading", { name: "Reports", exact: true })).toBeVisible();
         await page.getByRole("link", { name: "Attendance Insights", exact: true }).click();
