@@ -1,3 +1,4 @@
+import { handleMemberMedical } from "./memberMedical.js";
 import { handleYouthConsentStatus } from "./youthConsentStatus.js";
 import { approvedBackendCode, backendFailureDiagnostic } from "./backendDiagnostics.js";
 import worker from "./index.js";
@@ -176,10 +177,12 @@ const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
 export default {
   async fetch(request, env) {
     if (new URL(request.url).pathname === "/hall-bookings") return handleHallBookingRoute(request, env, serviceAccessToken);
-    if (new URL(request.url).pathname === "/youth-consent-status") {
+    const reportPath = new URL(request.url).pathname;
+    if (reportPath === "/youth-consent-status" || reportPath === "/member-medical") {
       const origin = request.headers.get("Origin") || "";
       if (!allowedOrigins(env).includes(origin)) return json(request, env, 403, { ok: false });
-      return handleYouthConsentStatus(request, {
+      const handler = reportPath === "/member-medical" ? handleMemberMedical : handleYouthConsentStatus;
+      return handler(request, {
         base: `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents`,
         serviceToken: () => serviceAccessToken(env), origin
       });
