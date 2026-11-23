@@ -25,6 +25,7 @@ export function reportDestinations(profile: Parameters<typeof attendanceReportSc
     { allowed: meetings.canOpen, path: "/leader/reports/meetings", label: "Meeting Records Report", scope: meetings.group ? "All sections and group meetings" : meetings.sections.join(", ") },
     { allowed: membership.canOpen, path: "/leader/reports/membership", label: "Membership Totals", scope: sectionScope(membership.group, membership.sections) },
     { allowed: memberList.canOpen, path: "/leader/reports/member-list", label: "Member List Report", scope: sectionScope(memberList.group, memberList.sections) },
+    { allowed: consent.canOpen, path: "/leader/reports/youth-consent", label: "Youth Consent Status", scope: sectionScope(consent.group, consent.sections) },
     { allowed: consent.canOpen, path: "/leader/reports/event-consent", label: "Event Consent Status", scope: consent.group ? "Group events" : consent.sections.join(", ") },
     { allowed: finance, path: "/leader/reports/subs", label: "Group Subs Report", scope: "All sections" },
     { allowed: finance, path: "/leader/reports/floats", label: "Group Section Floats Report", scope: "All sections" }

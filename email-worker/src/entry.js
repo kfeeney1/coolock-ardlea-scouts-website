@@ -1,3 +1,4 @@
+import { handleYouthConsentStatus } from "./youthConsentStatus.js";
 import { approvedBackendCode, backendFailureDiagnostic } from "./backendDiagnostics.js";
 import worker from "./index.js";
 import { handleProductionRoute, runLeaderMedicalRenewalReminders, serviceAccessToken } from "./productionRoutes.js";
@@ -175,6 +176,14 @@ const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
 export default {
   async fetch(request, env) {
     if (new URL(request.url).pathname === "/hall-bookings") return handleHallBookingRoute(request, env, serviceAccessToken);
+    if (new URL(request.url).pathname === "/youth-consent-status") {
+      const origin = request.headers.get("Origin") || "";
+      if (!allowedOrigins(env).includes(origin)) return json(request, env, 403, { ok: false });
+      return handleYouthConsentStatus(request, {
+        base: `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents`,
+        serviceToken: () => serviceAccessToken(env), origin
+      });
+    }
     const configurationError = validateDeliveryEnvironment(env);
     if (configurationError) {
       return json(request, env, 503, { ok: false, error: "Email delivery is not safely configured." });
