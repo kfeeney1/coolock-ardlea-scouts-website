@@ -1,3 +1,4 @@
+import { canExportMemberSubs, memberSubsExportAccess } from "../security/memberSubsExportAccess";
 import { groupFinanceReportAccess } from "../security/groupFinanceReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Tab, Tabs, TextField, Typography } from "@mui/material";
@@ -12,20 +13,13 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
 import type { MemberRecord } from "../services/memberAdmin";
 import { ensureDefaultSubsAssignment, loadSubsAssignments, loadSubsMembers, loadSubsPayments, loadSubsPolicies, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
-import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, rateCategoryLabel, resolveCurrentSubsPolicy, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
+import { balanceFor, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, resolveCurrentSubsPolicy, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
 import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
+import { downloadCsv } from "../services/downloadCsv";
+import { memberSubsCsv } from "../services/memberSubsCsv";
 import { formatSiteDate } from "../services/siteDateFormat";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const csv = (rows: string[][]) => rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(",")).join("\r\n");
-const download = (name: string, body: string) => {
-  const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
-};
 const uniquePayments = (rows: SubsPayment[]) => [...new Map(rows.map((row) => [row.id, row])).values()];
 
 export default function SubsManagement() {
@@ -208,10 +202,14 @@ export default function SubsManagement() {
       return false;
     }
   }, [amount, method, paymentDate, period, selectedAssignment]);
-  const canExportMember = !canGroupReport || groupReportAccess.canExport;
+  const memberExportAccess = memberSubsExportAccess(adminProfile);
+  const canExportMember = Boolean(selected && selectedAssignment
+    && canExportMemberSubs(memberExportAccess, selected.section, selectedAssignment));
   const exportMember = () => {
-    if (!canExportMember || !selectedAssignment || !selectedBalance) return;
-    download(`subs-${selectedAssignment.memberName}-${period}.csv`, csv([["Member", "Section", "Scout year", "Rate category", "Family classification", "Child position", "Amount due (cents)", "Total paid (cents)", "Remaining (cents)"], [selectedAssignment.memberName, selectedAssignment.section, period, rateCategoryLabel(selectedAssignment.category), selectedAssignment.familyType ? familyTypeLabel(selectedAssignment.familyType) : "Legacy classification", selectedAssignment.familyPosition ? String(selectedAssignment.familyPosition) : "", String(selectedBalance.dueCents), String(selectedBalance.paidCents), String(selectedBalance.remainingCents)], [], ["Payment date", "Method", "Amount (cents)", "Correction of", "Note"], ...memberPayments.map((p) => [p.paymentDate, paymentMethodLabel(p.method), String(p.amountCents), p.reversalOfPaymentId, p.note])]));
+    if (loading || loadedScope !== scopeKey || !canExportMember || !selectedAssignment || !selectedBalance) return;
+    const exportPayments = memberExportAccess.group ? memberPayments
+      : memberPayments.filter(payment => memberExportAccess.sections.includes(payment.section));
+    downloadCsv(`subs-${selectedAssignment.memberName}-${period}.csv`, memberSubsCsv(selectedAssignment, exportPayments));
   };
   return (
     <Box
