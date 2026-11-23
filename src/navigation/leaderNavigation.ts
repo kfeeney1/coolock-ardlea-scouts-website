@@ -46,6 +46,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   ]},
   { id: "people-parents", label: "People & Parents", items: [
     destination({ id: "member-management", label: "Member Management", path: "/leader/members", pageId: "member-management", permissions: ["members.read.section", "members.read.group"], identity: {testId: "page-member-management"} }),
+    destination({ id: "member-medical", label: "Member Medical Information", path: "/leader/medical", pageId: "member-medical", permissions: ["leader.portal.access"], identity: {heading: "Member Medical Information", level: 1} }),
     destination({ id: "join-management", label: "Join Us Management", path: "/leader/join", pageId: "join-management", joinManagementOnly: true, permissions: ["join.manage"], identity: {testId: "page-join-management"} }),
     destination({ id: "consent-management", label: "Consent Management", path: "/leader/consents", pageId: "consent-management", permissions: ["consent.manage.section"], identity: {heading: "Consent Management", level: 1} }),
     destination({ id: "event-consent", label: "Event Consent", path: "/leader/event-consent", pageId: "event-consent", permissions: ["consent.manage.section"], identity: {testId: "page-event-consent"} }),
