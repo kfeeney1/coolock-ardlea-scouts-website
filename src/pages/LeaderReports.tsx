@@ -1,3 +1,4 @@
+import { canViewFinancialSummary } from "../security/financialSummaryAccess";
 import { eventConsentReportAccess } from "../security/eventConsentReportAccess";
 import { downloadCsv } from "../services/downloadCsv";
 import { membershipTotalsAccess, namedMembershipAccess } from "../security/membershipTotalsAccess";
@@ -140,6 +141,7 @@ export default function LeaderReports() {
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader title="Reports & Exports" />
+                {canViewFinancialSummary(adminProfile) && <Button component={Link} to="/leader/reports/financial-summary" sx={{ mb: 2 }}>Open Financial Summary</Button>}
 
                 <Alert severity="info" sx={{ mb: 3 }}>Report scope: <strong>{scopeLabel}</strong>. Default exports deliberately exclude medical details, date of birth and emergency-contact information.</Alert>
                 {!isAdmin && sections.length === 0 && <Alert severity="warning" sx={{ mb: 3 }}>Your leader account has no sections assigned, so no report data can be loaded.</Alert>}
