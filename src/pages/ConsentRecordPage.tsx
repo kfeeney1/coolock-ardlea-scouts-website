@@ -22,7 +22,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
 import { loadConsentAdminRecord, loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
-import { consentRecordPrintHtml, displayValue, formatDate, formatDateOnly, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
+import { displayValue, formatDate, formatDateOnly, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
 import { hasImportantMedicalInformation, medicalPresentationGroups } from "../services/medicalPresentation";
 import { createMemberFromYouthConsent, isCurrentUserSuperAdmin, loadReconciliationCandidates, manuallyReconcileConsent, type ReconciliationCandidate } from "../services/memberConsentReconciliation";
 
@@ -119,27 +119,13 @@ export default function ConsentRecordPage() {
     ? navigationState.returnLabel
     : resolvedReturnPath.startsWith("/leader/members/") ? "Back to member" : "Back to consent";
 
-  const printRecord = () => {
-    if (!record) return;
-    setError("");
-    const printWindow = window.open("", "_blank", "width=1000,height=800");
-    if (!printWindow) {
-      setError("The print window was blocked by your browser. Please allow pop-ups for this site and try again.");
-      return;
-    }
-    printWindow.document.open();
-    printWindow.document.write(consentRecordPrintHtml(record));
-    printWindow.document.close();
-    window.setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
-  };
-
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="lg">
       <LeaderDashboardHeader />
       <LeaderPageHeader
         title={record ? record.memberName : "Consent Record"}
         description="Full consent and medical-information record."
-        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={resolvedReturnPath} onClick={(event) => { event.preventDefault(); navigate(resolvedReturnPath); }} variant="outlined" color="secondary">{returnLabel}</Button><Button variant="contained" color="success" disabled={!record} onClick={printRecord}>Print / Save PDF</Button></Stack>}
+        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={resolvedReturnPath} onClick={(event) => { event.preventDefault(); navigate(resolvedReturnPath); }} variant="outlined" color="secondary">{returnLabel}</Button></Stack>}
       />
 
       {loading ? <Box sx={{ minHeight: 320, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" /></Box> : <>

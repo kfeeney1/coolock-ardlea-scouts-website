@@ -20,11 +20,9 @@ type Props = {
     onConsentChange: (consent: Record<string, EventConsentStatus>) => void;
     onClose: () => void;
     onSave: () => void;
-    onPrint: () => void;
-    onExport: () => void;
 };
 
-export default function EventRosterDialog({ event, members, attendance, consent, leaderOptions, leaderAttendance, leaderAttendanceLoading, onLeaderAttendanceChange, saving, onAttendanceChange, onConsentChange, onClose, onSave, onPrint, onExport }: Props) {
+export default function EventRosterDialog({ event, members, attendance, consent, leaderOptions, leaderAttendance, leaderAttendanceLoading, onLeaderAttendanceChange, saving, onAttendanceChange, onConsentChange, onClose, onSave }: Props) {
     const readOnly = event?.status === "completed";
     return (
         <Dialog open={Boolean(event)} onClose={onClose} maxWidth="lg" fullWidth>
@@ -47,7 +45,6 @@ export default function EventRosterDialog({ event, members, attendance, consent,
                 {event && <LeaderAttendanceSection options={leaderOptions} entries={leaderAttendance} onChange={onLeaderAttendanceChange} disabled={readOnly} loading={leaderAttendanceLoading} />}
             </DialogContent>
             <DialogActions>
-                {event && <><Button color="secondary" onClick={onPrint}>Report</Button><Button color="secondary" onClick={onExport}>Export CSV</Button></>}
                 <Button onClick={onClose}>Close</Button>
                 {!readOnly && <Button variant="contained" color="success" disabled={saving || leaderAttendanceLoading} onClick={onSave}>{saving ? "Saving..." : "Save Attendance"}</Button>}
             </DialogActions>

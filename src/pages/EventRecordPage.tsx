@@ -19,7 +19,7 @@ import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
 import { loadEvents, setEventHidden, updateEventRoster } from "../services/eventAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventRecord } from "../services/eventAdmin";
-import { eventAudienceSummary, eventCounts, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel } from "../services/eventManagementLogic";
+import { eventAudienceSummary, eventCounts, eventMembers, eventStatusLabel } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import { formatSiteDate } from "../services/siteDateFormat";
 import type { MemberRecord } from "../services/memberAdmin";
@@ -209,31 +209,6 @@ export default function EventRecordPage() {
         }
     };
 
-    const printRoster = () => {
-        if (!event) return;
-        setError("");
-        const printWindow = window.open("", "_blank", "width=1200,height=850");
-        if (!printWindow) {
-            setError("Please allow pop-ups for this site to print the event report.");
-            return;
-        }
-        printWindow.document.write(eventRosterPrintHtml(event, members));
-        printWindow.document.close();
-    };
-
-    const exportRoster = () => {
-        if (!event) return;
-        const blob = new Blob([eventRosterCsv(event, members)], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = eventRosterFilename(event.title);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
-
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
@@ -291,14 +266,12 @@ export default function EventRecordPage() {
                         <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>
                         <Button variant="outlined" color="success" onClick={() => setGalleryOpen(true)}>Gallery</Button>
                         <Button variant="outlined" color="primary" onClick={() => setEquipmentOpen(true)}>Equipment</Button>
-                        <Button variant="outlined" color="secondary" onClick={printRoster}>Report</Button>
-                        <Button variant="outlined" color="secondary" onClick={exportRoster}>Export CSV</Button>
                         <Button component={Link} to={`/leader/events/${encodeURIComponent(event.id)}/edit`} variant="outlined" color="secondary" disabled={event.status === "completed"}>Edit Event</Button>
                     </Box>
                 </Paper>
 
                 {event.status === "completed" && <Box sx={{mt: 3}}><EventHallUse key={`${event.id}:${event.hallRevision ?? 0}`} event={event} allowNew={false} blocked={rosterOpen || galleryOpen || equipmentOpen || savingRoster} onDirty={setHallDraftDirty} onSaved={() => void load()} /></Box>}
-                <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} leaderOptions={leaderOptions} leaderAttendance={leaderAttendance} leaderAttendanceLoading={leaderAttendanceLoading} onLeaderAttendanceChange={setLeaderAttendance} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} onPrint={printRoster} onExport={exportRoster} />
+                <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} leaderOptions={leaderOptions} leaderAttendance={leaderAttendance} leaderAttendanceLoading={leaderAttendanceLoading} onLeaderAttendanceChange={setLeaderAttendance} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} />
                 <EventGalleryDialog event={galleryOpen ? event : null} onClose={() => setGalleryOpen(false)} />
                 {equipmentOpen && <ProgrammeEquipmentDialog open sourceType={event.eventType.toLowerCase().includes("activity") ? "activity" : "event"} sourceId={event.id} sourceLabel={event.title} section={event.section} date={event.startDate} items={equipmentItems} loans={equipmentLoans} readOnly={event.status === "completed"} onClose={() => setEquipmentOpen(false)} onChanged={load} />}
             </>}

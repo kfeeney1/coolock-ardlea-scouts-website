@@ -57,8 +57,8 @@ test("clicking an event tile opens its full record with a clear list action", as
   await expect(page.getByRole("link", { name: "Record Badgework", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Gallery", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Equipment", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Report", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Export CSV", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Report", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Export CSV", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeVisible();
 });
 
@@ -160,18 +160,17 @@ test("mobile event editor saves valid edits before navigating away", async ({ pa
   await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
 });
 
-test("blocked event report pop-ups use in-page error feedback", async ({ page }, testInfo) => {
+test("event attendance dialog keeps named print and CSV unavailable", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/TEST_flow_event_beavers_open");
 
-  await page.evaluate(() => {
-    window.open = () => null;
-  });
-  await page.getByRole("button", { name: "Report", exact: true }).click();
-
-  await expect(page.getByRole("alert").filter({ hasText: "Please allow pop-ups for this site to print the event report." })).toBeVisible();
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Attendance & Consent" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Report", exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Export CSV", exact: true })).toHaveCount(0);
 });
 
 
