@@ -245,7 +245,7 @@ test("Treasurer has one Reports menu entry with the redesign enabled", async ({ 
     await loginAsLeader(page, { email: "test.group.treasurer@example.com", password: password! });
     const toggle = page.locator('button[aria-controls="leader-navigation"]');
     await toggle.click();
-    await expect(page.getByTestId("leader-nav-treasurer-reports")).toHaveCount(1);
+    await expect(page.getByRole("navigation", { name: "Leader navigation" }).getByRole("link", { name: "Reports", exact: true })).toHaveCount(1);
     await expect(page.getByTestId("leader-nav-reports")).toHaveCount(0);
 
     await setting.set({ version: "redesigned" });
