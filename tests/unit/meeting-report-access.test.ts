@@ -13,8 +13,11 @@ test("meeting report access grants group oversight and intersects section appoin
       { appointment: "Group Secretary", scope: "Group", active: false },
       { appointment: "Programme Scouter", scope: "Cubs" }
     ]
-  }), { group: false, sections: ["Beavers"], canOpen: true });
-  for (const profile of [{ role: "admin" }, { role: "leader", scoutingRole: "Group Chairperson" }, { role: "leader", scoutingRole: "Deputy Group Leader" }]) {
+  }), { group: false, groupMinutes: false, sections: ["Beavers"], canOpen: true });
+  assert.deepEqual(meetingReportAccess({ role: "leader", scoutingRole: "Group Chairperson" }), {
+    group: false, groupMinutes: true, sections: [], canOpen: true
+  });
+  for (const profile of [{ role: "admin" }, { role: "leader", scoutingRole: "Deputy Group Leader" }]) {
     assert.equal(meetingReportAccess(profile).canOpen, false);
   }
 });
