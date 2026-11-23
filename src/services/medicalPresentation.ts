@@ -53,7 +53,7 @@ const EXCLUDED = new Set([
 export const medicalPresentationDefinition = GROUPS;
 
 export function medicalPresentationGroups(
-  record: ConsentAdminRecord,
+  record: Pick<ConsentAdminRecord, "data">,
   formatLabel: (key: string) => string,
   display: (value: unknown) => string
 ): MedicalPresentationGroup[] {

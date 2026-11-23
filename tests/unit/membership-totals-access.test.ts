@@ -12,8 +12,12 @@ test("membership totals grants approved group roles and intersects assigned sect
       { appointment: "Group Treasurer", scope: "Group" },
       { appointment: "Section Leader", scope: "Cubs", active: false }
     ]
-  }), { group: false, sections: ["Beavers"], canOpen: true });
-  assert.equal(membershipTotalsAccess({ role: "leader", scoutingRole: "Group Chairperson" }).canOpen, false);
+  }), { group: false, sections: ["Beavers"], canOpen: true, canExport: true, chairperson: false });
+  const chair = { role: "leader", scoutingRole: "Group Chairperson" };
+  assert.deepEqual(membershipTotalsAccess(chair), {
+    group: false, sections: [], canOpen: true, canExport: false, chairperson: true
+  });
+  assert.equal(namedMembershipAccess(chair).canOpen, false);
 });
 
 test("named membership excludes the ordinary Admin group grant", () => {

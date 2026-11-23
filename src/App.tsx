@@ -53,6 +53,7 @@ const AttendanceInsights = lazy(() => import("./pages/AttendanceInsights"));
 const LeaderCommunications = lazy(() => import("./pages/LeaderCommunications"));
 const GroupFloatsReport = lazy(() => import("./pages/GroupFloatsReport"));
 const GroupSubsReport = lazy(() => import("./pages/GroupSubsReport"));
+const YouthConsentStatusReport = lazy(() => import("./pages/YouthConsentStatusReport"));
 const EventConsentStatusReport = lazy(() => import("./pages/EventConsentStatusReport"));
 const NamedMembershipReport = lazy(() => import("./pages/NamedMembershipReport"));
 const MembershipTotalsReport = lazy(() => import("./pages/MembershipTotalsReport"));
@@ -74,6 +75,7 @@ const SectionCashbook = lazy(() => import("./pages/SectionCashbook"));
 const OrganisationChart = lazy(() => import("./pages/OrganisationChart"));
 const ConsentManagement = lazy(() => import("./pages/ConsentManagement"));
 const ConsentRecordPage = lazy(() => import("./pages/ConsentRecordPage"));
+const MemberMedicalDirectory = lazy(() => import("./pages/MemberMedicalDirectory"));
 const QuickMedicalInformationPage = lazy(() => import("./pages/QuickMedicalInformationPage"));
 const LeaderInfo = lazy(() => import("./pages/LeaderInfo"));
 const JoinManagement = lazy(() => import("./pages/JoinManagement"));
@@ -131,6 +133,7 @@ export default function App() {
         <Route path="/leader/profile/consent" element={protectedRoute(<ScouterConsentPage />)} />
         <Route path="/leader/reports/floats" element={protectedRoute(<GroupFloatsReport />)} />
         <Route path="/leader/reports/subs" element={protectedRoute(<GroupSubsReport />)} />
+        <Route path="/leader/reports/youth-consent" element={protectedRoute(<YouthConsentStatusReport />)} />
         <Route path="/leader/reports/event-consent" element={protectedRoute(<EventConsentStatusReport />)} />
         <Route path="/leader/reports/member-list" element={protectedRoute(<NamedMembershipReport />)} />
         <Route path="/leader/reports/membership" element={protectedRoute(<MembershipTotalsReport />)} />
@@ -158,6 +161,7 @@ export default function App() {
         <Route path="/leader/organisation" element={protectedRoute(<OrganisationChart />)} />
         <Route path="/leader/consents" element={protectedRoute(<ConsentManagement />)} />
         <Route path="/leader/consents/:consentId" element={protectedRoute(<ConsentRecordPage />)} />
+        <Route path="/leader/medical" element={protectedRoute(<MemberMedicalDirectory />)} />
         <Route path="/leader/medical/:consentId" element={protectedRoute(<QuickMedicalInformationPage />)} />
         <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
         <Route path="/leader/join" element={protectedRoute(<ProtectedJoinManagementRoute><JoinManagement /></ProtectedJoinManagementRoute>)} />

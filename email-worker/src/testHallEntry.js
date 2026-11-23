@@ -1,3 +1,6 @@
+import { handleChairpersonReports } from "./chairpersonReports.js";
+import { handleMemberMedical } from "./memberMedical.js";
+import {handleYouthConsentStatus} from "./youthConsentStatus.js";
 import {discoverEventDocuments} from "./eventDiscovery.js";
 import {handleHallBookingRoute} from "./hallBookingRoutes.js";
 import {serviceAccessToken} from "./productionRoutes.js";
@@ -54,8 +57,17 @@ export async function handleTestHallRequest(request, env, getToken = serviceAcce
   headers["X-Hall-Backend-Commit"] = env.HALL_BUILD_COMMIT;
   const path = new URL(request.url).pathname;
   if (path === "/health" && request.method === "GET") return reply(200, {service: "hall-bookings-test", environment: "test", project: hallTestProject, commit: env.HALL_BUILD_COMMIT});
-  if (path !== "/hall-bookings" && path !== "/event-discovery") return reply(404, {ok: false, error: "Route not found."});
+  if (path !== "/hall-bookings" && path !== "/event-discovery" && path !== "/youth-consent-status" && path !== "/member-medical" && path !== "/chairperson-reports") return reply(404, {ok: false, error: "Route not found."});
   if (!permitted) return reply(403, {ok: false, error: "TEST origin required."});
+  if (path === "/youth-consent-status" || path === "/member-medical" || path === "/chairperson-reports") {
+    if (request.method === "POST" && !tokenProject(request)) return reply(401, {ok: false});
+    const handlers = { "/member-medical": handleMemberMedical, "/youth-consent-status": handleYouthConsentStatus, "/chairperson-reports": handleChairpersonReports };
+      const handler = handlers[path];
+    return handler(request, {
+      base: `https://firestore.googleapis.com/v1/projects/${hallTestProject}/databases/(default)/documents`,
+      serviceToken: () => getToken(env), origin, fetcher
+    });
+  }
   if (path === "/event-discovery") return readTestEventPaths(request, env, getToken, headers, reply);
   if (request.method === "POST" && !tokenProject(request)) return reply(401, {ok: false, error: "Current TEST sign-in required."});
   // No mail dispatcher, scheduler or user-supplied project/origin binding is forwarded.

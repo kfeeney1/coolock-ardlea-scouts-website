@@ -28,14 +28,14 @@ test("consent Back stays under the pointer when the record finishes loading", as
     const back = page.getByRole("link", { name: "Back to member", exact: true });
     const print = page.getByRole("button", { name: "Print / Save PDF", exact: true });
     await expect(back).toHaveAttribute("href", "/leader/members/TEST_member_cub_01");
-    await expect(print).toBeVisible();
-    await expect(print).toBeDisabled();
+    await expect(print).toHaveCount(0);
     const before = await back.boundingBox();
     expect(before).not.toBeNull();
     await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2);
     await page.mouse.down();
     releaseRead();
-    await expect(print).toBeEnabled();
+    await expect(page.getByTestId(`consent-record-page-${consentId}`)).toBeVisible();
+    await expect(print).toHaveCount(0);
     const after = await back.boundingBox();
     expect(after).not.toBeNull();
     expect(after!.x).toBeCloseTo(before!.x, 1);

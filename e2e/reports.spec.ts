@@ -212,12 +212,14 @@ test("Secretary can open the group member list and use its approved CSV", async 
   await expect(page.getByRole("button", { name: "Export Member CSV" })).toBeEnabled();
 });
 
-test("Event Consent Status denies ordinary Scouters and omits legacy consent CSV", async ({ page }, testInfo) => {
+test("Consent status reports deny Programme Scouters and omit legacy consent CSV", async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   test.skip(!password, "Configure canonical E2E credentials.");
   await loginAsLeader(page, { email: "test.scout.programme.scouter@example.com", password: password! });
-  await page.goto("/leader/reports/event-consent");
-  await expect(page.getByRole("alert").filter({ hasText: "You do not have access to this report." })).toBeVisible();
+  for (const route of ["event-consent", "youth-consent"]) {
+    await page.goto(`/leader/reports/${route}`);
+    await expect(page.getByRole("alert").filter({ hasText: "You do not have access to this report." })).toBeVisible();
+  }
   await page.goto("/leader/reports");
   await expect(page.getByTestId("report-summary-cards")).toBeVisible();
   await expect(page.getByRole("button", { name: "Export Outstanding Consent" })).toHaveCount(0);

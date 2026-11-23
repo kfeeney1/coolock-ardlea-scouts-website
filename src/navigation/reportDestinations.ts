@@ -1,3 +1,4 @@
+import { sectionFinanceReportSections } from "../security/memberSubsExportAccess.ts";
 import { attendanceReportScope } from "../security/attendanceReportAccess.ts";
 import { badgeworkReportAccess } from "../security/badgeworkReportAccess.ts";
 import { equipmentReportAccess } from "../security/equipmentReportAccess.ts";
@@ -16,17 +17,20 @@ export function reportDestinations(profile: Parameters<typeof attendanceReportSc
   const membership = membershipTotalsAccess(profile);
   const memberList = namedMembershipAccess(profile);
   const consent = eventConsentReportAccess(profile);
+  const financeSections = sectionFinanceReportSections(profile);
   const finance = groupFinanceReportAccess(profile).canOpen;
   return [
     { allowed: named.allowed, path: "/leader/attendance", label: "Attendance Insights", scope: sectionScope(named.isAdmin, named.sections) },
     { allowed: aggregate.allowed, path: "/leader/attendance?view=trends", label: "Attendance trends", scope: sectionScope(aggregate.isAdmin, aggregate.sections) },
     { allowed: equipmentReportAccess(profile).canOpen, path: "/leader/qm-reports", label: "Equipment Reports", scope: "All sections" },
     { allowed: badgework.canOpen, path: "/leader/reports/badgework", label: "Badgework Progress", scope: sectionScope(badgework.group, badgework.exportSections) },
-    { allowed: meetings.canOpen, path: "/leader/reports/meetings", label: "Meeting Records Report", scope: meetings.group ? "All sections and group meetings" : meetings.sections.join(", ") },
-    { allowed: membership.canOpen, path: "/leader/reports/membership", label: "Membership Totals", scope: sectionScope(membership.group, membership.sections) },
+    { allowed: meetings.canOpen, path: "/leader/reports/meetings", label: "Meeting Records Report", scope: meetings.group ? "All sections and group meetings" : [...(meetings.groupMinutes ? ["Group meetings"] : []), ...meetings.sections].join(", ") },
+    { allowed: membership.canOpen, path: "/leader/reports/membership", label: "Membership Totals", scope: sectionScope(membership.group || membership.chairperson, membership.sections) },
     { allowed: memberList.canOpen, path: "/leader/reports/member-list", label: "Member List Report", scope: sectionScope(memberList.group, memberList.sections) },
+    { allowed: consent.canOpen, path: "/leader/reports/youth-consent", label: "Youth Consent Status", scope: sectionScope(consent.group, consent.sections) },
     { allowed: consent.canOpen, path: "/leader/reports/event-consent", label: "Event Consent Status", scope: consent.group ? "Group events" : consent.sections.join(", ") },
     { allowed: finance, path: "/leader/reports/subs", label: "Group Subs Report", scope: "All sections" },
+    { allowed: financeSections.length > 0, path: "/leader/reports/floats?view=section", label: "Section Floats Report", scope: financeSections.join(", ") },
     { allowed: finance, path: "/leader/reports/floats", label: "Group Section Floats Report", scope: "All sections" }
   ].filter(item => item.allowed);
 }

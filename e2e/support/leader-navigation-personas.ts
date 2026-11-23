@@ -3,7 +3,7 @@
 // Ordinary Leaders retain shared capabilities even with a single appointment.
 const common = {
   programme: ["weekly-meetings", "events-activities", "group-polls", "badgework", "programme-equipment"],
-  "people-parents": ["member-management", "consent-management", "event-consent", "parent-communications", "family-billing"],
+  "people-parents": ["member-management", "member-medical", "consent-management", "event-consent", "parent-communications", "family-billing"],
   "group-operations": ["group-equipment-stores", "group-section-floats", "group-subs", "group-meeting-records"],
   "insights-records": ["reports-exports"],
   administration: ["roles-permissions"]
@@ -24,7 +24,7 @@ export const navigationPersonas: NavigationPersona[] = [
 ];
 
 export const categoryRouteSamples: Record<string, string> = {
-  programme: "weekly-meetings", "people-parents": "member-management", secretary: "secretary-meeting-records",
+  programme: "weekly-meetings", "people-parents": "member-medical", secretary: "secretary-meeting-records",
   quartermaster: "qm-reports", "group-operations": "group-meeting-records", "insights-records": "attendance-insights",
   administration: "roles-permissions", treasurer: "treasurer-reports", "super-admin": "system-information"
 };
