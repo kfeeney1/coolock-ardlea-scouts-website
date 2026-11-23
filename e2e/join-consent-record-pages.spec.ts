@@ -192,7 +192,7 @@ test("Consent tiles open full-page records", async ({ page }, testInfo) => {
 
   await expect(page).toHaveURL(new RegExp(`${href!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
   await expect(page.locator('[data-testid^="consent-record-page-"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "Print / Save PDF", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Print / Save PDF", exact: true })).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
