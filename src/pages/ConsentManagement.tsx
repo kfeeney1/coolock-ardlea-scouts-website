@@ -1,5 +1,8 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Container } from "@mui/material";
+import { Alert, Box, Button, Container } from "@mui/material";
+import { Link } from "react-router-dom";
+import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import { eventConsentReportAccess } from "../security/eventConsentReportAccess";
 import { useEffect, useMemo, useState } from "react";
 
 import ConsentOverviewPanel from "../components/admin/ConsentOverviewPanel";
@@ -12,6 +15,7 @@ import type { AlertFilter, TypeFilter } from "../services/consentManagementLogic
 import { isCurrentUserSuperAdmin, reconcileUnlinkedConsents } from "../services/memberConsentReconciliation";
 
 export default function ConsentManagement() {
+    const { adminProfile } = useAdminAuth();
     const [records, setRecords] = useState<ConsentAdminRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -44,6 +48,8 @@ export default function ConsentManagement() {
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
             <LeaderPageHeader title="Consent Management" />
+            {eventConsentReportAccess(adminProfile).canOpen &&
+                <Button component={Link} to="/leader/reports/youth-consent" variant="outlined" sx={{ mb: 2 }}>Youth Consent Status</Button>}
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             <ConsentOverviewPanel records={records} filteredRecords={filteredRecords} loading={loading} search={search} typeFilter={typeFilter} sectionFilter={sectionFilter} alertFilter={alertFilter} onSearchChange={setSearch} onTypeFilterChange={setTypeFilter} onSectionFilterChange={setSectionFilter} onAlertFilterChange={setAlertFilter} />
         </Container>
