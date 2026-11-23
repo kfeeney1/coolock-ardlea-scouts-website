@@ -1,3 +1,5 @@
+import { groupFinanceReportAccess } from "../security/groupFinanceReportAccess";
+import { sectionFinanceReportSections } from "../security/memberSubsExportAccess";
 import DatePickerField from "../components/DatePickerField";
 import { formatSiteDateTime } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
@@ -53,6 +55,7 @@ export default function SectionCashbook() {
   const navigationView = searchParams.get("view");
   const pageIdentity = navigationView === "treasurer" ? "treasurer-floats" : navigationView === "group-operations" ? "group-section-floats" : "section-floats";
   const { adminProfile } = useAdminAuth();
+  const canOpenReports = groupFinanceReportAccess(adminProfile).canOpen || sectionFinanceReportSections(adminProfile).length > 0;
   const isAllSectionsRole = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
   const sections = useMemo(() => isAllSectionsRole ? GROUP_SECTIONS : (adminProfile?.sections ?? []).filter((item) => item !== "Group"), [adminProfile, isAllSectionsRole]);
   const [section, setSection] = useState("");
@@ -211,12 +214,12 @@ export default function SectionCashbook() {
           <Typography color="text.secondary" sx={{ mt: 1 }}>Track only the physical section float: open it, top it up, record money out, and close it. The float can never go below €0.00.</Typography>
           <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr auto" }, gap: 2, alignItems: "center" }}>
             <FormControl fullWidth><InputLabel id="finance-section-label">Section</InputLabel><StableSelect labelId="finance-section-label" id="finance-section" label="Section" value={section} onChange={(event) => setSection(String(event.target.value))}>{sections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</StableSelect></FormControl>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}><Button variant="contained" color="success" onClick={openNewFloat} disabled={sections.length === 0} sx={{ minHeight: 44, whiteSpace: "nowrap" }}>New Float</Button><Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper><Button variant="outlined" color="secondary" onClick={() => setReportsOpen((value) => !value)} aria-expanded={reportsOpen} aria-controls="section-float-reports" sx={{ minHeight: 44 }}>{reportsOpen ? "Hide reports" : "Generate report"}</Button></Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}><Button variant="contained" color="success" onClick={openNewFloat} disabled={sections.length === 0} sx={{ minHeight: 44, whiteSpace: "nowrap" }}>New Float</Button><Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper>{canOpenReports && <Button variant="outlined" color="secondary" onClick={() => setReportsOpen((value) => !value)} aria-expanded={reportsOpen} aria-controls="section-float-reports" sx={{ minHeight: 44 }}>{reportsOpen ? "Hide reports" : "Generate report"}</Button>}</Stack>
           </Box>
         </Paper>
         {success && <Alert severity="success" onClose={() => setSuccess("")}>{success}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
-        {reportsOpen && <Box id="section-float-reports"><FinanceReportsPanel initialSection={section} /></Box>}
+        {canOpenReports && reportsOpen && <Box id="section-float-reports"><FinanceReportsPanel initialSection={section} /></Box>}
         <NewSectionFloatDialog open={newFloatOpen} saving={saving} sections={sections} section={newFloatSection} amount={newFloatAmount} date={newFloatDate} note={newFloatNote} onSectionChange={setNewFloatSection} onAmountChange={setNewFloatAmount} onDateChange={setNewFloatDate} onNoteChange={setNewFloatNote} onClose={() => setNewFloatOpen(false)} onCreate={() => void createNewFloat()} />
 
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
