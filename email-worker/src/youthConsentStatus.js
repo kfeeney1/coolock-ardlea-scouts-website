@@ -8,7 +8,7 @@ const active = fields => fields?.active?.booleanValue === true;
 const array = (fields, key) => fields?.[key]?.arrayValue?.values ?? [];
 const timestamp = (fields, key) => fields?.[key]?.timestampValue ? new Date(fields[key].timestampValue) : null;
 
-function profileForReport(leader, leadership) {
+export function profileForReport(leader, leadership) {
   const role = string(leader, "role");
   if (!active(leader) || !["leader", "admin", "super-admin"].includes(role) || Object.hasOwn(leader, "section")) return null;
   const sections = array(leader, "sections").map(item => canonicalMemberSection(item.stringValue)).filter(Boolean);

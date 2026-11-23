@@ -1,9 +1,12 @@
+import { hasChairpersonReportAccess } from "./chairpersonReportAccess.ts";
 import { activeScoutingAppointments, normalizeScoutingAppointmentAssignments } from "./scoutingAppointments.ts";
 
 type Profile = { role: string; scoutingRole?: string; appointments?: unknown; sections?: string[] };
 
 export function membershipTotalsAccess(profile: Profile | null) {
-  return membershipAccess(profile, true);
+  const access = membershipAccess(profile, true);
+  const chairperson = !access.group && hasChairpersonReportAccess(profile);
+  return { ...access, chairperson, canExport: access.canOpen, canOpen: access.canOpen || chairperson };
 }
 
 export function namedMembershipAccess(profile: Profile | null) {

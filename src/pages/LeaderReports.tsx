@@ -105,7 +105,7 @@ export default function LeaderReports() {
 
     const membershipAccess = membershipTotalsAccess(adminProfile);
     const exportMembershipSummary = async () => {
-        if (!membershipAccess.canOpen) return;
+        if (!membershipAccess.canExport) return;
         try {
             const totals = await loadMembershipCountRows({ isAdmin: membershipAccess.group, sections: membershipAccess.sections });
             if (!totals.length) return;
@@ -207,7 +207,7 @@ export default function LeaderReports() {
                             {membershipAccess.canOpen && <Paper variant="outlined" sx={{ p: 3 }} data-testid="membership-summary-report">
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Membership summary</Typography>
                                 <Typography color="text.secondary" sx={{ mt: 1 }}>Section totals split into active, inactive and left members, plus an overall total.</Typography>
-                                <Button variant="contained" color="success" sx={{ mt: 2.5 }} onClick={() => void exportMembershipSummary()}>Export Membership Summary</Button>
+                                {membershipAccess.canExport && <Button variant="contained" color="success" sx={{ mt: 2.5 }} onClick={() => void exportMembershipSummary()}>Export Membership Summary</Button>}
                                 <Button component={Link} to="/leader/reports/membership" sx={{ mt: 2.5 }}>Open Membership Totals</Button>
                             </Paper>}
 

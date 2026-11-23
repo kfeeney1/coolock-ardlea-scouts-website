@@ -6,7 +6,10 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { meetingReportAccess } from "../security/meetingReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors";
 import { loadMeetingRecords, type MeetingRecord } from "../services/meetingRecords";
+import { loadChairpersonReport } from "../services/chairpersonReports";
 import { formatSiteDate } from "../services/siteDateFormat";
+
+type Minutes = Pick<MeetingRecord, "id" | "title" | "meetingDate" | "section" | "attendees" | "notes" | "decisions" | "actions">;
 
 export default function MeetingRecordsReport() {
   const { adminProfile, user } = useAdminAuth();
@@ -20,18 +23,21 @@ export default function MeetingRecordsReport() {
 }
 
 function MeetingMinutes({ access }: { access: ReturnType<typeof meetingReportAccess> }) {
-  const [records, setRecords] = useState<MeetingRecord[]>();
+  const [records, setRecords] = useState<Minutes[]>();
   const [error, setError] = useState("");
   useEffect(() => {
     let current = true;
-    void loadMeetingRecords(access.sections, access.group).then(
-      rows => { if (current) setRecords(rows); },
+    void Promise.all([
+      loadMeetingRecords(access.sections, access.group),
+      access.groupMinutes ? loadChairpersonReport<Minutes>("minutes") : []
+    ]).then(
+      ([scoped, group]) => { if (current) setRecords([...scoped, ...group].sort((a, b) => b.meetingDate.localeCompare(a.meetingDate))); },
       failure => { if (current) setError(applicationErrorMessage(failure, "Unable to load meeting minutes.", "MeetingRecordsReport")); }
     );
     return () => { current = false; };
   }, [access]);
   return <Stack spacing={2}>
-    <Typography>Scope: {access.group ? "All sections and group meetings" : access.sections.join(", ")}</Typography>
+    <Typography>Scope: {access.group ? "All sections and group meetings" : [...(access.groupMinutes ? ["Group meetings"] : []), ...access.sections].join(", ")}</Typography>
     {error ? <Alert severity="error">{error}</Alert> : !records ? <CircularProgress aria-label="Loading meeting records" /> :
       !records.length ? <Typography role="status">No meeting records in this scope.</Typography> :
       records.map(record => <Paper component="article" key={record.id} variant="outlined" sx={{ p: 2, overflowWrap: "anywhere" }}>
