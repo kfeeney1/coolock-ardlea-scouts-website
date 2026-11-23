@@ -3,7 +3,7 @@ import { normalizeScoutingAppointmentAssignments } from "../../src/security/scou
 import { evaluateMemberFormLifecycle } from "../../src/services/formRenewalLogic.ts";
 import { canonicalMemberSection, canonicalMemberSections, isMemberProgrammeSection } from "../../src/services/memberSectionCore.mjs";
 
-const string = (fields, key) => fields?.[key]?.stringValue ?? "";
+export const string = (fields, key) => fields?.[key]?.stringValue ?? "";
 const active = fields => fields?.active?.booleanValue === true;
 const array = (fields, key) => fields?.[key]?.arrayValue?.values ?? [];
 const timestamp = (fields, key) => fields?.[key]?.timestampValue ? new Date(fields[key].timestampValue) : null;
@@ -29,11 +29,11 @@ function profileForReport(leader, leadership) {
   };
 }
 
-function equal(fieldPath, stringValue) {
+export function equal(fieldPath, stringValue) {
   return { fieldFilter: { field: { fieldPath }, op: "EQUAL", value: { stringValue } } };
 }
 
-async function projectedQuery(base, token, collectionId, fields, where, fetcher) {
+export async function projectedQuery(base, token, collectionId, fields, where, fetcher) {
   const response = await fetcher(`${base}:runQuery`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -76,6 +76,25 @@ export function buildYouthConsentStatus(members, forms, access, asOf = new Date(
   return { totals, rows };
 }
 
+export async function readCallerLeader(request, base, fetcher) {
+  const authorization = request.headers.get("Authorization") ?? "";
+  let uid;
+  try {
+    const encoded = authorization.match(/^Bearer [^.]+\.([^.]+)\.[^.]+$/)?.[1]?.replaceAll("-", "+").replaceAll("_", "/");
+    uid = JSON.parse(atob(encoded)).sub;
+  } catch { return null; }
+  if (typeof uid !== "string" || !uid || uid.includes("/")) return null;
+  const read = async collection => {
+    const res = await fetcher(`${base}/${collection}/${encodeURIComponent(uid)}`, { headers: { Authorization: authorization } });
+    return res.ok ? (await res.json()).fields : null;
+  };
+
+  const leader = await read("adminUsers");
+  if (!active(leader) || !["leader", "admin", "super-admin"].includes(string(leader, "role"))
+    || Object.hasOwn(leader, "section") || !array(leader, "sections").length) return null;
+  return { leader, read };
+}
+
 export async function handleYouthConsentStatus(request, { base, serviceToken, origin, fetcher = fetch }) {
   const headers = {
     "Content-Type": "application/json", "Cache-Control": "private, no-store", Vary: "Origin",
@@ -85,21 +104,11 @@ export async function handleYouthConsentStatus(request, { base, serviceToken, or
   const reply = (status, body) => new Response(body ? JSON.stringify(body) : null, { status, headers });
   if (request.method === "OPTIONS") return reply(204);
   if (request.method !== "POST") return reply(405);
-  const authorization = request.headers.get("Authorization") ?? "";
-  let uid;
   try {
-    const encoded = authorization.match(/^Bearer [^.]+\.([^.]+)\.[^.]+$/)?.[1]?.replaceAll("-", "+").replaceAll("_", "/");
-    uid = JSON.parse(atob(encoded)).sub;
-  } catch { return reply(401); }
-  if (typeof uid !== "string" || !uid || uid.includes("/")) return reply(401);
-  const read = async collection => {
-    const res = await fetcher(`${base}/${collection}/${encodeURIComponent(uid)}`, { headers: { Authorization: authorization } });
-    return res.ok ? (await res.json()).fields : null;
-  };
-
-  try {
-    // Firestore verifies the caller token before the endpoint uses service credentials.
-    const [leader, leadership] = await Promise.all([read("adminUsers"), read("organisationLeadership")]);
+    const caller = await readCallerLeader(request, base, fetcher);
+    if (!caller) return reply(request.headers.has("Authorization") ? 403 : 401);
+    const { leader, read } = caller;
+    const leadership = await read("organisationLeadership");
     const access = eventConsentReportAccess(profileForReport(leader, leadership));
     if (!access.canOpen) return reply(403);
     const token = await serviceToken();
