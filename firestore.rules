@@ -984,8 +984,13 @@ service cloud.firestore {
 
       function hasLegacyBadgeworkGroupRead() {
         let path = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-        return exists(path) && get(path).data.get("appointments", []) == []
-          && hasGroupAppointment(get(path).data, groupLeadershipRoles().concat(["group secretary"]));
+        let leadership = get(path).data;
+        let role = leadership.get("scoutingRole", "");
+        // This path only serves scalar legacy roles. Avoid expanding the full
+        // appointment scan here because the later group check already handles it.
+        return exists(path) && leadership.get("active", false) == true
+          && leadership.get("appointments", []) == []
+          && role is string && role.lower() in groupLeadershipRoles().concat(["group secretary"]);
       }
 
       match /requirements/{requirementId} {
