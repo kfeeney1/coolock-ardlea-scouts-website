@@ -2,6 +2,7 @@ import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/ma
 import type { MeetingCandidate, MeetingCandidateKey } from "../services/meetingRecordImport";
 
 type Props = {
+  compact?: boolean;
   message: string;
   warnings: string[];
   candidates: MeetingCandidate[];
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export default function MeetingRecordImportReview({
+  compact = false,
   message,
   warnings,
   candidates,
@@ -40,16 +42,19 @@ export default function MeetingRecordImportReview({
           const conflict = Boolean(existing.trim()) && existing.trim() !== proposed.trim();
           const selected = acceptedCandidates.has(candidate.key);
           return <Paper key={candidate.key} variant="outlined" sx={{ p: 1.5 }} data-testid={`meeting-import-candidate-${candidate.key}`}>
-            <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ alignItems: { md: "center" } }}>
-              <Box sx={{ minWidth: { md: 180 } }}><Typography sx={{ fontWeight: 700 }}>{candidate.label}</Typography>{conflict && <Typography variant="caption" color="warning.main">Differs from existing value</Typography>}</Box>
+            <Stack direction={compact ? "column" : { xs: "column", md: "row" }} spacing={1.5} sx={{ alignItems: compact ? "stretch" : { md: "center" } }}>
+              <Box sx={{ minWidth: compact ? 0 : { md: 180 } }}><Typography sx={{ fontWeight: 700 }}>{candidate.label}</Typography>{conflict && <Typography variant="caption" color="warning.main">Differs from existing value</Typography>}</Box>
               <TextField label="Existing value" value={existing} size="small" multiline disabled sx={{ flex: 1 }} />
               <TextField label="Proposed value" value={proposed} size="small" multiline sx={{ flex: 1 }} onChange={(event) => onCandidateChange(candidate.key, event.target.value)} />
-              <Button variant={selected ? "contained" : "outlined"} onClick={() => onToggleCandidate(candidate.key)}>{selected ? "Selected" : "Use value"}</Button>
+              <Button variant={selected ? "contained" : "outlined"} aria-pressed={selected} sx={{ minHeight: 44 }} onClick={() => onToggleCandidate(candidate.key)}>{selected ? "Selected" : "Use value"}</Button>
             </Stack>
+            {compact && <Typography variant="body2" color="text.secondary" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
+              Document evidence: {candidate.evidence || "No explicit meeting type found. The suggestion uses the default."}
+            </Typography>}
           </Paper>;
         })}
       </Stack>
-      <Button sx={{ mt: 2 }} variant="contained" disabled={acceptedCandidates.size === 0} onClick={onApplyCandidates}>Apply selected values</Button>
+      <Button sx={{ mt: 2, minHeight: 44 }} variant="contained" disabled={acceptedCandidates.size === 0} onClick={onApplyCandidates}>Apply selected values</Button>
     </Paper>}
   </>;
 }

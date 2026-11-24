@@ -107,7 +107,7 @@ function splitAttendees(value: string): string[] {
     .filter(Boolean);
 }
 
-export function parseMeetingDocument(raw: string): ImportedMeetingDraft {
+function parseMeetingDocumentWithEvidence(raw: string) {
   const text = normalizeText(raw);
   const lines = text.split("\n");
   const sections = new Map<string, string[]>();
@@ -144,7 +144,7 @@ export function parseMeetingDocument(raw: string): ImportedMeetingDraft {
   if (meetingType === "leader" && !section) warnings.push("No youth section was found for this leader meeting.");
   if (attendees.length === 0) warnings.push("No attendees were found.");
 
-  return {
+  const draft: ImportedMeetingDraft = {
     title,
     meetingType,
     section,
@@ -155,6 +155,21 @@ export function parseMeetingDocument(raw: string): ImportedMeetingDraft {
     actions: first("actions"),
     warnings
   };
+  const evidence: Record<MeetingCandidateKey, string> = {
+    title: first("title") || unheaded[0] || "",
+    meetingType: first("type"),
+    section: first("section"),
+    meetingDate: dateSource,
+    attendees: first("attendees"),
+    notes: first("notes"),
+    decisions: first("decisions"),
+    actions: first("actions")
+  };
+  return { draft, evidence };
+}
+
+export function parseMeetingDocument(raw: string): ImportedMeetingDraft {
+  return parseMeetingDocumentWithEvidence(raw).draft;
 }
 
 export function isSupportedMeetingImportFile(fileName: string, mimeType: string): boolean {
@@ -164,17 +179,17 @@ export function isSupportedMeetingImportFile(fileName: string, mimeType: string)
 
 
 export type MeetingCandidateKey = "title" | "meetingType" | "section" | "meetingDate" | "attendees" | "notes" | "decisions" | "actions";
-export type MeetingCandidate = { key: MeetingCandidateKey; label: string; proposed: string | string[]; confidence: "high" | "review" };
+export type MeetingCandidate = { key: MeetingCandidateKey; label: string; proposed: string | string[]; confidence: "high" | "review"; evidence: string };
 
 export function extractMeetingCandidates(raw: string): { candidates: MeetingCandidate[]; warnings: string[] } {
-  const draft = parseMeetingDocument(raw);
+  const { draft, evidence } = parseMeetingDocumentWithEvidence(raw);
   const labels: Record<MeetingCandidateKey, string> = {
     title: "Meeting title", meetingType: "Meeting type", section: "Section", meetingDate: "Meeting date and time",
     attendees: "Attendees", notes: "Notes / Minutes", decisions: "Decisions", actions: "Action Items"
   };
   const candidates: MeetingCandidate[] = [];
   const add = (key: MeetingCandidateKey, proposed: string | string[], confidence: "high" | "review" = "high") => {
-    if (Array.isArray(proposed) ? proposed.length > 0 : Boolean(proposed.trim())) candidates.push({ key, label: labels[key], proposed, confidence });
+    if (Array.isArray(proposed) ? proposed.length > 0 : Boolean(proposed.trim())) candidates.push({ key, label: labels[key], proposed, confidence, evidence: evidence[key] });
   };
   add("title", draft.title);
   add("meetingType", draft.meetingType, "review");

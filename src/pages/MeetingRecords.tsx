@@ -1,6 +1,8 @@
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { watchMeetingRecordsExperience } from "../services/meetingRecordsExperienceSettings";
 import { meetingReportAccess } from "../security/meetingReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -10,9 +12,8 @@ import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import { extractMeetingCandidates, type MeetingCandidate, type MeetingCandidateKey } from "../services/meetingRecordImport";
 import { isParseableMeetingDocument, readMeetingDocument } from "../services/meetingDocumentReader";
 import { createMeetingRecord, loadMeetingRecordVersions, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
-import { openMeetingDocument } from "../services/meetingDocuments";
+import MeetingRecordsHistory from "../components/MeetingRecordsHistory";
 import type { MeetingInput, MeetingRecord, MeetingRecordVersion, MeetingType } from "../services/meetingRecords";
-import { formatSiteDate, formatSiteDateTime } from "../services/siteDateFormat";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const FULL_MEETING_HISTORY_ROLES = new Set(["Group Secretary"]);
@@ -29,26 +30,18 @@ const emptyForm: MeetingInput = {
   attachment: null
 };
 
-function formatMeetingDate(value: string): string {
-  if (!value) return "Date not recorded";
-  return value.includes("T") ? formatSiteDateTime(value) : formatSiteDate(value);
-}
-
-function formatVersionDate(value: Date | null): string {
-  return value ? formatSiteDateTime(value) : "Timestamp pending";
-}
-
-function meetingTypeLabel(type: MeetingType): string {
-  if (type === "group") return "Group Council";
-  if (type === "group-leaders") return "Group Leaders Meeting";
-  return "Leader Meeting";
-}
-
 export default function MeetingRecords() {
   const { adminProfile } = useAdminAuth();
   const [searchParams] = useSearchParams();
   const navigationView = searchParams.get("view");
   const pageIdentity = navigationView === "secretary" ? "secretary-meeting-records" : navigationView === "group-operations" ? "group-meeting-records" : "meeting-records";
+  const [redesigned, setRedesigned] = useState(false);
+  const [awaitingReview, setAwaitingReview] = useState(false);
+  const [importExpanded, setImportExpanded] = useState(false);
+  useEffect(() => watchMeetingRecordsExperience(
+    (version) => setRedesigned(version === "redesigned"),
+    () => setRedesigned(false)
+  ), []);
   const [records, setRecords] = useState<MeetingRecord[]>([]);
   const [form, setForm] = useState<MeetingInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -66,6 +59,7 @@ export default function MeetingRecords() {
   const [versionsByMeeting, setVersionsByMeeting] = useState<Record<string, MeetingRecordVersion[]>>({});
   const [versionLoadingId, setVersionLoadingId] = useState<string | null>(null);
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
@@ -91,10 +85,12 @@ export default function MeetingRecords() {
 
   const resetForm = () => {
     setEditingId(null);
+    setImportExpanded(false);
     setAttendeesText("");
     setImportMessage("");
     setImportWarnings([]);
     setSelectedDocument(null);
+    setAwaitingReview(false);
     setParseCandidates([]);
     setAcceptedCandidates(new Set());
     setForm({ ...emptyForm, section: sections[0] ?? "" });
@@ -114,9 +110,11 @@ export default function MeetingRecords() {
     setSuccess("");
     setImportMessage("");
     setImportWarnings([]);
+    setAwaitingReview(false);
     setParseCandidates([]);
     setAcceptedCandidates(new Set());
     setSelectedDocument(file);
+    setImportExpanded(true);
 
     if (!isParseableMeetingDocument(file.name, file.type)) {
       setImportMessage(`Selected ${file.name}. It will remain attached; enter the meeting details manually.`);
@@ -128,11 +126,12 @@ export default function MeetingRecords() {
       const extracted = await readMeetingDocument(file);
       const mapped = extractMeetingCandidates(extracted.text);
       setParseCandidates(mapped.candidates);
+      setAwaitingReview(mapped.candidates.length > 0);
       setImportWarnings([...extracted.warnings, ...mapped.warnings]);
       setImportMessage(mapped.candidates.length
         ? `Parsed ${file.name}. Review the proposed values below; nothing has been applied or saved.`
         : `No recognisable meeting information was found in ${file.name}. You can continue manually.`);
-      window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      if (!redesigned) window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (importError) {
       setImportMessage(`Selected ${file.name}. The original file can still be attached when the meeting is saved.`);
       setError(applicationErrorMessage(importError, "Unable to parse this meeting document. Enter the meeting details manually.", "MeetingRecords"));
@@ -176,6 +175,7 @@ export default function MeetingRecords() {
       setImportWarnings((warnings) => [...warnings, `The proposed section ${next.section} is outside your permitted sections and was not applied.`]);
       next.section = form.section;
     }
+    setAwaitingReview(false);
     setForm(next);
     setAttendeesText(nextAttendees);
     setAcceptedCandidates(new Set());
@@ -200,6 +200,7 @@ export default function MeetingRecords() {
     try {
       if (editingId) {
         await updateMeetingRecord(editingId, input, selectedDocument);
+        setExpandedVersionId((current) => current === editingId ? null : current);
         setVersionsByMeeting((current) => {
           const next = { ...current };
           delete next[editingId];
@@ -220,9 +221,8 @@ export default function MeetingRecords() {
   };
 
   const edit = (record: MeetingRecord) => {
+    resetForm();
     setEditingId(record.id);
-    setImportMessage("");
-    setImportWarnings([]);
     setForm({
       title: record.title,
       meetingType: record.meetingType,
@@ -235,7 +235,13 @@ export default function MeetingRecords() {
       attachment: record.attachment
     });
     setAttendeesText(record.attendees.join("\n"));
-    window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    window.requestAnimationFrame(() => {
+      titleRef.current?.focus({ preventScroll: true });
+      formRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        block: "start"
+      });
+    });
   };
 
   const canEditRecord = (record: MeetingRecord) => {
@@ -261,32 +267,18 @@ export default function MeetingRecords() {
     }
   };
 
-  return <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
-    <Container maxWidth="xl">
-      <LeaderDashboardHeader />
-      <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 }, mb: 3 }}>
-        <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Meeting Records</Typography>
-        {meetingReportAccess(adminProfile).canOpen && <Button component={Link} to="/leader/reports/meetings" variant="outlined" sx={{ minHeight: 44, mb: 2 }}>Open Meeting Records Report</Button>}
-        <Typography color="text.secondary">Record Group Council, Group Leaders and section leader meetings, including attendance, minutes, decisions and follow-up actions.</Typography>
-      </Paper>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-
-      <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Import a meeting document</Typography>
-        <Typography color="text.secondary" sx={{ mb: 2 }}>Choose a PDF, DOCX, ODT or text meeting document. Supported files are parsed locally into proposed values; nothing is applied or saved until you explicitly review it.</Typography>
-        <Button variant="outlined" component="label">
+  const documentPicker = <Box sx={{ overflowWrap: "anywhere" }}>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Choose a PDF, DOC, DOCX, ODT or text meeting document. Supported files are parsed locally into proposed values; nothing is applied or saved until you explicitly review it.</Typography>
+        <Button variant="outlined" component="label" sx={{ minHeight: 44, "&:focus-within": { outline: "2px solid currentColor", outlineOffset: 2 } }}>
           Choose meeting document
-          <input hidden type="file" accept=".pdf,.doc,.docx,.odt,.txt,.md,.html,.htm,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,text/plain,text/markdown,text/html" onChange={(event) => void importDocument(event)} />
+          <input aria-label="Choose meeting document" style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} type="file" accept=".pdf,.doc,.docx,.odt,.txt,.md,.html,.htm,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,text/plain,text/markdown,text/html" disabled={parseBusy || saving} onChange={(event) => void importDocument(event)} />
         </Button>
-        {selectedDocument && <Chip sx={{ ml: 1 }} label={selectedDocument.name} onDelete={() => { setSelectedDocument(null); setParseCandidates([]); setAcceptedCandidates(new Set()); }} />}
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>{parseBusy ? "Parsing document…" : "The original document remains the source attachment. Parsed values are only suggestions."}</Typography>
-      </Paper>
-
-      <Paper ref={formRef} data-testid="meeting-record-form" elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, scrollMarginTop: 16 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{editingId ? "Edit meeting record" : "Record a meeting"}</Typography>
+        {selectedDocument && <Chip sx={{ mt: 1, maxWidth: "100%", minHeight: 44, height: "auto", "& .MuiChip-label": { whiteSpace: "normal", overflowWrap: "anywhere" } }} label={selectedDocument.name} onDelete={parseBusy || saving ? undefined : () => { setImportMessage(""); setImportWarnings([]); setSelectedDocument(null); setAwaitingReview(false); setParseCandidates([]); setAcceptedCandidates(new Set()); }} />}
+        <Typography role="status" variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>{parseBusy ? "Parsing document…" : "The original document remains the source attachment. Parsed values are only suggestions."}</Typography>
+  </Box>;
+  const importReview = (
         <MeetingRecordImportReview
+          compact={redesigned}
           message={importMessage}
           warnings={importWarnings}
           candidates={parseCandidates}
@@ -302,8 +294,44 @@ export default function MeetingRecords() {
           })}
           onApplyCandidates={applyCandidates}
         />
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-          <TextField label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
+  );
+
+  return <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: redesigned ? { xs: 2, md: 3 } : { xs: 4, md: 6 } }}>
+    <Container maxWidth="xl">
+      <LeaderDashboardHeader />
+      <Paper elevation={redesigned ? 0 : 2} variant={redesigned ? "outlined" : "elevation"} sx={{ p: redesigned ? 2 : { xs: 2.5, md: 4 }, mb: 2 }}>
+        <Typography component="h1" variant={redesigned ? "h5" : "h4"} color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Meeting Records</Typography>
+        {meetingReportAccess(adminProfile).canOpen && <Button component={Link} to="/leader/reports/meetings" variant="outlined" sx={{ minHeight: 44, mb: 2 }}>Open Meeting Records Report</Button>}
+        {!redesigned && <Typography color="text.secondary">Record Group Council, Group Leaders and section leader meetings, including attendance, minutes, decisions and follow-up actions.</Typography>}
+      </Paper>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+
+      {!redesigned && <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Import a meeting document</Typography>
+        {documentPicker}
+      </Paper>}
+
+      <Box data-testid="meeting-records-layout" data-layout={redesigned ? "redesigned" : "existing"} sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", md: redesigned ? "minmax(0, 6fr) minmax(0, 5fr)" : "minmax(0, 1fr)" },
+        gap: 3,
+        alignItems: "start"
+      }}>
+      <Paper ref={formRef} data-testid="meeting-record-form" variant={redesigned ? "outlined" : "elevation"} elevation={redesigned ? 0 : 2} sx={{ minWidth: 0, p: { xs: 2, md: 3 }, scrollMarginTop: 16 }}>
+        <Typography component="h2" variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{editingId ? "Edit meeting record" : "Record a meeting"}</Typography>
+        {redesigned ? <Accordion disableGutters variant="outlined" expanded={importExpanded || parseBusy || awaitingReview}
+          onChange={(_, expanded) => setImportExpanded(expanded)} sx={{ mb: 2 }}>
+          <AccordionSummary id="meeting-import-heading" aria-controls="meeting-import-panel" expandIcon={<ExpandMoreIcon />}
+            sx={{ minHeight: 44, fontWeight: 700 }}>Import a meeting document</AccordionSummary>
+          <AccordionDetails sx={{ overflowWrap: "anywhere" }}>
+            {documentPicker}
+            {importReview}
+          </AccordionDetails>
+        </Accordion> : importReview}
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
+          <TextField inputRef={titleRef} label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
           <TextField label="Meeting date and time" type="datetime-local" slotProps={{ inputLabel: { shrink: true } }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
           <FormControl>
             <InputLabel id="meeting-type-label">Meeting type</InputLabel>
@@ -319,63 +347,31 @@ export default function MeetingRecords() {
               {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
             </Select>
           </FormControl>}
-          <TextField sx={{ gridColumn: { md: "1 / -1" } }} label="Attendees" helperText="Enter one name per line or separate names with commas." multiline minRows={3} value={attendeesText} onChange={(event) => setAttendeesText(event.target.value)} required />
-          <TextField sx={{ gridColumn: { md: "1 / -1" } }} label="Notes / Minutes" multiline minRows={5} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+          <TextField sx={{ gridColumn: "1 / -1" }} label="Attendees" helperText="Enter one name per line or separate names with commas." multiline minRows={3} value={attendeesText} onChange={(event) => setAttendeesText(event.target.value)} required />
+          <TextField sx={{ gridColumn: "1 / -1" }} label="Notes / Minutes" multiline minRows={5} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
           <TextField label="Decisions" multiline minRows={4} value={form.decisions} onChange={(event) => setForm({ ...form, decisions: event.target.value })} />
           <TextField label="Action Items" multiline minRows={4} value={form.actions} onChange={(event) => setForm({ ...form, actions: event.target.value })} />
         </Box>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
-          <Button variant="contained" color="success" disabled={saving} onClick={() => void save()}>{saving ? "Saving..." : editingId ? "Update Meeting" : "Save Meeting"}</Button>
-          {editingId && <Button variant="outlined" onClick={resetForm}>Cancel Edit</Button>}
+          <Button variant="contained" color={redesigned ? "primary" : "success"} sx={{ minHeight: 44 }} disabled={saving || parseBusy} onClick={() => void save()}>{saving ? "Saving..." : editingId ? "Update Meeting" : "Save Meeting"}</Button>
+          {editingId && <Button variant="outlined" disabled={saving || parseBusy} sx={{ minHeight: 44 }} onClick={resetForm}>Cancel Edit</Button>}
         </Stack>
       </Paper>
 
-      <Paper elevation={2} sx={{ p: { xs: 2.5, md: 3 } }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Meeting history</Typography>
-        {loading ? <Typography color="text.secondary">Loading meeting records...</Typography> : records.length === 0 ? <Alert severity="info">No meeting records have been saved in your permitted scope yet.</Alert> : <Stack spacing={2}>
-          {records.map((record) => <Paper key={record.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`meeting-record-${record.id}`}>
-            <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" } }}>
-              <Box>
-                <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{record.title}</Typography>
-                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 1 }}>
-                  <Chip size="small" label={meetingTypeLabel(record.meetingType)} />
-                  <Chip size="small" variant="outlined" label={record.section} />
-                  <Chip size="small" variant="outlined" label={formatMeetingDate(record.meetingDate)} />
-                </Stack>
-              </Box>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                {record.attachment && <Button type="button" variant="outlined" onClick={() => void openMeetingDocument(record.attachment!)}>Open {record.attachment.fileName}</Button>}
-                {isAdmin && <Button type="button" variant="outlined" onClick={() => void toggleVersions(record)}>{expandedVersionId === record.id ? "Hide Version History" : "Version History"}</Button>}
-                {canEditRecord(record) && <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>}
-              </Stack>
-            </Stack>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle2">Attendees</Typography>
-            <Typography color="text.secondary" sx={{ mb: 1.5 }}>{record.attendees.join(", ")}</Typography>
-            {record.notes && <><Typography variant="subtitle2">Minutes</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1.5 }}>{record.notes}</Typography></>}
-            {record.decisions && <><Typography variant="subtitle2">Decisions</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1.5 }}>{record.decisions}</Typography></>}
-            {record.actions && <><Typography variant="subtitle2">Actions</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{record.actions}</Typography></>}
-
-            {isAdmin && expandedVersionId === record.id && <Box sx={{ mt: 2 }} data-testid={`meeting-version-history-${record.id}`}>
-              <Divider sx={{ mb: 2 }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Previous versions</Typography>
-              {versionLoadingId === record.id ? <Typography color="text.secondary">Loading version history...</Typography> : (versionsByMeeting[record.id]?.length ?? 0) === 0 ? <Alert severity="info">No previous versions have been recorded yet.</Alert> : <Stack spacing={1.5}>
-                {versionsByMeeting[record.id].map((version, index) => <Paper key={version.id} variant="outlined" sx={{ p: 2 }}>
-                  <Typography sx={{ fontWeight: 800 }}>Previous version {versionsByMeeting[record.id].length - index}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Saved before an edit · {formatVersionDate(version.versionedAt)}</Typography>
-                  <Typography variant="subtitle2">Title</Typography>
-                  <Typography sx={{ mb: 1 }}>{version.title}</Typography>
-                  <Typography variant="subtitle2">Attendees</Typography>
-                  <Typography sx={{ mb: 1 }}>{version.attendees.join(", ")}</Typography>
-                  {version.notes && <><Typography variant="subtitle2">Minutes</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>{version.notes}</Typography></>}
-                  {version.decisions && <><Typography variant="subtitle2">Decisions</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>{version.decisions}</Typography></>}
-                  {version.actions && <><Typography variant="subtitle2">Actions</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{version.actions}</Typography></>}
-                </Paper>)}
-              </Stack>}
-            </Box>}
-          </Paper>)}
-        </Stack>}
-      </Paper>
+        <MeetingRecordsHistory
+          redesigned={redesigned}
+          records={records}
+          loading={loading}
+          isAdmin={isAdmin}
+          editDisabled={saving || parseBusy}
+          canEditRecord={canEditRecord}
+          onEdit={edit}
+          onToggleVersions={(record) => void toggleVersions(record)}
+          expandedVersionId={expandedVersionId}
+          versionLoadingId={versionLoadingId}
+          versionsByMeeting={versionsByMeeting}
+        />
+      </Box>
     </Container>
   </Box>;
 }
