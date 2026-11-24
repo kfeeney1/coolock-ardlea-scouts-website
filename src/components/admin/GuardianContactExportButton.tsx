@@ -26,7 +26,7 @@ export default function GuardianContactExportButton() {
     }
   }
 
-  return <Stack spacing={1} alignItems="flex-start">
+  return <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
     <Button variant="outlined" disabled={busy} onClick={() => void exportContacts()}>
       {busy ? "Exporting…" : "Export Member CSV"}
     </Button>

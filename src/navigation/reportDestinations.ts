@@ -29,7 +29,7 @@ export function reportDestinations(profile: Parameters<typeof attendanceReportSc
     { allowed: badgework.canOpen, path: "/leader/reports/badgework", label: "Badgework Progress", scope: sectionScope(badgework.group, badgework.exportSections) },
     { allowed: meetings.canOpen, path: "/leader/reports/meetings", label: "Meeting Records Report", scope: meetings.group ? "All sections and group meetings" : [...(meetings.groupMinutes ? ["Group meetings"] : []), ...meetings.sections].join(", ") },
     { allowed: membership.canOpen, path: "/leader/reports/membership", label: "Membership Totals", scope: sectionScope(membership.group || membership.chairperson, membership.sections) },
-    { allowed: memberList.canOpen || contacts.allowed, path: "/leader/reports/member-list", label: "Member List Report", scope: sectionScope(memberList.group || contacts.group, memberList.sections) },
+    { allowed: memberList.canOpen || contacts.allowed, path: "/leader/reports/member-list", label: "Member List Report", scope: sectionScope(memberList.group || (!memberList.canOpen && contacts.group), memberList.sections) },
     { allowed: consent.canOpen, path: "/leader/reports/youth-consent", label: "Youth Consent Status", scope: sectionScope(consent.group, consent.sections) },
     { allowed: consent.canOpen, path: "/leader/reports/event-consent", label: "Event Consent Status", scope: consent.group ? "Group events" : consent.sections.join(", ") },
     { allowed: canViewFinancialSummary(profile), path: "/leader/reports/financial-summary", label: "Financial Summary", scope: "Group totals" },
