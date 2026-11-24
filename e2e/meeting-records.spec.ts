@@ -297,7 +297,11 @@ test("Meeting Records rollout preserves route identity and fits desktop and mobi
     const historyBounds = (await history.boundingBox())!;
     if (mobile) expect(historyBounds.y).toBeGreaterThan(editorBounds.y + editorBounds.height);
     else expect(historyBounds.x).toBeGreaterThan(editorBounds.x + editorBounds.width);
-    await page.screenshot({ path: testInfo.outputPath(mobile ? "SW-469-android.png" : "SW-469-desktop.png"), fullPage: true });
+    const screenshotName = mobile ? "SW-469-android" : "SW-469-desktop";
+    await testInfo.attach(screenshotName, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png"
+    });
     if (mobile) await page.setViewportSize({ width: 320, height: 720 });
 
     const disclosure = page.getByRole("button", { name: "Import a meeting document" });
