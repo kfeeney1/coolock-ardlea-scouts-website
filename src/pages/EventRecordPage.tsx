@@ -1,3 +1,4 @@
+import EventRosterExportLink from "../components/admin/EventRosterExportLink";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -261,6 +262,7 @@ export default function EventRecordPage() {
                 <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }}>
                     <Typography variant="h5" color="secondary" sx={{ mb: 2 }}>Event actions</Typography>
                     <Box component="fieldset" disabled={hallDraftDirty} sx={{border: 0, p: 0, m: 0, minWidth: 0, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25 }}>
+                        {!event.hidden && <EventRosterExportLink eventId={event.id} />}
                         <Button variant="contained" color={event.status === "completed" ? "secondary" : "success"} onClick={openRoster}>{event.status === "completed" ? "View Attendance" : "Attendance"}</Button>
                         {event.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>}
                         <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>

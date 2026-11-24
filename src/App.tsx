@@ -55,6 +55,7 @@ const FinancialSummaryReport = lazy(() => import("./pages/FinancialSummaryReport
 const GroupFloatsReport = lazy(() => import("./pages/GroupFloatsReport"));
 const GroupSubsReport = lazy(() => import("./pages/GroupSubsReport"));
 const YouthConsentStatusReport = lazy(() => import("./pages/YouthConsentStatusReport"));
+const EventRosterReport = lazy(() => import("./pages/EventRosterReport"));
 const EventConsentStatusReport = lazy(() => import("./pages/EventConsentStatusReport"));
 const NamedMembershipReport = lazy(() => import("./pages/NamedMembershipReport"));
 const MembershipTotalsReport = lazy(() => import("./pages/MembershipTotalsReport"));
@@ -136,6 +137,7 @@ export default function App() {
         <Route path="/leader/reports/floats" element={protectedRoute(<GroupFloatsReport />)} />
         <Route path="/leader/reports/subs" element={protectedRoute(<GroupSubsReport />)} />
         <Route path="/leader/reports/youth-consent" element={protectedRoute(<YouthConsentStatusReport />)} />
+        <Route path="/leader/reports/event-roster" element={protectedRoute(<EventRosterReport />)} />
         <Route path="/leader/reports/event-consent" element={protectedRoute(<EventConsentStatusReport />)} />
         <Route path="/leader/reports/member-list" element={protectedRoute(<NamedMembershipReport />)} />
         <Route path="/leader/reports/membership" element={protectedRoute(<MembershipTotalsReport />)} />

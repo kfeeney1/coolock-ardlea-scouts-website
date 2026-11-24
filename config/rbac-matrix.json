@@ -50,6 +50,7 @@
     "/leader/reports/financial-summary": "leader-financial-summary-policy",
     "/leader/reports/floats": "leader-group-floats-report-policy",
     "/leader/reports/subs": "leader-group-subs-report-policy",
+    "/leader/reports/event-roster": "leader-event-consent-report-policy",
     "/leader/reports/event-consent": "leader-event-consent-report-policy",
     "/leader/reports/youth-consent": "leader-youth-consent-report-policy",
     "/leader/reports/member-list": "leader-named-membership-policy",

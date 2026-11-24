@@ -1,3 +1,4 @@
+import EventRosterExportLink from "../components/admin/EventRosterExportLink";
 import GuardianContactExportButton from "../components/admin/GuardianContactExportButton";
 import { guardianContactExportAccess } from "../security/guardianContactExportAccess";
 import { canViewFinancialSummary } from "../security/financialSummaryAccess";
@@ -225,6 +226,7 @@ export default function LeaderReports() {
 
                             </>}
 
+                            <EventRosterExportLink />
                             {eventConsentReportAccess(adminProfile).canOpen && <Paper variant="outlined" sx={{ p: 3 }}>
                                 <Button component={Link} to="/leader/reports/event-consent" variant="outlined">Open Event Consent Status</Button>
                             </Paper>}
