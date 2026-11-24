@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { settingsAccessFor } from "../security/settingsAccess";
+import MeetingRecordsExperienceSettings from "../components/admin/MeetingRecordsExperienceSettings";
 import CalendarExperienceSettings from "../components/admin/CalendarExperienceSettings";
 import MaintenanceExperienceSettings from "../components/admin/MaintenanceExperienceSettings";
 import AttendanceExperienceSettings from "../components/admin/AttendanceExperienceSettings";
@@ -261,6 +262,7 @@ export default function SiteSettings() {
                         <LeaderNavigationSettings />
                         <ScheduleExperienceSettings />
                         <MeetingExperienceSettings />
+                        <MeetingRecordsExperienceSettings />
                         <AttendanceExperienceSettings />
                         <AttendanceExperienceSettings reports />
                         <MaintenanceExperienceSettings />

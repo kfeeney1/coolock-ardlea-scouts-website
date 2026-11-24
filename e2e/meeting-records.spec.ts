@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { scheduleFixtureDb } from "./support/schedule-fixtures";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
@@ -263,4 +264,72 @@ test("Section Leader report excludes group and other section records", async ({ 
   await expect(page.getByRole("status").or(page.getByRole("article").first())).toBeVisible();
   await expect(page.getByRole("heading", { name: fixtureTitle, exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: groupFixtureTitle, exact: true })).toHaveCount(0);
+});
+
+test("Meeting Records rollout preserves route identity and fits desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+  const setting = scheduleFixtureDb().doc("siteSettings/meetingRecordsExperience");
+  const previous = await setting.get();
+  const route = "/leader/meetings?view=secretary";
+  const layout = page.getByTestId("meeting-record-layout");
+  const mobile = testInfo.project.name === "mobile-chromium";
+
+  try {
+    await setting.delete();
+    await login(page, leaderEmail!);
+    await page.goto(route);
+    await expect(layout).toHaveAttribute("data-layout", "existing");
+    await setting.set({ version: "redesigned" });
+    await expect(layout).toHaveAttribute("data-layout", "redesigned");
+    await page.reload();
+    await expect(layout).toHaveAttribute("data-layout", "redesigned");
+    await expect(page.getByTestId("page-secretary-meeting-records")).toBeVisible();
+    await page.goto("/leader/meetings?view=group-operations");
+    await expect(page.getByTestId("page-group-meeting-records")).toBeVisible();
+    await page.goBack();
+    await expect(page.getByTestId("page-secretary-meeting-records")).toBeVisible();
+    await expect(page.getByText(fixtureTitle, { exact: true })).toBeVisible();
+
+    const editor = page.getByTestId("meeting-record-form");
+    const history = page.getByRole("heading", { name: "Meeting history" });
+    await expect(editor).toBeVisible();
+    const editorBounds = (await editor.boundingBox())!;
+    const historyBounds = (await history.boundingBox())!;
+    if (mobile) expect(historyBounds.y).toBeGreaterThan(editorBounds.y + editorBounds.height);
+    else expect(historyBounds.x).toBeGreaterThan(editorBounds.x + editorBounds.width);
+    await page.screenshot({ path: testInfo.outputPath(mobile ? "SW-469-android.png" : "SW-469-desktop.png"), fullPage: true });
+    if (mobile) await page.setViewportSize({ width: 320, height: 720 });
+
+    const disclosure = page.getByRole("button", { name: "Import a meeting document" });
+    await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    await disclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    const picker = page.getByLabel("Choose meeting document", { exact: true });
+    const fileName = `TEST-${"longfilename".repeat(12)}.doc`;
+    await picker.setInputFiles({ name: fileName, mimeType: "application/msword", buffer: Buffer.from("synthetic legacy DOC") });
+    await expect(editor.getByText(/enter the meeting details manually/i)).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+
+    await picker.setInputFiles({
+      name: "TEST-SW-469.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Title: Winter planning\nDate: 05/09/2026 19:30")
+    });
+    const preview = page.getByTestId("meeting-document-preview");
+    await expect(preview).toBeVisible();
+    await expect(preview.getByText(/Document evidence: 05\/09\/2026 19:30/)).toBeVisible();
+    await disclosure.click();
+    await expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    await preview.getByTestId("meeting-import-candidate-title").getByRole("button", { name: "Use value" }).click();
+    await preview.getByRole("button", { name: "Apply selected values" }).click();
+    await expect(editor.getByLabel("Meeting title")).toHaveValue("Winter planning");
+    await expect(editor.getByLabel("Meeting date and time")).toHaveValue("");
+    await editor.getByRole("button", { name: "Save Meeting" }).click();
+    await expect(page.getByText("Title, meeting date and at least one attendee are required.")).toBeVisible();
+    await expect(editor.getByLabel("Meeting title")).toHaveValue("Winter planning");
+  } finally {
+    if (previous.exists) await setting.set(previous.data()!);
+    else await setting.delete();
+  }
 });
