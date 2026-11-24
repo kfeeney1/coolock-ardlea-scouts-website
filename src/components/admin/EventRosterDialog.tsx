@@ -1,3 +1,4 @@
+import EventRosterExportLink from "./EventRosterExportLink";
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Typography } from "@mui/material";
 
 import type { MemberRecord } from "../../services/memberAdmin";
@@ -45,6 +46,7 @@ export default function EventRosterDialog({ event, members, attendance, consent,
                 {event && <LeaderAttendanceSection options={leaderOptions} entries={leaderAttendance} onChange={onLeaderAttendanceChange} disabled={readOnly} loading={leaderAttendanceLoading} />}
             </DialogContent>
             <DialogActions>
+                {event && !event.hidden && <EventRosterExportLink eventId={event.id} />}
                 <Button onClick={onClose}>Close</Button>
                 {!readOnly && <Button variant="contained" color="success" disabled={saving || leaderAttendanceLoading} onClick={onSave}>{saving ? "Saving..." : "Save Attendance"}</Button>}
             </DialogActions>
