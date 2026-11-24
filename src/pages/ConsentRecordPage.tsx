@@ -1,3 +1,4 @@
+import ConsentPrintButton from "../components/admin/ConsentPrintButton";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert,
@@ -125,7 +126,7 @@ export default function ConsentRecordPage() {
       <LeaderPageHeader
         title={record ? record.memberName : "Consent Record"}
         description="Full consent and medical-information record."
-        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={resolvedReturnPath} onClick={(event) => { event.preventDefault(); navigate(resolvedReturnPath); }} variant="outlined" color="secondary">{returnLabel}</Button></Stack>}
+        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={resolvedReturnPath} onClick={(event) => { event.preventDefault(); navigate(resolvedReturnPath); }} variant="outlined" color="secondary">{returnLabel}</Button>{!loading && record?.type === "youth" && record.memberId && <ConsentPrintButton key={record.id} id={record.id} section={record.section} />}</Stack>}
       />
 
       {loading ? <Box sx={{ minHeight: 320, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" /></Box> : <>

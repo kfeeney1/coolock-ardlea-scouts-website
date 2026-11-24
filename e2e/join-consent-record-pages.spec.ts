@@ -301,8 +301,10 @@ test("SW-605 transferred consent follows the current section and retains the ori
       await expect(oldPage.getByText("No consent records match the current filters.")).toBeVisible();
       await newPage.getByTestId(`consent-record-${id}`).click();
       await expect(newPage.getByTestId(`consent-record-page-${id}`).getByText("Cubs", { exact: true }).first()).toBeVisible();
+      await expect(newPage.getByRole("button", { name: "Print / Save PDF", exact: true })).toBeEnabled();
       await oldPage.goto(`/leader/consents/${id}`);
       await expect(oldPage.getByText("This consent record could not be found or is outside your permitted sections.")).toBeVisible();
+      await expect(oldPage.getByRole("button", { name: "Print / Save PDF", exact: true })).toHaveCount(0);
     } finally {
       await Promise.all([oldContext.close(), newContext.close()]);
     }

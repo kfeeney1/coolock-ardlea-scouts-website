@@ -4,7 +4,7 @@ import { equal, projectedQuery, readCallerLeader, string } from "./youthConsentS
 
 const clinicalFields = medicalPresentationDefinition.filter(group => group.id !== "contacts").flatMap(group => group.fields);
 const rosterFields = ["memberId", "formType", "status", "submittedAt", "parentUpdatedAt"];
-const medicationFields = ["enabled", "medicineName", "dosage", "frequency", "method", "selfAdmin", "otherInfo"];
+export const medicationFields = ["enabled", "medicineName", "dosage", "frequency", "method", "selfAdmin", "otherInfo"];
 const youthForm = "youth-activity-consent";
 
 const sectionOf = fields => canonicalMemberSections(
@@ -14,12 +14,12 @@ const idOf = doc => doc.name.split("/").pop();
 const isLinkedForm = fields => string(fields, "formType") === youthForm && validId(string(fields, "memberId"));
 const validId = value => typeof value === "string" && value.length > 0 && value.length <= 1500 && !value.includes("/") && ![".", ".."].includes(value);
 
-async function readDocument(base, token, path, fields, fetcher) {
+export async function readDocument(base, token, path, fields, fetcher) {
   const url = new URL(`${base}/${path}`);
   for (const field of fields) url.searchParams.append("mask.fieldPaths", field);
   const response = await fetcher(url.href, { headers: { Authorization: `Bearer ${token}` } });
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error("Medical record read failed.");
+  if (!response.ok) throw new Error("Report document read failed.");
   return (await response.json()).fields ?? {};
 }
 
@@ -30,7 +30,7 @@ function projectMedication(fields) {
   }));
 }
 
-function projectMedical(fields) {
+export function projectMedical(fields) {
   const data = Object.fromEntries(clinicalFields.flatMap(key =>
     typeof fields[key]?.stringValue === "string" ? [[key, fields[key].stringValue]] : []));
   const medication = fields.medicationManagement?.mapValue?.fields;

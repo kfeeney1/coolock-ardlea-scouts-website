@@ -1,3 +1,4 @@
+import ConsentPrintButton from "../components/admin/ConsentPrintButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
@@ -100,6 +101,7 @@ export default function QuickMedicalInformationPage() {
           </Paper>)}</Stack> : <Alert severity="warning">No parent/guardian telephone details are recorded in this consent record.</Alert>}
         </Box>}
 
+        {(!("type" in record) || (record.type === "youth" && "memberId" in record && Boolean(record.memberId))) && <ConsentPrintButton key={record.id} id={record.id} section={record.section} />}
         {fullConsentAvailable && <Button component={Link} to={`/leader/consents/${record.id}`} state={{ fromMemberPath: returnTo.startsWith("/leader/members/") ? returnTo : undefined }} variant="outlined" color="secondary">Open full consent / medical record</Button>}
       </Stack>}
     </Container>

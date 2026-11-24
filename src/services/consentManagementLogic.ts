@@ -67,7 +67,7 @@ export function objectField(data: Record<string, unknown>, key: string): string 
     return displayValue(data[key]);
 }
 
-export function expiryLabel(record: ConsentAdminRecord): string {
+export function expiryLabel(record: Pick<ConsentAdminRecord, "consentTo">): string {
     if (!record.consentTo) return "No expiry date";
     const days = daysUntilExpiry(record.consentTo);
     if (days === null) return record.consentTo;
@@ -125,7 +125,7 @@ function escapeHtml(value: string): string {
     return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-export function consentRecordPrintHtml(record: ConsentAdminRecord): string {
+export function consentRecordPrintHtml(record: Pick<ConsentAdminRecord, "type" | "section" | "memberName" | "consentTo" | "submittedAt" | "data">): string {
     const priority = [
         ["Immediate warnings and emergency action", ["seriousIllness", "medAllergies", "allergies", "epilepsy", "diabetes", "asthma", "heartDisease", "skinAllergies"]],
         ["Medication administration", ["regularMeds", "onMedication"]],
@@ -149,6 +149,17 @@ export function consentRecordPrintHtml(record: ConsentAdminRecord): string {
         const text = displayFieldValue(key, value);
         return text ? `<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(text)}</pre></td></tr>` : "";
     }).join("");
+    const medication = normalizeMedicationManagement(record.data.medicationManagement);
+    const medications = Array.isArray(medication?.medications) && medication.medications.length ? medication.medications : [medication];
+    const medicationRows = medications.flatMap(entry => {
+        const item = normalizeMedicationManagement(entry);
+        if (!item) return [];
+        return Object.entries(item).flatMap(([key, value]) => {
+            const shown = displayFieldValue(key, value);
+            return shown ? [`<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(shown)}</pre></td></tr>`] : [];
+        });
+    }).join("");
+    const medicationSection = medicationRows ? `<h2>Medication management</h2><table><tbody>${medicationRows}</tbody></table>` : "";
     const supporting = supportingRows ? `<h2>Other recorded information</h2><table><tbody>${supportingRows}</tbody></table>` : "";
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${escapeHtml(record.memberName || "Consent Record")} - Consent Record</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:32px;color:#1f2937;background:white}h1,h2{color:#081E67}h1{border-bottom:5px solid #F52D45;padding-bottom:14px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;background:#f8f9fa;border:1px solid #ddd;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}th,td{border:1px solid #d1d5db;padding:10px;text-align:left;vertical-align:top}th{width:34%;background:#EEF1FA;color:#081E67}pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}.controls{margin-bottom:20px}button{padding:10px 18px;margin-right:10px;cursor:pointer}@media print{.controls{display:none}body{padding:0}@page{margin:15mm}}</style></head><body><div class="controls"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div><h1>Consent Record</h1><h2>${escapeHtml(record.memberName || "Unknown member")}</h2><div class="summary"><div><strong>Section:</strong> ${escapeHtml(record.section || "Not provided")}</div><div><strong>Type:</strong> ${escapeHtml(record.type === "youth" ? "Youth" : "Scouter ES3")}</div><div><strong>Submitted:</strong> ${escapeHtml(formatDate(record.submittedAt))}</div><div><strong>Expiry:</strong> ${escapeHtml(expiryLabel(record))}</div></div>${sections}${supporting}</body></html>`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${escapeHtml(record.memberName || "Consent Record")} - Consent Record</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:32px;color:#1f2937;background:white}h1,h2{color:#081E67}h1{border-bottom:5px solid #F52D45;padding-bottom:14px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;background:#f8f9fa;border:1px solid #ddd;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}th,td{border:1px solid #d1d5db;padding:10px;text-align:left;vertical-align:top}th{width:34%;background:#EEF1FA;color:#081E67}pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}.controls{margin-bottom:20px}button{padding:10px 18px;margin-right:10px;cursor:pointer}@media print{.controls{display:none}body{padding:0}@page{margin:15mm}}</style></head><body><div class="controls"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div><h1>Consent Record</h1><h2>${escapeHtml(record.memberName || "Unknown member")}</h2><div class="summary"><div><strong>Section:</strong> ${escapeHtml(record.section || "Not provided")}</div><div><strong>Type:</strong> ${escapeHtml(record.type === "youth" ? "Youth" : "Scouter ES3")}</div><div><strong>Submitted:</strong> ${escapeHtml(formatDate(record.submittedAt))}</div><div><strong>Expiry:</strong> ${escapeHtml(expiryLabel(record))}</div></div>${sections}${medicationSection}${supporting}</body></html>`;
 }
