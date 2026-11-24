@@ -18,6 +18,13 @@ test("Report discovery preserves role-specific scope across appointments", () =>
   assert.deepEqual(reportDestinations({ role: "leader", scoutingRole: "Scouter", sections: ["Scouts"] }), []);
 });
 
+test("Group Council members with export-only access can find the member CSV", () => {
+  const reports = reportDestinations({ role: "leader", sections: ["Cubs"], appointments: [
+    { appointment: "Group Treasurer", scope: "Group" }
+  ] });
+  assert.equal(reports.find(row => row.label === "Member List Report")?.scope, "All sections");
+});
+
 test("Reports rollout removes duplicate menu links while preserving the existing menu", () => {
   for (const id of ["attendance-insights", "qm-reports", "treasurer-reports", "reports-exports"]) {
     assert.equal(reportMenuKeepsItem(id, false), true);
