@@ -313,7 +313,7 @@ export default function MeetingRecords() {
         {documentPicker}
       </Paper>}
 
-      <Box data-testid="meeting-record-layout" data-layout={redesigned ? "redesigned" : "existing"} sx={{
+      <Box data-testid="meeting-records-layout" data-layout={redesigned ? "redesigned" : "existing"} sx={{
         display: "grid",
         gridTemplateColumns: { xs: "minmax(0, 1fr)", md: redesigned ? "minmax(0, 6fr) minmax(0, 5fr)" : "minmax(0, 1fr)" },
         gap: 3,

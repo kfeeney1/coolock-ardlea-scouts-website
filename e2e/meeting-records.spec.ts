@@ -271,7 +271,7 @@ test("Meeting Records rollout preserves route identity and fits desktop and mobi
   const setting = scheduleFixtureDb().doc("siteSettings/meetingRecordsExperience");
   const previous = await setting.get();
   const route = "/leader/meetings?view=secretary";
-  const layout = page.getByTestId("meeting-record-layout");
+  const layout = page.getByTestId("meeting-records-layout");
   const mobile = testInfo.project.name === "mobile-chromium";
 
   try {
