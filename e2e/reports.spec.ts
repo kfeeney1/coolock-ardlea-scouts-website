@@ -190,7 +190,7 @@ test("ordinary Scouter cannot open Membership Totals directly", async ({ page },
   await expect(page.getByRole("table", { name: "Membership totals" })).toHaveCount(0);
 });
 
-test("Section Leader sees scoped names and status without guardian columns or CSV", async ({ page }, testInfo) => {
+test("Section Leader sees scoped names and can request CSV without on-screen guardian columns", async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   test.skip(!password, "Configure canonical E2E credentials.");
   await loginAsLeader(page, { email: "test.beaver.section.leader@example.com", password: password! });
@@ -199,7 +199,7 @@ test("Section Leader sees scoped names and status without guardian columns or CS
   await expect(table.getByRole("rowheader", { name: "Riley Nolan Beavers 01" })).toBeVisible();
   await expect(table.getByRole("cell", { name: "Scouts", exact: true })).toHaveCount(0);
   await expect(table.getByRole("columnheader", { name: "Email" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Export Member CSV" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Export Member CSV" })).toBeEnabled();
 });
 
 test("Secretary can open the group member list and use its approved CSV", async ({ page }, testInfo) => {
