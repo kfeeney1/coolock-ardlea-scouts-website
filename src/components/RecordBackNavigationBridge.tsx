@@ -5,6 +5,7 @@ import {
   hasInAppPreviousScreen,
   isRecordBackControl,
   isPlainRecordBackClick,
+  recordBackDelta,
   recordParentRoute
 } from "../services/previousScreenNavigation";
 
@@ -42,7 +43,7 @@ export default function RecordBackNavigationBridge() {
       if (!isRecordBackControl(target, parentRoute)) return;
       event.preventDefault();
       event.stopPropagation();
-      navigate(-1);
+      navigate(recordBackDelta(window.history.state));
     };
 
     document.addEventListener("click", handleClick, true);

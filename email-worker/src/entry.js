@@ -1,3 +1,4 @@
+import { handleConsentPrint } from "./consentPrint.js";
 import { handleGuardianContactExport } from "./guardianContactExport.js";
 import { handleFinancialSummary } from "./financialSummary.js";
 import { handleChairpersonReports } from "./chairpersonReports.js";
@@ -181,10 +182,10 @@ export default {
   async fetch(request, env) {
     if (new URL(request.url).pathname === "/hall-bookings") return handleHallBookingRoute(request, env, serviceAccessToken);
     const reportPath = new URL(request.url).pathname;
-    if (reportPath === "/youth-consent-status" || reportPath === "/member-medical" || reportPath === "/chairperson-reports" || reportPath === "/financial-summary" || reportPath === "/guardian-contact-export") {
+    if (reportPath === "/youth-consent-status" || reportPath === "/member-medical" || reportPath === "/chairperson-reports" || reportPath === "/financial-summary" || reportPath === "/guardian-contact-export" || reportPath === "/consent-print") {
       const origin = request.headers.get("Origin") || "";
       if (!allowedOrigins(env).includes(origin)) return json(request, env, 403, { ok: false });
-      const handlers = { "/member-medical": handleMemberMedical, "/youth-consent-status": handleYouthConsentStatus, "/chairperson-reports": handleChairpersonReports, "/financial-summary": handleFinancialSummary, "/guardian-contact-export": handleGuardianContactExport };
+      const handlers = { "/member-medical": handleMemberMedical, "/youth-consent-status": handleYouthConsentStatus, "/chairperson-reports": handleChairpersonReports, "/financial-summary": handleFinancialSummary, "/guardian-contact-export": handleGuardianContactExport, "/consent-print": handleConsentPrint };
       const handler = handlers[reportPath];
       return handler(request, {
         base: `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents`,
