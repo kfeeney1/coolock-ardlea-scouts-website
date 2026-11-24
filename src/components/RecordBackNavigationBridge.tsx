@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { backDismissStack } from "../services/backDismissHistory";
 import {
   hasInAppPreviousScreen,
   isRecordBackControl,
   isPlainRecordBackClick,
+  recordBackDelta,
   recordParentRoute
 } from "../services/previousScreenNavigation";
 
@@ -43,14 +43,7 @@ export default function RecordBackNavigationBridge() {
       if (!isRecordBackControl(target, parentRoute)) return;
       event.preventDefault();
       event.stopPropagation();
-      // The dialog can disappear before its deferred history cleanup runs.
-      // Skip its same-route entries as part of this explicit record Back.
-      const historyState = window.history.state;
-      const markers = backDismissStack(historyState?.usr);
-      const overlayEntries = markers.every(marker => marker.startsWith("transient-overlay:"))
-        ? Math.min(markers.length, Math.max(0, historyState.idx - 1))
-        : 0;
-      navigate(-1 - overlayEntries);
+      navigate(recordBackDelta(window.history.state));
     };
 
     document.addEventListener("click", handleClick, true);

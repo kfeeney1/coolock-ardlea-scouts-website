@@ -1,3 +1,4 @@
+import { backDismissStack } from "./backDismissHistory.ts";
 import { RECORD_PARENT_ROUTES } from "../navigation/leaderNavigation.ts";
 export { RECORD_PARENT_ROUTES } from "../navigation/leaderNavigation.ts";
 
@@ -9,6 +10,15 @@ export function hasInAppPreviousScreen(historyState: unknown): boolean {
   if (!historyState || typeof historyState !== "object" || Array.isArray(historyState)) return false;
   const index = (historyState as { idx?: unknown }).idx;
   return typeof index === "number" && Number.isFinite(index) && index > 0;
+}
+
+export function recordBackDelta({ idx, usr }: { idx: number; usr?: unknown }): number {
+  // A dialog can disappear before its deferred history cleanup runs.
+  const markers = backDismissStack(usr);
+  const overlayEntries = markers.every(marker => marker.startsWith("transient-overlay:"))
+    ? Math.min(markers.length, Math.max(0, idx - 1))
+    : 0;
+  return -1 - overlayEntries;
 }
 
 export function isRecordBackControl(target: Element | null, parentRoute: string): boolean {

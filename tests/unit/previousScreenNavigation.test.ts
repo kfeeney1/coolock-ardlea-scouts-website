@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   hasInAppPreviousScreen,
   isPlainRecordBackClick,
+  recordBackDelta,
   recordParentRoute
 } from "../../src/services/previousScreenNavigation.ts";
 
@@ -24,12 +25,20 @@ test("previous-screen navigation requires an in-app browser history entry", () =
   assert.equal(hasInAppPreviousScreen({ idx: "1" }), false);
 });
 
+test("record Back skips pending transient overlay entries within the app history", () => {
+  const dialog = "__coolockArdleaBackDismissStack";
+  assert.equal(recordBackDelta({ idx: 4 }), -1);
+  assert.equal(recordBackDelta({ idx: 4, usr: { [dialog]: ["transient-overlay:1", "transient-overlay:2"] } }), -3);
+  assert.equal(recordBackDelta({ idx: 1, usr: { [dialog]: ["transient-overlay:1"] } }), -1);
+  assert.equal(recordBackDelta({ idx: 4, usr: { [dialog]: ["leader-menu", "transient-overlay:1"] } }), -1);
+});
+
 test("app installs record Back interception after overlay handling", async () => {
   const source = await readFile("src/App.tsx", "utf8");
   assert.match(source, /<TransientOverlayBackDismissBridge\s*\/>[\s\S]*<RecordBackNavigationBridge\s*\/>/);
 
   const bridge = await readFile("src/components/RecordBackNavigationBridge.tsx", "utf8");
-  assert.match(bridge, /navigate\(-1\)/);
+  assert.match(bridge, /navigate\(recordBackDelta\(window\.history\.state\)\)/);
   assert.match(bridge, /addEventListener\("click", handleClick, true\)/);
 });
 
