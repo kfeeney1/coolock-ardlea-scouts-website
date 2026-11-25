@@ -2,7 +2,7 @@ import { canExportMemberSubs, memberSubsExportAccess } from "../security/memberS
 import { groupFinanceReportAccess } from "../security/groupFinanceReportAccess";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Tab, Tabs, TextField, Typography } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -11,16 +11,15 @@ import SubsPaymentPanel from "../components/admin/SubsPaymentPanel";
 import SubsBalancesReport from "../components/admin/SubsBalancesReport";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
-import type { MemberRecord } from "../services/memberAdmin";
-import { ensureDefaultSubsAssignment, loadSubsAssignments, loadSubsMembers, loadSubsPayments, loadSubsPolicies, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
-import { balanceFor, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, resolveCurrentSubsPolicy, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
-import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
+import { useSubsRecords } from "../hooks/useSubsRecords";
+import { ensureDefaultSubsAssignment, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
+import { balanceFor, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, type SubsPayment, type SubsPaymentMethod } from "../services/subsLogic";
+import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, normaliseSubsSection } from "../services/subsScope";
 import { downloadCsv } from "../services/downloadCsv";
 import { memberSubsCsv } from "../services/memberSubsCsv";
 import { formatSiteDate } from "../services/siteDateFormat";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const uniquePayments = (rows: SubsPayment[]) => [...new Map(rows.map((row) => [row.id, row])).values()];
 
 export default function SubsManagement() {
   const { user, adminProfile } = useAdminAuth();
@@ -34,16 +33,7 @@ export default function SubsManagement() {
   const [tab, setTab] = useState(0);
   const activeTab = tab === 2 && !canGroupReport ? 0 : tab;
   useEffect(() => { if (location.hash === "#family-billing" && canGroupReport) setTab(2); else if (!canGroupReport) setTab(current => current === 2 ? 0 : current); }, [location.hash, canGroupReport]);
-  const [members, setMembers] = useState<MemberRecord[]>([]);
-  const [policies, setPolicies] = useState<SubsRatePolicy[]>([]);
-  const [assignments, setAssignments] = useState<SubsAssignment[]>([]);
-  const [payments, setPayments] = useState<SubsPayment[]>([]);
-  const scopeKey = JSON.stringify([user?.uid, authorisedSections, canGroupReport]);
-  const [loadedScope, setLoadedScope] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [section, setSection] = useState(() => new URLSearchParams(window.location.search).get("section") ?? ALL_AUTHORISED_SECTIONS);
   const [memberId, setMemberId] = useState(() => new URLSearchParams(window.location.search).get("member") ?? "");
   const [period, setPeriod] = useState("");
   const [amount, setAmount] = useState("");
@@ -54,62 +44,14 @@ export default function SubsManagement() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [correction, setCorrection] = useState<SubsPayment | null>(null);
   const [correctionReason, setCorrectionReason] = useState("");
-  const loadVersion = useRef(0);
   const paymentSubmission = useRef(false);
   const paymentOperationId = useRef("");
-  const selectableSections = useMemo(
-    () =>
-      selectableSubsSections(
-        authorisedSections,
-        canGroupReport,
-        members.map((member) => member.section),
-      ),
-    [authorisedSections, canGroupReport, members],
-  );
-  const effectiveSection = normaliseSubsSection(section, selectableSections, canGroupReport);
-  useEffect(() => {
-    if (section !== effectiveSection) setSection(effectiveSection);
-  }, [effectiveSection, section]);
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (effectiveSection === ALL_AUTHORISED_SECTIONS) url.searchParams.delete("section");
-    else url.searchParams.set("section", effectiveSection);
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-  }, [effectiveSection]);
-  const load = useCallback(async () => {
-    const version = ++loadVersion.current;
-    setLoadedScope("");
-    setLoading(true);
-    setError("");
-    try {
-      const [assignmentRows, paymentRows, m, p] = await Promise.all([
-        canGroupReport ? loadSubsAssignments() : Promise.all(authorisedSections.map((value) => loadSubsAssignments(value))).then((rows) => rows.flat()),
-        canGroupReport ? loadSubsPayments() : Promise.all(authorisedSections.map((value) => loadSubsPayments(value))).then((rows) => rows.flat()),
-        loadSubsMembers(canGroupReport ? undefined : authorisedSections),
-        loadSubsPolicies(),
-      ]);
-      if (version !== loadVersion.current) return;
-      setLoadedScope(scopeKey);
-      setMembers(m);
-      setPolicies(p);
-      setAssignments(assignmentRows);
-      setPayments(uniquePayments(paymentRows));
-      const currentPolicy = resolveCurrentSubsPolicy(p);
-      setPeriod((current) => current && p.some((policy) => policy.period === current) ? current : currentPolicy?.period ?? "");
-    } catch (e) {
-      if (version === loadVersion.current) setError(applicationErrorMessage(e, "Unable to load Subs data. Try again.", "SubsManagement"));
-    } finally {
-      if (version === loadVersion.current) setLoading(false);
-    }
-  }, [authorisedSections, canGroupReport, scopeKey]);
-  useEffect(() => {
-    void load();
-    return () => { ++loadVersion.current; };
-  }, [load]);
-  const currentPolicy = useMemo(() => resolveCurrentSubsPolicy(policies), [policies]);
-  const visibleMembers = useMemo(() => members.filter((member) => isMemberInSubsScope(member.section, effectiveSection, authorisedSections, canGroupReport)), [authorisedSections, canGroupReport, effectiveSection, members]);
-  const visibleAssignments = useMemo(() => assignments.filter((assignment) => isMemberInSubsScope(assignment.section, effectiveSection, authorisedSections, canGroupReport)), [assignments, authorisedSections, canGroupReport, effectiveSection]);
-  const visiblePayments = useMemo(() => (effectiveSection === ALL_AUTHORISED_SECTIONS ? payments : payments.filter((payment) => payment.section === effectiveSection || visibleAssignments.some((assignment) => assignment.accountId && assignment.accountId === payment.accountId))), [effectiveSection, payments, visibleAssignments]);
+  const {
+    members, policies, assignments, currentPolicy,
+    visibleMembers, visibleAssignments, visiblePayments,
+    effectiveSection, selectableSections, setSection,
+    scopeKey, loadedScope, loading, error, setError, load,
+  } = useSubsRecords(user?.uid, authorisedSections, canGroupReport, setPeriod);
   useEffect(() => {
     if (!loading && memberId && !visibleMembers.some((member) => member.id === memberId)) setMemberId("");
   }, [loading, memberId, visibleMembers]);
