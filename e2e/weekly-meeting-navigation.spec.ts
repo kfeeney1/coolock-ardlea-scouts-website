@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { setRolloutSwitch } from "./support/rollout-switches";
 
@@ -32,21 +32,50 @@ async function ensureOpenScoutsMeeting(page: Page) {
 }
 
 test("SW-264 authorised meeting editor routes to canonical Create Meeting and protects unsaved changes", async ({ page }, testInfo) => {
-  desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
-  await loginAsLeader(page, { email: sectionLeaderEmail, password: password! }); await page.goto("/leader/weekly");
-  const meeting = page.getByRole("button", { name: /· Scouts/ }).first();
-  if (await meeting.count()) await meeting.click(); else { const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("link", { name: /View/ }).click(); }
-  const create = page.getByRole("button", { name: "Create Meeting", exact: true });
-  await expect(create).toBeVisible();
-  if (await page.getByRole("button", { name: "Programme", exact: true }).count()) {
-    await page.getByRole("button", { name: "Programme", exact: true }).click();
-    const theme = page.getByLabel("Theme");
-    if (await theme.isEnabled()) {
-      await theme.fill(`${await theme.inputValue()} autosaved`); await create.click();
-      await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
-    }
+  desktopOnly(testInfo);
+  test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
+  await loginAsLeader(page, { email: sectionLeaderEmail, password: password! });
+  await page.goto("/leader/weekly");
+  await page.getByRole("link", { name: "Create Meeting", exact: true }).click();
+  const createHeading = page.getByRole("heading", { name: "Create Meeting", exact: true });
+  await expect(createHeading).toBeVisible();
+  await page.getByRole("textbox", { name: /^Meeting date/ }).fill("14-11-2098");
+  await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
+  const meetingUrl = page.url();
+
+  const programme = page.getByRole("button", { name: "Programme", exact: true });
+  const theme = page.getByRole("textbox", { name: "Theme", exact: true });
+  await programme.click();
+  await expect(theme).toBeEditable();
+  const updatedTheme = `SW-525 navigation ${new URL(meetingUrl).searchParams.get("meeting")}`;
+  await expect(theme).not.toHaveValue(updatedTheme);
+  const writes = "**/google.firestore.v1.Firestore/Write/channel?**";
+  const writeGate = Promise.withResolvers<void>();
+  const holdThemeWrite = async (route: Route) => {
+    const payload = new URLSearchParams(route.request().postData() ?? "");
+    if ([...payload.values()].some(value => value.includes(updatedTheme))) await writeGate.promise;
+    await route.continue();
+  };
+  await page.route(writes, holdThemeWrite);
+  try {
+    // Hold this edit's write so background saving cannot finish before the click.
+    await theme.fill(updatedTheme);
+    await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save Meeting", exact: true })).toBeDisabled();
+    await expect(page).toHaveURL(meetingUrl);
+    writeGate.resolve();
+    await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
+    await expect(createHeading).toBeVisible();
+  } finally {
+    writeGate.resolve();
+    await page.unrouteAll({ behavior: "wait" });
   }
-  await create.click(); await expect(page).toHaveURL(/\/leader\/weekly\/create$/); await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+
+  await page.goto(meetingUrl);
+  await expect(page).toHaveURL(meetingUrl);
+  await programme.click();
+  await expect(theme).toHaveValue(updatedTheme);
 });
 
 test("SW-369 open weekly meeting returns to the Weekly Meetings list with its menu context", async ({ page }, testInfo) => {
