@@ -752,125 +752,17 @@ service cloud.firestore {
         return data.appointments.size() > index
           && badgeworkSectionAppointmentMatches(data.appointments[index], sectionAliases);
       }
-      function weeklyMeetingHasPresentMemberGroup0(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 0, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 1, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 2, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 3, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 4, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 5, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 6, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 7, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 8, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 9, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup1(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 10, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 11, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 12, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 13, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 14, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 15, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 16, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 17, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 18, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 19, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup2(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 20, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 21, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 22, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 23, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 24, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 25, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 26, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 27, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 28, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 29, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup3(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 30, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 31, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 32, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 33, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 34, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 35, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 36, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 37, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 38, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 39, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup4(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 40, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 41, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 42, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 43, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 44, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 45, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 46, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 47, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 48, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 49, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup5(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 50, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 51, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 52, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 53, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 54, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 55, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 56, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 57, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 58, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 59, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup6(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 60, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 61, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 62, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 63, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 64, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 65, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 66, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 67, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 68, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 69, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup7(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 70, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 71, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 72, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 73, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 74, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 75, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 76, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 77, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 78, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 79, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup8(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 80, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 81, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 82, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 83, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 84, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 85, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 86, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 87, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 88, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 89, memberId);
-      }
-      function weeklyMeetingHasPresentMemberGroup9(entries, memberId) {
-        return weeklyMeetingPresentEntryAt(entries, 90, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 91, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 92, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 93, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 94, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 95, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 96, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 97, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 98, memberId)
-            || weeklyMeetingPresentEntryAt(entries, 99, memberId);
+      function weeklyMeetingHasPresentMemberGroup(entries, memberId, start) {
+        return weeklyMeetingPresentEntryAt(entries, start, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 1, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 2, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 3, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 4, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 5, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 6, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 7, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 8, memberId)
+          || weeklyMeetingPresentEntryAt(entries, start + 9, memberId);
       }
       function badgeworkMemberAppointmentMatches(appointment, memberData) {
         return appointment is map
@@ -904,16 +796,16 @@ service cloud.firestore {
       }
       function weeklyMeetingHasPresentMember(meeting, memberId) {
         let entries = meeting.entries;
-        return entries is list && (weeklyMeetingHasPresentMemberGroup0(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup1(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup2(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup3(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup4(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup5(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup6(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup7(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup8(entries, memberId)
-            || weeklyMeetingHasPresentMemberGroup9(entries, memberId));
+        return entries is list && (weeklyMeetingHasPresentMemberGroup(entries, memberId, 0)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 10)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 20)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 30)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 40)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 50)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 60)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 70)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 80)
+            || weeklyMeetingHasPresentMemberGroup(entries, memberId, 90));
       }
       function badgeworkMemberAppointmentAt(data, index, memberData) {
         return data.appointments.size() > index
