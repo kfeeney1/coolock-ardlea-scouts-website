@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { suitesForChangedPath } from "../../scripts/playwright-suites.mjs";
+import { suiteSpecs, suitesForChangedPath } from "../../scripts/playwright-suites.mjs";
 
 test("changed application paths select the matching Playwright suites", () => {
   assert.deepEqual(suitesForChangedPath("src/services/weeklyTracker.ts"), ["activities-programme"]);
@@ -9,9 +9,11 @@ test("changed application paths select the matching Playwright suites", () => {
   assert.deepEqual(suitesForChangedPath("e2e/sw265-badgework-navigation.spec.ts"), ["badgework"]);
 });
 
-test("Playwright workflow changes retain representative workflow coverage", () => {
-  assert.deepEqual(suitesForChangedPath(".github/workflows/playwright-e2e.yml"), ["activities-programme", "platform-ui"]);
-});
+for (const path of [".github/workflows/playwright-e2e.yml", "scripts/playwright-suites.mjs"]) {
+  test(`${path} independently selects every Playwright suite`, () => {
+    assert.deepEqual(suitesForChangedPath(path), Object.keys(suiteSpecs));
+  });
+}
 
 test("unknown shared application paths conservatively request the full suite", () => {
   assert.equal(suitesForChangedPath("src/components/UnknownSharedControl.tsx"), null);
