@@ -2398,20 +2398,24 @@ service cloud.firestore {
             : appointments[index].appointment.lower() in ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl", "group secretary", "group treasurer", "group quartermaster / bo'sun", "group quartermaster", "group bo'sun", "group quartermaster/bo'sun", "group chairperson", "group youth champion", "group trainer", "section leader", "assistant section leader", "programme scouter", "scouter"])
           && maintenanceAppointmentActive(appointments[index]);
       }
-      function maintenanceOrganisationAppointment(data, groupOnly) {
+      function maintenanceLegacyAppointment(data, groupOnly) {
+        return groupOnly ? data.scoutingRole.lower() == "group leader" && data.organisationSection == "Group"
+          : data.scoutingRole.lower() in ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl", "group secretary", "group treasurer", "group quartermaster / bo'sun", "group quartermaster", "group bo'sun", "group quartermaster/bo'sun", "group chairperson", "group youth champion", "group trainer", "section leader", "assistant section leader", "programme scouter", "scouter"];
+      }
+      function maintenanceHasGroupLeaderAppointment(data) {
         return data.get("appointments", []).size() == 0
-          ? (groupOnly ? data.scoutingRole.lower() == "group leader" && data.organisationSection == "Group"
-            : data.scoutingRole.lower() in ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl", "group secretary", "group treasurer", "group quartermaster / bo'sun", "group quartermaster", "group bo'sun", "group quartermaster/bo'sun", "group chairperson", "group youth champion", "group trainer", "section leader", "assistant section leader", "programme scouter", "scouter"])
-          : (maintenanceAppointmentAt(data, 0, groupOnly) || maintenanceAppointmentAt(data, 1, groupOnly)
-            || maintenanceAppointmentAt(data, 2, groupOnly) || maintenanceAppointmentAt(data, 3, groupOnly)
-            || maintenanceAppointmentAt(data, 4, groupOnly) || maintenanceAppointmentAt(data, 5, groupOnly)
-            || maintenanceAppointmentAt(data, 6, groupOnly) || maintenanceAppointmentAt(data, 7, groupOnly)
-            || maintenanceAppointmentAt(data, 8, groupOnly) || maintenanceAppointmentAt(data, 9, groupOnly)
-            || maintenanceAppointmentAt(data, 10, groupOnly) || maintenanceAppointmentAt(data, 11, groupOnly));
+          ? maintenanceLegacyAppointment(data, true)
+          : (maintenanceAppointmentAt(data, 0, true) || maintenanceAppointmentAt(data, 1, true)
+            || maintenanceAppointmentAt(data, 2, true) || maintenanceAppointmentAt(data, 3, true)
+            || maintenanceAppointmentAt(data, 4, true) || maintenanceAppointmentAt(data, 5, true)
+            || maintenanceAppointmentAt(data, 6, true) || maintenanceAppointmentAt(data, 7, true)
+            || maintenanceAppointmentAt(data, 8, true) || maintenanceAppointmentAt(data, 9, true)
+            || maintenanceAppointmentAt(data, 10, true) || maintenanceAppointmentAt(data, 11, true));
       }
       function maintenanceProjectionEvidence(organisation, index, groupOnly) {
+        // The legacy index requires an empty appointment list, so it needs no scan.
         return index is int && index >= -1 && index < 12
-          && (index == -1 ? organisation.get("appointments", []).size() == 0 && maintenanceOrganisationAppointment(organisation, groupOnly)
+          && (index == -1 ? organisation.get("appointments", []).size() == 0 && maintenanceLegacyAppointment(organisation, groupOnly)
             : maintenanceAppointmentAt(organisation, index, groupOnly));
       }
       function maintenanceLeaderProjection(uid, data) {
@@ -2423,7 +2427,7 @@ service cloud.firestore {
           && data.uid == uid && data.displayName == organisation.displayName
           && data.groupLeader is bool
           && (data.groupLeader ? maintenanceProjectionEvidence(organisation, data.groupLeaderIndex, true)
-            : data.groupLeaderIndex == -1 && !maintenanceOrganisationAppointment(organisation, true));
+            : data.groupLeaderIndex == -1 && !maintenanceHasGroupLeaderAppointment(organisation));
       }
       allow get, list: if isAdmin() || maintenanceMember();
       allow create, update: if isAdmin() && maintenanceLeaderProjection(uid, request.resource.data)
