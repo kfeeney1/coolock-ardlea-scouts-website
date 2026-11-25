@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { setRolloutSwitch } from "./support/rollout-switches";
 
@@ -50,12 +50,27 @@ test("SW-264 authorised meeting editor routes to canonical Create Meeting and pr
   await expect(theme).toBeEditable();
   const updatedTheme = `SW-525 navigation ${new URL(meetingUrl).searchParams.get("meeting")}`;
   await expect(theme).not.toHaveValue(updatedTheme);
-  await theme.fill(updatedTheme);
-
-  // Leave from the editor without clicking Save Meeting.
-  await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
-  await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
-  await expect(createHeading).toBeVisible();
+  const writes = "**/google.firestore.v1.Firestore/Write/channel?**";
+  const writeGate = Promise.withResolvers<void>();
+  const holdThemeWrite = async (route: Route) => {
+    const payload = new URLSearchParams(route.request().postData() ?? "");
+    if ([...payload.values()].some(value => value.includes(updatedTheme))) await writeGate.promise;
+    await route.continue();
+  };
+  await page.route(writes, holdThemeWrite);
+  try {
+    // Hold this edit's write so background saving cannot finish before the click.
+    await theme.fill(updatedTheme);
+    await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save Meeting", exact: true })).toBeDisabled();
+    await expect(page).toHaveURL(meetingUrl);
+    writeGate.resolve();
+    await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
+    await expect(createHeading).toBeVisible();
+  } finally {
+    writeGate.resolve();
+    await page.unrouteAll({ behavior: "wait" });
+  }
 
   await page.goto(meetingUrl);
   await expect(page).toHaveURL(meetingUrl);
