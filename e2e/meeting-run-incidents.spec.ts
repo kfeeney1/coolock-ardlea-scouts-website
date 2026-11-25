@@ -17,6 +17,7 @@ async function draft(page: Page, concern = "Synthetic concern") {
   await page.getByRole("textbox", { name: "Injury / medical concern" }).fill(concern);
   await page.getByRole("textbox", { name: "Action taken" }).fill("Synthetic first aid");
   await page.getByRole("checkbox", { name: "Parent informed", exact: true }).check();
+  return member!;
 }
 test.beforeEach(async () => {
   test.skip(!password, "Configure canonical E2E credentials.");
@@ -35,7 +36,8 @@ test("Run retains attendance invariants and draft fields across stages and progr
   const attendance = row.getByRole("checkbox", { name: /^Attendance/ }); const uniform = row.getByRole("checkbox", { name: /^Uniform/ });
   await uniform.check(); await expect(attendance).toBeChecked(); await attendance.uncheck(); await expect(uniform).not.toBeChecked();
   await page.getByRole("button", { name: "Mark all present", exact: true }).click(); await expect(attendance).toBeChecked();
-  await draft(page); await page.getByRole("button", { name: "View programme", exact: true }).click();
+  const incidentMember = await draft(page);
+  await page.getByRole("button", { name: "View programme", exact: true }).click();
   const reference = page.getByRole("dialog", { name: "Programme reference" }); await expect(reference).toContainText("Reference instructions"); await expect(reference).toContainText("Guest reference leader"); await expect(reference).toContainText("Cones");
   await reference.getByRole("button", { name: "Back to attendance" }).click();
   await expect(reference).toBeHidden();
@@ -44,12 +46,48 @@ test("Run retains attendance invariants and draft fields across stages and progr
   await waitForTransientOverlayHistory(page);
   await expect(page).toHaveURL(new RegExp(`meeting=${id}$`));
   await expect(attendance).toBeChecked();
-  await page.getByRole("button", { name: "Review", exact: true }).click(); await page.getByRole("button", { name: "Run", exact: true }).click();
+  const meetingUrl = page.url();
+  const runHeading = page.getByRole("heading", { name: "Run meeting", exact: true });
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Review meeting", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(runHeading).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Incident member" })).toHaveText(incidentMember);
   await expect(page.getByRole("textbox", { name: "Injury / medical concern" })).toHaveValue("Synthetic concern");
-  await page.getByRole("button", { name: "Add incident to draft", exact: true }).click(); await expect(page.getByRole("status").filter({ hasText: "Incident added" })).toBeVisible();
-  await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await expect(page.getByTestId("meeting-save-state")).toHaveText("Saved");
-  const stored = (await scheduleFixtureDb().doc(`weeklyMeetings/${id}`).get()).data()!; expect(stored.injuries).toHaveLength(1); expect(stored.injuries[0]).toMatchObject({ concern: "Synthetic concern", actionTaken: "Synthetic first aid", parentInformed: true, severity: "minor" }); expect(Number.isFinite(Date.parse(stored.injuries[0].recordedAt))).toBe(true);
-  await page.reload(); await page.getByRole("button", { name: "Run", exact: true }).click(); await expect(page.getByText(/Recorded: \d{2}-\d{2}-\d{4}/)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Action taken" })).toHaveValue("Synthetic first aid");
+  await expect(page.getByRole("checkbox", { name: "Parent informed", exact: true })).toBeChecked();
+  await page.getByRole("button", { name: "Add incident to draft", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Incident added" })).toBeVisible();
+  await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
+  await expect(page.getByTestId("meeting-save-state")).toHaveText("Saved");
+  await expect(runHeading).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Meeting saved." })).toBeVisible();
+
+  const stored = (await scheduleFixtureDb().doc(`weeklyMeetings/${id}`).get()).data()!;
+  expect(stored.injuries).toHaveLength(1);
+  expect(stored.injuries[0]).toMatchObject({
+    memberName: incidentMember,
+    concern: "Synthetic concern",
+    actionTaken: "Synthetic first aid",
+    parentInformed: true,
+    severity: "minor"
+  });
+  expect(Number.isFinite(Date.parse(stored.injuries[0].recordedAt))).toBe(true);
+
+  const reloadDialogs: string[] = [];
+  page.once("dialog", async dialog => {
+    reloadDialogs.push(dialog.type());
+    await dialog.accept();
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  expect(reloadDialogs, "A saved incident must reload without a native dialog").toEqual([]);
+  await expect(page).toHaveURL(meetingUrl);
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  const restoredIncident = page.getByRole("alert").filter({ hasText: "Synthetic concern" });
+  await expect(restoredIncident).toHaveCount(1);
+  await expect(restoredIncident.getByText(`${incidentMember}: Synthetic concern`, { exact: true })).toBeVisible();
+  await expect(restoredIncident.getByText("minor · Synthetic first aid · Parent informed", { exact: true })).toBeVisible();
+  await expect(restoredIncident.getByText(/Recorded: \d{2}-\d{2}-\d{4}/)).toBeVisible();
 });
 test("Incomplete incident blocks Save and sharing, retaining fields; valid share saves incident once", async ({ page }) => {
   await enter(page); await page.getByRole("textbox", { name: "Action taken" }).fill("Incomplete action");
