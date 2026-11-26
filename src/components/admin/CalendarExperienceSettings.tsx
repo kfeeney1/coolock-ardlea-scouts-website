@@ -1,4 +1,5 @@
-import { Alert, FormControlLabel, Paper, Switch, Typography } from "@mui/material";
+import FeatureSettingSwitch from "./FeatureSettingSwitch";
+import { Alert, Paper, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { saveCalendarExperience, watchCalendarExperience, type CalendarExperienceVersion } from "../../services/calendarExperienceSettings";
@@ -21,15 +22,16 @@ export default function CalendarExperienceSettings() {
     catch (failure) { setError(applicationErrorMessage(failure, "Unable to save Calendar settings.", "CalendarExperienceSettings")); }
     finally { inFlight.current = false; setSaving(false); }
   };
-  return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
+  return <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3 }}>
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Calendar setting saved. Canonical records are preserved.</Alert>}
     {!version && !error && <Typography>Loading Calendar setting…</Typography>}
-    <FormControlLabel label="Group Calendar" control={
-      <Switch color="secondary" checked={version === "redesigned"} disabled={!version || saving}
-        onChange={event => void save(event.target.checked ? "redesigned" : "existing")}
-        slotProps={{ input: { role: "switch" } }} sx={{ minHeight: 44 }} />
-    } />
+    <FeatureSettingSwitch
+      label="Group Calendar"
+      checked={version === "redesigned"}
+      disabled={!version || saving}
+      onChange={enabled => void save(enabled ? "redesigned" : "existing")}
+    />
     {saving && <Typography role="status">Saving Calendar setting…</Typography>}
   </Paper>;
 }

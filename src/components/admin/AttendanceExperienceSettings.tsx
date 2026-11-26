@@ -1,4 +1,5 @@
-import { Alert, Button, FormControlLabel, Paper, Stack, Switch, Typography } from "@mui/material";
+import FeatureSettingSwitch from "./FeatureSettingSwitch";
+import { Alert, Paper, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { saveAttendanceExperience, watchAttendanceExperience, type AttendanceExperienceVersion } from "../../services/attendanceExperienceSettings";
@@ -23,13 +24,16 @@ export default function AttendanceExperienceSettings({ reports = false }: { repo
     catch (failure) { setError(applicationErrorMessage(failure, `Unable to save ${label} settings.`, "AttendanceExperienceSettings")); }
     finally { inFlight.current = false; setSaving(false); }
   };
-  return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
-    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>{label} experience</Typography>
+  return <Paper aria-busy={saving} variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3, borderRadius: 2 }}>
+    <FeatureSettingSwitch
+      label={reports ? "Redesigned Reports menu and landing page" : "Attendance matrix"}
+      checked={version === "redesigned"}
+      disabled={!version || saving}
+      onChange={enabled => void save(enabled ? "redesigned" : "existing")}
+    />
+    {!version && !error && <Typography role="status">Loading {label} setting…</Typography>}
+    {saving && <Typography role="status">Saving {label} setting…</Typography>}
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">{label} experience saved.</Alert>}
-    {!version && !error && <Typography>Loading {label} setting…</Typography>}
-    {reports ? <FormControlLabel label="Redesigned Reports menu and landing page" control={<Switch checked={version === "redesigned"} disabled={!version || saving} onChange={(_, checked) => void save(checked ? "redesigned" : "existing")} />} /> : <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-      {(["existing", "redesigned"] as const).map((option) => <Button key={option} aria-pressed={version === option} variant={version === option ? "contained" : "outlined"} disabled={!version || saving} onClick={() => void save(option)} sx={{ minHeight: 44 }}>{option === "existing" ? "Existing attendance" : "Attendance matrix"}</Button>)}
-    </Stack>}
   </Paper>;
 }

@@ -119,9 +119,9 @@ test.describe("stable TEST environment smoke", () => {
     await signIn(page, "/leader/login", process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com");
     await expect(page.getByRole("heading", { name: "Leader Dashboard", exact: true })).toBeVisible();
     await page.goto("/leader/settings");
-    const matrixChoice = page.getByRole("button", { name: "Attendance matrix", exact: true });
+    const matrixChoice = page.getByRole("switch", { name: "Attendance matrix", exact: true });
     await expect(matrixChoice).toBeEnabled();
-    const matrixEnabled = await matrixChoice.getAttribute("aria-pressed") === "true";
+    const matrixEnabled = await matrixChoice.isChecked();
     for (let visit = 0; visit < 2; visit++) {
       if (visit === 0) await page.goto("/leader/attendance"); else await page.reload();
       await expect(page.getByRole("heading", { name: "Attendance History & Insights", exact: true })).toBeVisible();
