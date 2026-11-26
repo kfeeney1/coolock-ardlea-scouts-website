@@ -120,6 +120,7 @@ test("Attendance matrix keeps its saved state while a save is pending and after 
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
+    const settingsOrigin = new URL(page.url()).origin;
     const matrixSetting = page.getByRole("switch", { name: "Attendance matrix", exact: true });
     await expect(matrixSetting).toBeEnabled();
     await expect(matrixSetting).not.toBeChecked();
@@ -128,7 +129,11 @@ test("Attendance matrix keeps its saved state while a save is pending and after 
       await pendingCommit;
       await route.fulfill({
         status: 403,
-        headers: { "Access-Control-Allow-Origin": "*" },
+        // Firestore can send this cross-origin request with credentials.
+        headers: {
+          "Access-Control-Allow-Origin": settingsOrigin,
+          "Access-Control-Allow-Credentials": "true",
+        },
         json: { error: { code: 403, message: "Fixture denied the save.", status: "PERMISSION_DENIED" } },
       });
     });
@@ -137,7 +142,9 @@ test("Attendance matrix keeps its saved state while a save is pending and after 
     await expect(matrixSetting).toBeDisabled();
     await expect(matrixSetting).not.toBeChecked();
     rejectCommit();
-    await expect(page.getByRole("alert").filter({ hasText: /Unable to save Attendance Insights settings/ })).toBeVisible();
+    const rejectionAlert = page.getByRole("alert").filter({ hasText: /Unable to save Attendance Insights settings/ });
+    await expect(rejectionAlert).toBeVisible();
+    await expect(rejectionAlert).toContainText("Code: PERMISSION_DENIED");
     await expect(matrixSetting).toBeEnabled();
     await expect(matrixSetting).not.toBeChecked();
     await page.unroute(commitUrl);
