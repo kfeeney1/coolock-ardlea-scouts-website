@@ -1,3 +1,4 @@
+import FeatureSettingSwitch from "../components/admin/FeatureSettingSwitch";
 import MaintenanceDirectorySettings from "../components/admin/MaintenanceDirectorySettings";
 import BadgeworkExperienceSettings from "../components/admin/BadgeworkExperienceSettings";
 import HallHireSettings from "../components/admin/HallHireSettings";
@@ -9,10 +10,8 @@ import {
     Box,
     Button,
     Container,
-    FormControlLabel,
     Paper,
     Stack,
-    Switch,
     TextField,
     Typography
 } from "@mui/material";
@@ -176,7 +175,11 @@ export default function SiteSettings() {
             setParentLoginEnabled(enabled);
             setParentLoginMessage(`Parent Login ${enabled ? "enabled" : "disabled"}. Public navigation will use this setting immediately.`);
         } catch (saveError) {
-            setParentLoginError(applicationErrorMessage(saveError, "Unable to save Parent Login settings. The previous setting is still active.", "SiteSettings"));
+            const persisted = await loadParentLoginEnabled().catch(() => null);
+            setParentLoginEnabled(persisted);
+            setParentLoginError(applicationErrorMessage(saveError, persisted === null
+                ? "Unable to verify the saved Parent Login setting. Reload settings and try again."
+                : "Unable to save Parent Login settings. Check the current setting and try again.", "SiteSettings"));
         } finally {
             parentLoginSaveInFlight.current = false;
             setParentLoginSaving(false);
@@ -195,7 +198,11 @@ export default function SiteSettings() {
             setParentConsentEnabled(enabled);
             setParentConsentMessage(`Parent Portal Consent and Medical Consent ${enabled ? "enabled" : "disabled"}. The saved setting applies when Parent Portal content next loads.`);
         } catch (saveError) {
-            setParentConsentError(applicationErrorMessage(saveError, "Unable to save Parent Portal consent settings. The previous setting is still active.", "SiteSettings"));
+            const persisted = await loadParentConsentEnabled().catch(() => null);
+            setParentConsentEnabled(persisted);
+            setParentConsentError(applicationErrorMessage(saveError, persisted === null
+                ? "Unable to verify the saved Parent Portal consent setting. Reload settings and try again."
+                : "Unable to save Parent Portal consent settings. Check the current setting and try again.", "SiteSettings"));
         } finally {
             parentConsentSaveInFlight.current = false;
             setParentConsentSaving(false);
@@ -278,58 +285,32 @@ export default function SiteSettings() {
                 )}
 
                 {showFeatures && (
-                    <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
-                        <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Public Parent Login</Typography>
-                        {parentLoginMessage && <Alert severity="success" role="status" sx={{ mb: 2 }}>{parentLoginMessage}</Alert>}
-                        {parentLoginError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{parentLoginError}</Alert>}
-                        {parentLoginSettingsLoading ? (
-                            <Typography color="text.secondary">Loading Parent Login setting…</Typography>
-                        ) : parentLoginEnabled === null ? (
-                            <Typography color="text.secondary">The setting is unavailable until it can be loaded. Reload the page to retry.</Typography>
-                        ) : (
-                            <Stack spacing={1}>
-                                <Box>
-                                    <FormControlLabel
-                                        label="Enable Parent Login"
-                                        control={(
-                                            <Switch
-                                                checked={parentLoginEnabled}
-                                                disabled={parentLoginSaving || parentLoginLoading}
-                                                onChange={(event) => void changeParentLogin(event.target.checked)}
-                                            />
-                                        )}
-                                    />
-                                    <Typography variant="body2" color="text.secondary">{parentLoginSaving ? "Saving…" : parentLoginEnabled ? "Enabled" : "Disabled"}</Typography>
-                                </Box>
-                            </Stack>
-                        )}
+                    <Paper aria-busy={parentLoginSaving} variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3, borderRadius: 2 }}>
+                        <FeatureSettingSwitch
+                            label="Enable Parent Login"
+                            checked={parentLoginEnabled === true}
+                            disabled={parentLoginSettingsLoading || parentLoginEnabled === null || parentLoginSaving}
+                            onChange={enabled => void changeParentLogin(enabled)}
+                        />
+                        {parentLoginSettingsLoading && <Typography role="status">Loading Parent Login setting…</Typography>}
+                        {parentLoginSaving && <Typography role="status">Saving Parent Login setting…</Typography>}
+                        {parentLoginMessage && <Alert severity="success" role="status">{parentLoginMessage}</Alert>}
+                        {parentLoginError && <Alert severity="error">{parentLoginError}</Alert>}
                     </Paper>
                 )}
 
                 {showFeatures && (
-                    <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
-                        <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Parent Portal consent forms</Typography>
-                        {parentConsentMessage && <Alert severity="success" role="status" sx={{ mb: 2 }}>{parentConsentMessage}</Alert>}
-                        {parentConsentError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{parentConsentError}</Alert>}
-                        {parentConsentLoading ? (
-                            <Typography color="text.secondary">Loading Parent Portal consent setting…</Typography>
-                        ) : parentConsentEnabled === null ? (
-                            <Typography color="text.secondary">The setting is unavailable until it can be loaded. Reload the page to retry.</Typography>
-                        ) : (
-                            <Box>
-                                <FormControlLabel
-                                    label="Enable Parent Portal Consent and Medical Consent"
-                                    control={(
-                                        <Switch
-                                            checked={parentConsentEnabled}
-                                            disabled={parentConsentSaving || parentConsentLoading}
-                                            onChange={(event) => void changeParentConsent(event.target.checked)}
-                                        />
-                                    )}
-                                />
-                                <Typography variant="body2" color="text.secondary">{parentConsentSaving ? "Saving…" : parentConsentEnabled ? "Enabled" : "Disabled"}</Typography>
-                            </Box>
-                        )}
+                    <Paper aria-busy={parentConsentSaving} variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3, borderRadius: 2 }}>
+                        <FeatureSettingSwitch
+                            label="Enable Parent Portal Consent and Medical Consent"
+                            checked={parentConsentEnabled === true}
+                            disabled={parentConsentLoading || parentConsentEnabled === null || parentConsentSaving}
+                            onChange={enabled => void changeParentConsent(enabled)}
+                        />
+                        {parentConsentLoading && <Typography role="status">Loading Parent Portal consent setting…</Typography>}
+                        {parentConsentSaving && <Typography role="status">Saving Parent Portal consent setting…</Typography>}
+                        {parentConsentMessage && <Alert severity="success" role="status">{parentConsentMessage}</Alert>}
+                        {parentConsentError && <Alert severity="error">{parentConsentError}</Alert>}
                     </Paper>
                 )}
 

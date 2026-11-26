@@ -48,6 +48,7 @@ export async function setParentConsentEnabled(browser: Browser, enabled: boolean
     await page.goto("/leader/settings");
     const setting = page.getByRole("switch", { name: "Enable Parent Portal Consent and Medical Consent" });
     await expect(setting).toBeVisible();
+    await expect(setting).toBeEnabled();
     const previousEnabled = await setting.isChecked();
     if (previousEnabled !== enabled) {
       await setting.click();

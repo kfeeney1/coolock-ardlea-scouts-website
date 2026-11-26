@@ -1,4 +1,5 @@
-import { Alert, FormControlLabel, Paper, Switch, Typography } from "@mui/material";
+import FeatureSettingSwitch from "./FeatureSettingSwitch";
+import { Alert, Paper, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { saveMeetingRecordsExperience, watchMeetingRecordsExperience, type MeetingRecordsExperienceVersion } from "../../services/meetingRecordsExperienceSettings";
@@ -21,15 +22,16 @@ export default function MeetingRecordsExperienceSettings() {
     catch (failure) { setError(applicationErrorMessage(failure, "Unable to save Meeting Records layout settings.", "MeetingRecordsExperienceSettings")); }
     finally { inFlight.current = false; setSaving(false); }
   };
-  return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
+  return <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3 }}>
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Meeting Records layout setting saved.</Alert>}
     {!version && !error && <Typography>Loading Meeting Records layout setting…</Typography>}
-    <FormControlLabel label="Redesigned Meeting Records" control={
-      <Switch color="secondary" checked={version === "redesigned"} disabled={!version || saving}
-        onChange={event => void save(event.target.checked ? "redesigned" : "existing")}
-        slotProps={{ input: { role: "switch" } }} sx={{ minHeight: 44 }} />
-    } />
+    <FeatureSettingSwitch
+      label="Redesigned Meeting Records"
+      checked={version === "redesigned"}
+      disabled={!version || saving}
+      onChange={enabled => void save(enabled ? "redesigned" : "existing")}
+    />
     {saving && <Typography role="status">Saving Meeting Records layout setting…</Typography>}
   </Paper>;
 }

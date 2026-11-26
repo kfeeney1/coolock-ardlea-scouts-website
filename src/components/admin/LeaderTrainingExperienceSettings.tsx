@@ -1,4 +1,5 @@
-import { Alert, FormControlLabel, Paper, Switch } from "@mui/material";
+import FeatureSettingSwitch from "./FeatureSettingSwitch";
+import { Alert, Paper } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { saveLeaderTrainingExperience, watchLeaderTrainingExperience, type LeaderTrainingExperienceVersion } from "../../services/leaderTrainingExperienceSettings";
@@ -19,8 +20,15 @@ export default function LeaderTrainingExperienceSettings() {
     catch (failure) { setError(applicationErrorMessage(failure, "Unable to save leader training settings.", "LeaderTrainingExperienceSettings")); }
     finally { inFlight.current = false; setSaving(false); }
   };
-  return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3, borderRadius: 2 }}>
-    <FormControlLabel label="Leader training & vetting" control={<Switch color="secondary" checked={version === "redesigned"} disabled={!version || saving} onChange={event => void save(event.target.checked)} slotProps={{ input: { role: "switch" } }} sx={{ minHeight: 44 }} />} />
+  return <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3, borderRadius: 2 }}>
+    <FeatureSettingSwitch
+      label="Leader training & vetting"
+      checked={version === "redesigned"}
+      disabled={!version || saving}
+      onChange={enabled => void save(enabled)}
+    />
+    {!version && !error && <Alert severity="info" role="status">Loading setting…</Alert>}
+    {saving && <Alert severity="info" role="status">Saving leader training setting…</Alert>}
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Leader training setting saved.</Alert>}
   </Paper>;

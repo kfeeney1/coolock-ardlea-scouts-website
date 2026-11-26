@@ -6,7 +6,7 @@ import { scheduleFixtureDb } from "./support/schedule-fixtures";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 import { rolloutSwitch } from "./support/rollout-switches";
 
-test("Superuser rollout persists independently; matrix scroll, filters and rollback preserve summaries and records", async ({ page }, testInfo) => {
+test("Superuser rollout persists independently; matrix scroll, filters and rollback preserve summaries and records", async ({ page, isMobile }, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
   const cleanup = await seedAttendanceMatrix();
   const db = scheduleFixtureDb();
@@ -14,13 +14,14 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
-    const enable = page.getByRole("button", { name: "Attendance matrix", exact: true });
-    const disable = page.getByRole("button", { name: "Existing attendance", exact: true });
-    await expect(disable).toHaveAttribute("aria-pressed", "true");
-    await enable.click();
-    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    const matrixSetting = page.getByRole("switch", { name: "Attendance matrix", exact: true });
+    await expect(matrixSetting).toBeEnabled();
+    await expect(matrixSetting).not.toBeChecked();
+    if (isMobile) await page.getByText("Attendance matrix", { exact: true }).tap();
+    else await matrixSetting.press("Space");
+    await expect(matrixSetting).toBeChecked();
     await page.reload();
-    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    await expect(matrixSetting).toBeChecked();
     for (const kind of ["navigation", "schedules"] as const) {
       const control = rolloutSwitch(page, kind);
       await expect(control).toBeEnabled();
@@ -95,8 +96,12 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     await page.getByTestId("attendance-to-date").fill("01-01-2098");
     await expect(table).toHaveText(values.replace(/\s+/g, " "), { useInnerText: true });
     await page.goto("/leader/settings");
-    await disable.click();
-    await expect(disable).toHaveAttribute("aria-pressed", "true");
+    await matrixSetting.click();
+    await expect(matrixSetting).toBeEnabled();
+    await expect(matrixSetting).not.toBeChecked();
+    await page.reload();
+    await expect(matrixSetting).toBeEnabled();
+    await expect(matrixSetting).not.toBeChecked();
     await page.goto("/leader/attendance");
     await expect(scroll).toHaveCount(0);
     await expectAttendancePresentation(page, false);
@@ -104,6 +109,45 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     await expect(page.getByTestId("attendance-member-card").first()).toBeVisible();
     expect(await Promise.all(matrixMeetingIds.map(async id => (await db.doc(`weeklyMeetings/${id}`).get()).data()))).toEqual(before);
   } finally { await cleanup(); }
+});
+
+test("Attendance matrix keeps its saved state while a save is pending and after rejection", async ({ page }) => {
+  test.skip(!password, "Configure canonical E2E credentials.");
+  const cleanup = await seedAttendanceMatrix();
+  const commitUrl = "**/documents:commit?*";
+  let rejectCommit!: () => void;
+  const pendingCommit = new Promise<void>(resolve => { rejectCommit = resolve; });
+  try {
+    await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
+    await page.goto("/leader/settings");
+    const matrixSetting = page.getByRole("switch", { name: "Attendance matrix", exact: true });
+    await expect(matrixSetting).toBeEnabled();
+    await expect(matrixSetting).not.toBeChecked();
+    await page.route(commitUrl, async route => {
+      if (route.request().method() !== "POST") return route.continue();
+      await pendingCommit;
+      await route.fulfill({
+        status: 403,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        json: { error: { code: 403, message: "Fixture denied the save.", status: "PERMISSION_DENIED" } },
+      });
+    });
+    await matrixSetting.click();
+    await expect(page.getByRole("status").filter({ hasText: "Saving Attendance Insights setting" })).toBeVisible();
+    await expect(matrixSetting).toBeDisabled();
+    await expect(matrixSetting).not.toBeChecked();
+    rejectCommit();
+    await expect(page.getByRole("alert").filter({ hasText: /Unable to save Attendance Insights settings/ })).toBeVisible();
+    await expect(matrixSetting).toBeEnabled();
+    await expect(matrixSetting).not.toBeChecked();
+    await page.unroute(commitUrl);
+    await matrixSetting.click();
+    await expect(matrixSetting).toBeChecked();
+  } finally {
+    rejectCommit();
+    await page.unroute(commitUrl);
+    await cleanup();
+  }
 });
 
 test("unset and invalid attendance settings retain existing insights; navigation and schedules do not enable the matrix", async ({ page }) => {
@@ -125,7 +169,7 @@ test("unset and invalid attendance settings retain existing insights; navigation
     await expect(table).toBeVisible();
     await expect(table.getByRole("columnheader").filter({ hasText: "Cubs" })).toHaveCount(0);
     await page.goto("/leader/settings");
-    await expect(page.getByRole("button", { name: "Attendance matrix", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: "Attendance matrix", exact: true })).toHaveCount(0);
   } finally { await cleanup(); }
 });
 
@@ -137,9 +181,9 @@ test("attendance rollout reaches a separate leader session independently of mixe
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
-    const enable = page.getByRole("button", { name: "Attendance matrix", exact: true });
-    await enable.click();
-    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    const matrixSetting = page.getByRole("switch", { name: "Attendance matrix", exact: true });
+    await matrixSetting.click();
+    await expect(matrixSetting).toBeChecked();
     const leaderPage = await otherSession.newPage();
     await loginAsLeader(leaderPage, { email: process.env.E2E_LEADER_EMAIL || "test.scout.programme.scouter@example.com", password: password! });
     for (const navigation of [true, false]) {
@@ -148,7 +192,8 @@ test("attendance rollout reaches a separate leader session independently of mixe
       await leaderPage.goto("/leader/attendance");
       await expect(leaderPage.getByRole("table", { name: "Member attendance by meeting" })).toBeVisible();
     }
-    await page.getByRole("button", { name: "Existing attendance", exact: true }).click();
+    await matrixSetting.click();
+    await expect(matrixSetting).not.toBeChecked();
     await expect(leaderPage.getByRole("table", { name: "Member attendance by meeting" })).toHaveCount(0);
     await expect(leaderPage.getByTestId("meeting-average-rate")).toBeVisible();
   } finally { await otherSession.close(); await cleanup(); }
@@ -160,11 +205,11 @@ test("Weekly Meetings opens a matrix-only view before Meeting History and keeps 
   try {
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/leader/settings");
-    const enable = page.getByRole("button", { name: "Attendance matrix", exact: true });
-    const disable = page.getByRole("button", { name: "Existing attendance", exact: true });
-    await expect(disable).toHaveAttribute("aria-pressed", "true");
-    await enable.click();
-    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    const matrixSetting = page.getByRole("switch", { name: "Attendance matrix", exact: true });
+    await expect(matrixSetting).toBeEnabled();
+    await expect(matrixSetting).not.toBeChecked();
+    await matrixSetting.click();
+    await expect(matrixSetting).toBeChecked();
 
     await page.goto("/leader/weekly");
     const link = page.getByRole("link", { name: "Attendance Matrix", exact: true });
@@ -189,8 +234,9 @@ test("Weekly Meetings opens a matrix-only view before Meeting History and keeps 
     await expect(link).toBeVisible();
 
     await page.goto("/leader/settings");
-    await disable.click();
-    await expect(disable).toHaveAttribute("aria-pressed", "true");
+    await matrixSetting.click();
+    await expect(matrixSetting).toBeEnabled();
+    await expect(matrixSetting).not.toBeChecked();
     await page.goto("/leader/weekly");
     await expect(page.getByRole("link", { name: "Attendance Matrix", exact: true })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Meeting History", exact: true })).toBeVisible();

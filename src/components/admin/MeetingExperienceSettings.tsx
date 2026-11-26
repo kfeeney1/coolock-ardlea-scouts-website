@@ -1,4 +1,5 @@
-import { Alert, FormControlLabel, Paper, Switch } from "@mui/material";
+import FeatureSettingSwitch from "./FeatureSettingSwitch";
+import { Alert, Paper } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { saveMeetingExperience, watchMeetingExperience, type MeetingExperienceVersion } from "../../services/meetingExperienceSettings";
@@ -19,8 +20,14 @@ export default function MeetingExperienceSettings() {
     catch (failure) { setError(applicationErrorMessage(failure, "Unable to save meeting workflow settings.", "MeetingExperienceSettings")); }
     finally { inFlight.current = false; setSaving(false); }
   };
-  return <Paper aria-busy={saving} variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3, borderRadius: 2 }}>
-    <FormControlLabel label="Plan, Run and Review meeting workflow" control={<Switch color="secondary" checked={version === "redesigned"} disabled={!version || saving} onChange={event => void save(event.target.checked)} slotProps={{ input: { role: "switch" } }} sx={{ minHeight: 44 }} />} />
+  return <Paper aria-busy={saving} variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3, borderRadius: 2 }}>
+    <FeatureSettingSwitch
+      label="Plan, Run and Review meeting workflow"
+      checked={version === "redesigned"}
+      disabled={!version || saving}
+      onChange={enabled => void save(enabled)}
+    />
+    {!version && !error && <Alert severity="info" role="status">Loading setting…</Alert>}
     {saving && <Alert severity="info" role="status">Saving meeting workflow setting…</Alert>}
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Meeting workflow setting saved.</Alert>}

@@ -1,4 +1,5 @@
-import { Alert, FormControlLabel, Paper, Switch, Typography } from "@mui/material";
+import FeatureSettingSwitch from "./FeatureSettingSwitch";
+import { Alert, Paper, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 import { maintenanceAvailable, maintenanceCostHoldMessage } from "../../services/maintenanceRuntime";
@@ -22,16 +23,17 @@ export default function MaintenanceExperienceSettings() {
     catch (failure) { setError(applicationErrorMessage(failure, "Unable to save Maintenance settings.", "MaintenanceExperienceSettings")); }
     finally { inFlight.current = false; setSaving(false); }
   };
-  return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
+  return <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3 }}>
     {!maintenanceAvailable && <Alert severity="info">{maintenanceCostHoldMessage}</Alert>}
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Maintenance setting saved. Existing tasks and documents are retained.</Alert>}
     {!version && !error && <Typography>Loading Maintenance setting…</Typography>}
-    <FormControlLabel label="Maintenance" control={
-      <Switch color="secondary" checked={version === "redesigned"} disabled={!version || saving || !maintenanceAvailable}
-        onChange={event => void save(event.target.checked ? "redesigned" : "existing")}
-        slotProps={{ input: { role: "switch" } }} sx={{ minHeight: 44 }} />
-    } />
+    <FeatureSettingSwitch
+      label="Maintenance"
+      checked={version === "redesigned"}
+      disabled={!version || saving || !maintenanceAvailable}
+      onChange={enabled => void save(enabled ? "redesigned" : "existing")}
+    />
     {saving && <Typography role="status">Saving Maintenance setting…</Typography>}
   </Paper>;
 }
