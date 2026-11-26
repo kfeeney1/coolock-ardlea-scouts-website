@@ -207,7 +207,9 @@ export function suitesForChangedPath(file) {
     "tests/unit/focusedPlaywrightSelection.test.ts",
     "tests/unit/playwrightSuites.test.ts"
   ].includes(file)) return [];
-  if (file === ".github/workflows/playwright-e2e.yml" || file === "scripts/playwright-suites.mjs") return ["activities-programme", "platform-ui"];
+  if (file === ".github/workflows/playwright-e2e.yml" || file === "scripts/playwright-suites.mjs") {
+    return Object.keys(suiteSpecs);
+  }
   if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
   if (file === "src/hooks/useConfirmEventLeave.ts") return ["activities-programme", "platform-ui"];
   if ([
