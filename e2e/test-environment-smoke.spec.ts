@@ -39,13 +39,15 @@ test.describe("stable TEST environment smoke", () => {
     await expect(page.getByRole("contentinfo")).not.toContainText(/Build /i);
     });
 
-    test("Edit Event opens and returns from a synthetic TEST record", async ({ page, baseURL }) => {
+    test("Synthetic TEST Event Record opens its editor and returns", async ({ page, baseURL }) => {
       expect(["coolock-ardlea-scouts-test.web.app", "coolock-ardlea-scouts-test.firebaseapp.com"])
         .toContain(new URL(baseURL!).hostname);
       await signIn(page, "/leader/login", "test.cub.section.leader@example.com");
       await expect(page.getByRole("heading", { name: "Leader Dashboard", exact: true })).toBeVisible();
       const recordPath = "/leader/events/TEST_parent_consent_smoke_cubs";
       await page.goto(recordPath);
+      await expect(page.getByTestId("event-record-TEST_parent_consent_smoke_cubs")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Attendance", exact: true })).toBeVisible();
       await page.getByRole("link", { name: "Edit Event", exact: true }).click();
       await expect(page.getByRole("textbox", { name: /Event title/ })).toHaveValue("TEST Cubs Parent Consent Smoke");
       await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();

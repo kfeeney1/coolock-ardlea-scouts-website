@@ -2,11 +2,17 @@ import FeatureSettingSwitch from "./FeatureSettingSwitch";
 import { Alert, Paper, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
-import { saveAttendanceExperience, watchAttendanceExperience, type AttendanceExperienceVersion } from "../../services/attendanceExperienceSettings";
+import { saveAttendanceExperience, watchAttendanceExperience, type AttendanceExperienceVersion, type ConfigurableExperience } from "../../services/attendanceExperienceSettings";
 
-export default function AttendanceExperienceSettings({ reports = false, eventEdit = false }: { reports?: boolean; eventEdit?: boolean }) {
-  const experience = eventEdit ? "eventEditExperience" : reports ? "reportsExperience" : "attendanceExperience";
-  const label = eventEdit ? "Edit Event" : reports ? "Reports" : "Attendance Insights";
+const experienceLabels = {
+  attendanceExperience: { label: "Attendance Insights", switchLabel: "Attendance matrix" },
+  reportsExperience: { label: "Reports", switchLabel: "Redesigned Reports menu and landing page" },
+  eventEditExperience: { label: "Edit Event", switchLabel: "Redesigned Edit Event" },
+  eventRecordExperience: { label: "Event Record", switchLabel: "Redesigned Event Record" }
+} satisfies Record<ConfigurableExperience, { label: string; switchLabel: string }>;
+
+export default function AttendanceExperienceSettings({ experience = "attendanceExperience" }: { experience?: ConfigurableExperience }) {
+  const { label, switchLabel } = experienceLabels[experience];
   const [version, setVersion] = useState<AttendanceExperienceVersion | null>(null);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -26,7 +32,7 @@ export default function AttendanceExperienceSettings({ reports = false, eventEdi
   };
   return <Paper aria-busy={saving} variant="outlined" sx={{ p: { xs: 2, md: 3 }, maxWidth: 760, mt: 3, borderRadius: 2 }}>
     <FeatureSettingSwitch
-      label={eventEdit ? "Redesigned Edit Event" : reports ? "Redesigned Reports menu and landing page" : "Attendance matrix"}
+      label={switchLabel}
       checked={version === "redesigned"}
       disabled={!version || saving}
       onChange={enabled => void save(enabled ? "redesigned" : "existing")}

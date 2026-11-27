@@ -3,19 +3,19 @@ import { auth, db } from "../firebase";
 import { ServiceFailure } from "./applicationErrors";
 
 export type AttendanceExperienceVersion = "existing" | "redesigned";
-type Experience = "attendanceExperience" | "reportsExperience" | "eventEditExperience";
+export type ConfigurableExperience = "attendanceExperience" | "reportsExperience" | "eventEditExperience" | "eventRecordExperience";
 export function attendanceVersion(data?: Record<string, unknown>): AttendanceExperienceVersion {
   return data?.version === "redesigned" ? "redesigned" : "existing";
 }
 /** This document contains only the group-wide presentation choice and its audit metadata. */
-export function watchAttendanceExperience(next: (version: AttendanceExperienceVersion) => void, failed: () => void, experience: Experience = "attendanceExperience") {
+export function watchAttendanceExperience(next: (version: AttendanceExperienceVersion) => void, failed: () => void, experience: ConfigurableExperience = "attendanceExperience") {
   const ref = doc(db, "siteSettings", experience);
   return onSnapshot(ref, { includeMetadataChanges: true }, (snapshot) => {
     if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
     next(attendanceVersion(snapshot.data()));
   }, failed);
 }
-export async function saveAttendanceExperience(version: AttendanceExperienceVersion, expected: AttendanceExperienceVersion, experience: Experience = "attendanceExperience") {
+export async function saveAttendanceExperience(version: AttendanceExperienceVersion, expected: AttendanceExperienceVersion, experience: ConfigurableExperience = "attendanceExperience") {
   const ref = doc(db, "siteSettings", experience);
   const user = auth.currentUser;
   if (!user) throw new ServiceFailure("Sign in to change this experience.", "auth/unauthenticated");
