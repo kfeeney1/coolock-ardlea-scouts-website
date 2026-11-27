@@ -264,3 +264,47 @@ test("direct Create Event route remains protected", async ({ page }, testInfo) =
   await expect(page).toHaveURL(/\/leader\/login/);
   await expect(page.getByLabel("Email address")).toBeVisible();
 });
+
+test("Edit Event rollout preserves navigation and reflows at 320px", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Run on desktop and mobile Chromium.");
+  test.skip(!password || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080", "Requires the seeded local emulator.");
+  const { scheduleFixtureDb } = await import("./support/schedule-fixtures");
+  const setting = scheduleFixtureDb().doc("siteSettings/eventEditExperience");
+  const previous = await setting.get();
+  const recordPath = "/leader/events/TEST_flow_event_beavers_open";
+  try {
+    await setting.set({ version: "existing" });
+    await loginAsLeader(page, { email: adminEmail, password: password! });
+    await page.goto(recordPath + "/edit");
+    const title = page.getByRole("textbox", { name: /Event title/ });
+    await expect(title).toBeVisible();
+    const details = page.getByRole("heading", { name: "Event details", exact: true });
+    await expect(details).toHaveCount(0);
+
+    await setting.set({ version: "redesigned" });
+    await expect(details).toBeVisible();
+    if (testInfo.project.name === "mobile-chromium") {
+      await page.setViewportSize({ width: 320, height: 800 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    }
+    const save = page.getByRole("button", { name: "Save Event", exact: true });
+    const back = page.getByRole("link", { name: "Back to Event", exact: true });
+    await expect(save).toBeVisible();
+    expect((await save.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    expect((await back.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+
+    await title.fill("Synthetic unsaved Edit Event draft");
+    await back.focus();
+    await page.keyboard.press("Enter");
+    const leave = page.getByRole("alertdialog", { name: "Unsaved event changes" });
+    await expect(leave.getByRole("button", { name: "Stay" })).toBeFocused();
+    await leave.getByRole("button", { name: "Stay" }).click();
+    await expect(title).toHaveValue("Synthetic unsaved Edit Event draft");
+    await back.click();
+    await leave.getByRole("button", { name: "Discard" }).click();
+    await expect(page).toHaveURL(new RegExp(recordPath + "$"));
+  } finally {
+    if (previous.exists) await setting.set(previous.data()!);
+    else await setting.delete();
+  }
+});

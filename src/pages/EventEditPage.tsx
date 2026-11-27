@@ -1,3 +1,4 @@
+import { useExperienceVersion } from "../hooks/useAttendanceExperience";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import EventHallUse from "../components/hall/EventHallUse";
 import DateRangeFields from "../components/DateRangeFields";
@@ -25,6 +26,7 @@ type LoadedEventEditor = {
 export default function EventEditPage() {
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
+  const redesigned = useExperienceVersion("eventEditExperience") === "redesigned";
   const [loadedEditor, setLoadedEditor] = useState<LoadedEventEditor | null>(null);
   const [hallDraftDirty, setHallDraftDirty] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -158,31 +160,61 @@ export default function EventEditPage() {
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];
 
+  const sectionStyle = redesigned ? {
+    p: 2, minWidth: 0, border: 1, borderColor: "divider", borderRadius: 2,
+    bgcolor: "background.paper", "& .MuiButton-root": { minHeight: 44 }
+  } : { display: "contents" };
+  const sectionHeading = (title: string) => redesigned && (
+    <Typography component="h2" variant="h6" color="secondary">{title}</Typography>
+  );
+
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
-    <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />
+    {redesigned ? (
+      <Typography component="h1" variant="h4" color="secondary" sx={{ mb: 2, overflowWrap: "anywhere" }}>
+        Edit event · {event?.title}
+      </Typography>
+    ) : <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />}
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-    <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><Box component="fieldset" disabled={saving || hallDraftDirty} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}><Stack spacing={2}>
-      <TextField required label="Event title" value={draft.title} onChange={(input) => updateDraft((current) => ({ ...current, title: input.target.value }))} />
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-        <FormControl disabled={saving || hallDraftDirty}><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(input) => updateDraft((current) => ({ ...current, eventType: input.target.value }))}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-        <FormControl disabled={saving || hallDraftDirty}><InputLabel id="event-edit-section-label">Section</InputLabel><Select disabled={saving || hallDraftDirty || event?.hallResource === "group-hall"} labelId="event-edit-section-label" label="Section" value={draft.section} onChange={(input) => updateDraft((current) => ({ ...current, section: input.target.value }))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-        <Box component="fieldset" disabled={event?.hallResource === "group-hall"} sx={{ gridColumn: "1 / -1", border: 0, p: 0, m: 0, minWidth: 0 }}><DateRangeFields startDate={draft.startDate} endDate={draft.endDate} startLabel="Start date" endLabel="End date" startRequired onStartDateChange={(startDate) => updateDraft((current) => ({ ...current, startDate, ...(current.endDate && current.endDate < startDate ? { endDate: "" } : {}) }))} onEndDateChange={(endDate) => updateDraft((current) => ({ ...current, endDate }))} /></Box>
+    <Paper variant="outlined" sx={{ p: redesigned ? 0 : { xs: 2, md: 3 }, ...(redesigned && { border: 0, bgcolor: "transparent" }) }}><Box component="fieldset" disabled={saving || hallDraftDirty} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+      <Box sx={{
+        display: "grid", gap: redesigned ? 1.5 : 2, alignItems: "start",
+        gridTemplateColumns: redesigned ? { xs: "minmax(0, 1fr)", md: "minmax(0, 6fr) minmax(0, 5fr)" } : "minmax(0, 1fr)"
+      }}>
+        <Stack spacing={2} useFlexGap sx={sectionStyle}>
+          {sectionHeading("Event details")}
+          <TextField required label="Event title" value={draft.title} onChange={(input) => updateDraft((current) => ({ ...current, title: input.target.value }))} />
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+            <FormControl disabled={saving || hallDraftDirty}><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(input) => updateDraft((current) => ({ ...current, eventType: input.target.value }))}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+            <FormControl disabled={saving || hallDraftDirty}><InputLabel id="event-edit-section-label">Section</InputLabel><Select disabled={saving || hallDraftDirty || event?.hallResource === "group-hall"} labelId="event-edit-section-label" label="Section" value={draft.section} onChange={(input) => updateDraft((current) => ({ ...current, section: input.target.value }))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+            <Box component="fieldset" disabled={event?.hallResource === "group-hall"} sx={{ gridColumn: "1 / -1", border: 0, p: 0, m: 0, minWidth: 0 }}><DateRangeFields startDate={draft.startDate} endDate={draft.endDate} startLabel="Start date" endLabel="End date" startRequired onStartDateChange={(startDate) => updateDraft((current) => ({ ...current, startDate, ...(current.endDate && current.endDate < startDate ? { endDate: "" } : {}) }))} onEndDateChange={(endDate) => updateDraft((current) => ({ ...current, endDate }))} /></Box>
+          </Box>
+          <TextField label="Location" value={draft.location} onChange={(input) => updateDraft((current) => ({ ...current, location: input.target.value }))} />
+          <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(input) => updateDraft((current) => ({ ...current, description: input.target.value }))} />
+          <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(input) => updateDraft((current) => ({ ...current, meetingPoint: input.target.value }))} />
+          <TextField label="Return / collection details" value={draft.returnDetails} onChange={(input) => updateDraft((current) => ({ ...current, returnDetails: input.target.value }))} />
+          <TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={(input) => updateDraft((current) => ({ ...current, leaderNotes: input.target.value }))} />
+        </Stack>
+        <Stack spacing={redesigned ? 1.5 : 2} useFlexGap sx={redesigned ? { minWidth: 0 } : { display: "contents" }}>
+          <Stack spacing={2} useFlexGap sx={sectionStyle}>
+            <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience} members={activeMembers} disabled={saving || hallDraftDirty} onChange={(audience) => updateDraft((current) => ({ ...current, audience }))} />
+          </Stack>
+          <Stack spacing={2} useFlexGap sx={sectionStyle}>
+            {sectionHeading("Status & consent")}
+            <FormControl disabled={saving || hallDraftDirty}><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={(input) => updateDraft((current) => ({ ...current, status: input.target.value as EventStatus }))}>{EVENT_STATUSES.map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
+            <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(input) => updateDraft((current) => ({ ...current, consentRequired: input.target.checked }))} />} label="Event consent required" />
+          </Stack>
+          <Stack spacing={2} useFlexGap sx={sectionStyle}>
+            {sectionHeading("Save event")}
+            <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
+            <Stack direction={redesigned ? { xs: "column", lg: "row" } : { xs: "column", sm: "row" }} spacing={1}>
+              <Button variant="contained" color={redesigned ? "primary" : "success"} disabled={draft.audience?.mode === "members" && selectedIds.length === 0} onClick={() => void saveAndReturnToEvents()}>{saving ? "Saving…" : "Save Event"}</Button>
+              <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" color={redesigned ? "secondary" : "primary"}>Back to Event</Button>
+            </Stack>
+          </Stack>
+        </Stack>
       </Box>
-      <TextField label="Location" value={draft.location} onChange={(input) => updateDraft((current) => ({ ...current, location: input.target.value }))} />
-      <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(input) => updateDraft((current) => ({ ...current, description: input.target.value }))} />
-      <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(input) => updateDraft((current) => ({ ...current, meetingPoint: input.target.value }))} />
-      <TextField label="Return / collection details" value={draft.returnDetails} onChange={(input) => updateDraft((current) => ({ ...current, returnDetails: input.target.value }))} />
-      <TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={(input) => updateDraft((current) => ({ ...current, leaderNotes: input.target.value }))} />
-      <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience} members={activeMembers} disabled={saving || hallDraftDirty} onChange={(audience) => updateDraft((current) => ({ ...current, audience }))} />
-      <FormControl disabled={saving || hallDraftDirty}><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={(input) => updateDraft((current) => ({ ...current, status: input.target.value as EventStatus }))}>{EVENT_STATUSES.map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
-      <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(input) => updateDraft((current) => ({ ...current, consentRequired: input.target.checked }))} />} label="Event consent required" />
-      <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button variant="contained" color="success" disabled={draft.audience?.mode === "members" && selectedIds.length === 0} onClick={() => void saveAndReturnToEvents()}>{saving ? "Saving…" : "Save Event"}</Button>
-        <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined">Back to Event</Button>
-      </Stack>
-    </Stack></Box></Paper>
+    </Box></Paper>
     {event?.hallResource === "group-hall" && <Alert severity="info" sx={{mt: 2}}>Release hall time below before changing event dates or section. Programme and consent edits remain available.</Alert>}
     {event && <Box sx={{mt: 2}}><EventHallUse key={`${event.id}:${event.hallRevision ?? 0}:${refresh}`} event={event} blocked={dirty || saving} onDirty={setHallDraftDirty} onSaved={hallSaved} /></Box>}
     <Dialog open={confirmAudienceRemoval} onClose={() => setConfirmAudienceRemoval(false)} aria-labelledby="event-audience-removal-title" aria-describedby="event-audience-removal-description" slotProps={{ paper: { role: "alertdialog" } }} fullWidth maxWidth="xs">
