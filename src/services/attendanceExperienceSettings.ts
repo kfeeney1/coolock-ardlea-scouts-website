@@ -3,7 +3,7 @@ import { auth, db } from "../firebase";
 import { ServiceFailure } from "./applicationErrors";
 
 export type AttendanceExperienceVersion = "existing" | "redesigned";
-type Experience = "attendanceExperience" | "reportsExperience";
+type Experience = "attendanceExperience" | "reportsExperience" | "eventEditExperience";
 export function attendanceVersion(data?: Record<string, unknown>): AttendanceExperienceVersion {
   return data?.version === "redesigned" ? "redesigned" : "existing";
 }
