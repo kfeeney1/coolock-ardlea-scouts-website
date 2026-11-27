@@ -209,7 +209,7 @@ export default function EventEditPage() {
             <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
             <Stack direction={redesigned ? { xs: "column", lg: "row" } : { xs: "column", sm: "row" }} spacing={1}>
               <Button variant="contained" color={redesigned ? "primary" : "success"} disabled={draft.audience?.mode === "members" && selectedIds.length === 0} onClick={() => void saveAndReturnToEvents()}>{saving ? "Saving…" : "Save Event"}</Button>
-              <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined">Back to Event</Button>
+              <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" color={redesigned ? "secondary" : "primary"}>Back to Event</Button>
             </Stack>
           </Stack>
         </Stack>
