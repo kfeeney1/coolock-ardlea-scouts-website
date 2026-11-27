@@ -241,7 +241,7 @@ export default function EventRecordPage() {
                 <Button component={Link} to="/leader/events" variant="outlined" color="secondary" sx={{ minHeight: 44 }}>Back to Events &amp; Activities</Button>
             </> : <>
                 {redesigned ? (
-                    <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} alignItems={{ sm: "start" }} justifyContent="space-between" sx={{ mb: 2 }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap sx={{ alignItems: { sm: "start" }, justifyContent: "space-between", mb: 2 }}>
                         <Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
                             <Typography component="h1" variant="h4" color="secondary">{event.title}</Typography>
                             <Typography color="text.secondary">{event.section} · {event.eventType} · {eventStatusLabel(event.status)}</Typography>
@@ -287,7 +287,7 @@ export default function EventRecordPage() {
                             {event.description && <Box sx={{ mt: 2.5 }}><Typography variant="overline" color="text.secondary">Description</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{event.description}</Typography></Box>}
                             {event.leaderNotes && <Box sx={{ mt: 2.5 }}><Typography variant="overline" color="text.secondary">Leader notes</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{event.leaderNotes}</Typography></Box>}
                         </Box>
-                        <Stack gap={2} sx={{ display: redesigned ? "flex" : "contents", minWidth: 0 }}>
+                        <Stack spacing={2} useFlexGap sx={{ display: redesigned ? "flex" : "contents", minWidth: 0 }}>
                             <Box sx={{ display: redesigned ? "block" : "contents", p: redesigned ? 2 : 0, border: redesigned ? 1 : 0, borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
                                 {redesigned && <Typography component="h2" variant="h6" color="secondary">Attendance and consent</Typography>}
                                 {summary && <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: redesigned ? 1 : 2.5 }}>
