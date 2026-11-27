@@ -170,7 +170,11 @@ export default function EventEditPage() {
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
-    <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />
+    {redesigned ? (
+      <Typography component="h1" variant="h4" color="secondary" sx={{ mb: 2, overflowWrap: "anywhere" }}>
+        Edit event · {event?.title}
+      </Typography>
+    ) : <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />}
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     <Paper variant="outlined" sx={{ p: redesigned ? 0 : { xs: 2, md: 3 }, ...(redesigned && { border: 0, bgcolor: "transparent" }) }}><Box component="fieldset" disabled={saving || hallDraftDirty} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
       <Box sx={{
