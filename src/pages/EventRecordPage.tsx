@@ -1,3 +1,4 @@
+import { useExperienceVersion } from "../hooks/useAttendanceExperience";
 import EventRosterExportLink from "../components/admin/EventRosterExportLink";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from "@mui/material";
@@ -39,6 +40,7 @@ function statusColor(status: EventRecord["status"]): "default" | "success" | "wa
 
 export default function EventRecordPage() {
     const { eventId = "" } = useParams();
+    const redesigned = useExperienceVersion("eventRecordExperience") === "redesigned";
     const [hallDraftDirty, setHallDraftDirty] = useState(false);
     const [event, setEvent] = useState<EventRecord | null>(null);
     const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -210,6 +212,26 @@ export default function EventRecordPage() {
         }
     };
 
+    const backToEvents = <Button component={Link} to="/leader/events" variant="outlined" color="secondary" sx={{ minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}>Back to Events</Button>;
+    const visibilityAction = event && canManageVisibility && <Button color={event.hidden ? "success" : "warning"} variant="contained" sx={{ minHeight: 44, width: { xs: "100%", sm: "auto" } }} onClick={() => setVisibilityConfirmOpen(true)}>{event.hidden ? "Show Event" : "Hide Event"}</Button>;
+    const attendanceAction = event && <Button variant="contained" color={event.status === "completed" ? "secondary" : "success"} onClick={openRoster}>{event.status === "completed" ? "View Attendance" : "Attendance"}</Button>;
+    const consentAction = event?.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>;
+    const editAction = event && <Button component={Link} to={`/leader/events/${encodeURIComponent(event.id)}/edit`} variant="outlined" color="secondary" disabled={event.status === "completed"}>Edit Event</Button>;
+    const programmeActions = event && (
+        <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }}>
+            <Typography component="h2" variant={redesigned ? "h6" : "h5"} color="secondary" sx={{ mb: 2 }}>{redesigned ? "Programme and resources" : "Event actions"}</Typography>
+            <Box component="fieldset" disabled={hallDraftDirty} sx={{border: 0, p: 0, m: 0, minWidth: 0, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: redesigned ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))" }, gap: 1.25 }}>
+                {!event.hidden && <EventRosterExportLink eventId={event.id} />}
+                {!redesigned && attendanceAction}
+                {!redesigned && consentAction}
+                <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>
+                <Button variant="outlined" color="success" onClick={() => setGalleryOpen(true)}>Gallery</Button>
+                <Button variant="outlined" color="primary" onClick={() => setEquipmentOpen(true)}>Equipment</Button>
+                {!redesigned && editAction}
+            </Box>
+        </Paper>
+    );
+
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
@@ -218,15 +240,19 @@ export default function EventRecordPage() {
                 <Alert severity="error" sx={{ mb: 3 }}>{error || "Event not found."}</Alert>
                 <Button component={Link} to="/leader/events" variant="outlined" color="secondary" sx={{ minHeight: 44 }}>Back to Events &amp; Activities</Button>
             </> : <>
-                <LeaderPageHeader
-                    title={event.title}
-                    description={`${event.section} · ${event.eventType} · ${eventStatusLabel(event.status)}`}
-                    actions={<Button component={Link} to="/leader/events" variant="outlined" color="secondary" sx={{ minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}>Back to Events</Button>}
-                />
+                {redesigned ? (
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap sx={{ alignItems: { sm: "start" }, justifyContent: "space-between", mb: 2 }}>
+                        <Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                            <Typography component="h1" variant="h4" color="secondary">{event.title}</Typography>
+                            <Typography color="text.secondary">{event.section} · {event.eventType} · {eventStatusLabel(event.status)}</Typography>
+                        </Box>
+                        {backToEvents}
+                    </Stack>
+                ) : <LeaderPageHeader title={event.title} actions={backToEvents} />}
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
                 {event.hidden && <Alert severity="warning" sx={{ mb: 2 }} data-testid="event-hidden-banner">Hidden event — only Super Admin can view this record.</Alert>}
-                {canManageVisibility && <Box sx={{ mb: 2 }}><Button color={event.hidden ? "success" : "warning"} variant="contained" sx={{ minHeight: 44, width: { xs: "100%", sm: "auto" } }} onClick={() => setVisibilityConfirmOpen(true)}>{event.hidden ? "Show Event" : "Hide Event"}</Button></Box>}
+                {!redesigned && visibilityAction && <Box sx={{ mb: 2 }}>{visibilityAction}</Box>}
                 <Dialog open={visibilityConfirmOpen && canManageVisibility} onClose={() => { if (!savingVisibility) setVisibilityConfirmOpen(false); }} fullWidth maxWidth="xs">
                     <DialogTitle>{event.hidden ? "Show Event" : "Hide Event"}</DialogTitle>
                     <DialogContent><Typography>{event.hidden ? "Restore this event to normal visibility?" : "Hide this event from parents and ordinary leaders? All existing event records will be retained."}</Typography><Typography sx={{ mt: 1, fontWeight: 700 }}>{event.title} · {event.section} · {formatSiteDate(event.startDate)}</Typography></DialogContent>
@@ -234,43 +260,56 @@ export default function EventRecordPage() {
                 </Dialog>
                 {event.status === "completed" && <Alert severity="info" sx={{ mb: 3 }}>Completed event history is read-only. Attendance, reports, exports and gallery access remain available.</Alert>}
 
-                <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }} data-testid={`event-record-${event.id}`}>
-                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 2 }}>
+                <Paper variant="outlined" sx={{ p: redesigned ? 0 : { xs: 2.5, md: 3 }, mb: 3, ...(redesigned && { border: 0, bgcolor: "transparent" }) }} data-testid={`event-record-${event.id}`}>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 2, ...(redesigned && { "& .MuiChip-root": { maxWidth: "100%", height: "auto" }, "& .MuiChip-label": { whiteSpace: "normal", overflowWrap: "anywhere", py: 0.5 } }) }}>
                         <Chip label={eventStatusLabel(event.status)} color={statusColor(event.status)} />
                         <Chip label={event.section} variant="outlined" />
                         {event.audience && <Chip data-testid="event-record-audience" label={eventAudienceSummary(event.audience.sectionIds, event.audience.memberIds, event.audience.resolvedMemberIds.length)} variant="outlined" />}
                         <Chip label={event.eventType} variant="outlined" />
                         {event.consentRequired && <Chip label="Consent required" color="warning" variant="outlined" />}
                     </Stack>
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
-                        <Box><Typography variant="overline" color="text.secondary">Dates</Typography><Typography>{formatSiteDate(event.startDate)}{event.endDate && event.endDate !== event.startDate ? ` to ${formatSiteDate(event.endDate)}` : ""}</Typography></Box>
-                        <Box><Typography variant="overline" color="text.secondary">Location</Typography><Typography>{event.location || "Not set"}</Typography></Box>
-                        <Box><Typography variant="overline" color="text.secondary">Meeting point</Typography><Typography>{event.meetingPoint || "Not set"}</Typography></Box>
-                        <Box><Typography variant="overline" color="text.secondary">Return details</Typography><Typography>{event.returnDetails || "Not set"}</Typography></Box>
+                    {redesigned && (
+                        <Box component="fieldset" disabled={hallDraftDirty} sx={{ border: 0, p: 0, m: 0, minWidth: 0, display: "grid", gap: 1.25, mb: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, max-content)" } }}>
+                            {attendanceAction}
+                            {editAction}
+                            {consentAction}
+                        </Box>
+                    )}
+                    <Box sx={{ display: redesigned ? "grid" : "contents", gridTemplateColumns: {xs: "1fr", md: "minmax(0, 3fr) minmax(0, 2fr)"}, gap: 2, alignItems: "start" }}>
+                        <Box sx={{ display: redesigned ? "block" : "contents", p: redesigned ? 2 : 0, border: redesigned ? 1 : 0, borderColor: "divider", borderRadius: 2, bgcolor: "background.paper", overflowWrap: "anywhere" }}>
+                            {redesigned && <Typography component="h2" variant="h6" color="secondary" sx={{ mb: 1 }}>Event details</Typography>}
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
+                                <Box><Typography variant="overline" color="text.secondary">Dates</Typography><Typography>{formatSiteDate(event.startDate)}{event.endDate && event.endDate !== event.startDate ? ` to ${formatSiteDate(event.endDate)}` : ""}</Typography></Box>
+                                <Box><Typography variant="overline" color="text.secondary">Location</Typography><Typography>{event.location || "Not set"}</Typography></Box>
+                                <Box><Typography variant="overline" color="text.secondary">Meeting point</Typography><Typography>{event.meetingPoint || "Not set"}</Typography></Box>
+                                <Box><Typography variant="overline" color="text.secondary">Return details</Typography><Typography>{event.returnDetails || "Not set"}</Typography></Box>
+                            </Box>
+                            {event.description && <Box sx={{ mt: 2.5 }}><Typography variant="overline" color="text.secondary">Description</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{event.description}</Typography></Box>}
+                            {event.leaderNotes && <Box sx={{ mt: 2.5 }}><Typography variant="overline" color="text.secondary">Leader notes</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{event.leaderNotes}</Typography></Box>}
+                        </Box>
+                        <Stack spacing={2} useFlexGap sx={{ display: redesigned ? "flex" : "contents", minWidth: 0 }}>
+                            <Box sx={{ display: redesigned ? "block" : "contents", p: redesigned ? 2 : 0, border: redesigned ? 1 : 0, borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
+                                {redesigned && <Typography component="h2" variant="h6" color="secondary">Attendance and consent</Typography>}
+                                {summary && <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: redesigned ? 1 : 2.5 }}>
+                                    <Chip label={`${summary.attending} attending`} color="success" variant="outlined" />
+                                    <Chip label={`${summary.notAttending} not attending`} variant="outlined" />
+                                    <Chip label={`${summary.invited} invited`} variant="outlined" />
+                                    {event.consentRequired && <Chip label={`${summary.consentReceived} consent received`} color="success" variant="outlined" />}
+                                    {event.consentRequired && summary.consentOutstanding > 0 && <Chip label={`${summary.consentOutstanding} consent outstanding`} color="error" />}
+                                </Stack>}
+                            </Box>
+                            {redesigned && programmeActions}
+                        </Stack>
                     </Box>
-                    {event.description && <Box sx={{ mt: 2.5 }}><Typography variant="overline" color="text.secondary">Description</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{event.description}</Typography></Box>}
-                    {event.leaderNotes && <Box sx={{ mt: 2.5 }}><Typography variant="overline" color="text.secondary">Leader notes</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{event.leaderNotes}</Typography></Box>}
-                    {summary && <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 2.5 }}>
-                        <Chip label={`${summary.attending} attending`} color="success" variant="outlined" />
-                        <Chip label={`${summary.notAttending} not attending`} variant="outlined" />
-                        <Chip label={`${summary.invited} invited`} variant="outlined" />
-                        {event.consentRequired && <Chip label={`${summary.consentReceived} consent received`} color="success" variant="outlined" />}
-                        {event.consentRequired && summary.consentOutstanding > 0 && <Chip label={`${summary.consentOutstanding} consent outstanding`} color="error" />}
-                    </Stack>}
                 </Paper>
 
-                <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }}>
-                    <Typography variant="h5" color="secondary" sx={{ mb: 2 }}>Event actions</Typography>
-                    <Box component="fieldset" disabled={hallDraftDirty} sx={{border: 0, p: 0, m: 0, minWidth: 0, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25 }}>
-                        {!event.hidden && <EventRosterExportLink eventId={event.id} />}
-                        <Button variant="contained" color={event.status === "completed" ? "secondary" : "success"} onClick={openRoster}>{event.status === "completed" ? "View Attendance" : "Attendance"}</Button>
-                        {event.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>}
-                        <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>
-                        <Button variant="outlined" color="success" onClick={() => setGalleryOpen(true)}>Gallery</Button>
-                        <Button variant="outlined" color="primary" onClick={() => setEquipmentOpen(true)}>Equipment</Button>
-                        <Button component={Link} to={`/leader/events/${encodeURIComponent(event.id)}/edit`} variant="outlined" color="secondary" disabled={event.status === "completed"}>Edit Event</Button>
-                    </Box>
-                </Paper>
+                {!redesigned && programmeActions}
+                {redesigned && visibilityAction && (
+                    <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                        <Typography component="h2" variant="h6" color="secondary" sx={{ mb: 1 }}>Event visibility</Typography>
+                        {visibilityAction}
+                    </Paper>
+                )}
 
                 {event.status === "completed" && <Box sx={{mt: 3}}><EventHallUse key={`${event.id}:${event.hallRevision ?? 0}`} event={event} allowNew={false} blocked={rosterOpen || galleryOpen || equipmentOpen || savingRoster} onDirty={setHallDraftDirty} onSaved={() => void load()} /></Box>}
                 <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} leaderOptions={leaderOptions} leaderAttendance={leaderAttendance} leaderAttendanceLoading={leaderAttendanceLoading} onLeaderAttendanceChange={setLeaderAttendance} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} />

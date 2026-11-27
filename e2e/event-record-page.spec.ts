@@ -308,3 +308,54 @@ test("Edit Event rollout preserves navigation and reflows at 320px", async ({ pa
     else await setting.delete();
   }
 });
+
+test("Event Record rollout keeps scoped navigation and mobile reflow", async ({ page, browser }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Run on desktop and mobile Chromium.");
+  test.skip(!password || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080", "Requires the seeded local emulator.");
+  const { scheduleFixtureDb } = await import("./support/schedule-fixtures");
+  const setting = scheduleFixtureDb().doc("siteSettings/eventRecordExperience");
+  const previous = await setting.get();
+  const recordPath = "/leader/events/TEST_flow_event_beavers_open";
+  try {
+    await setting.set({ version: "existing" });
+    await loginAsLeader(page, { email: "test.beaver.section.leader@example.com", password: password! });
+    await page.goto(recordPath);
+    const edit = page.getByRole("link", { name: "Edit Event", exact: true });
+    await expect(edit).toBeVisible();
+    const resources = page.getByRole("heading", { name: "Programme and resources" });
+    await expect(resources).toHaveCount(0);
+    if (testInfo.project.name === "mobile-chromium") await page.setViewportSize({ width: 320, height: 800 });
+
+    await setting.set({ version: "redesigned" });
+    await expect(resources).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hide Event", exact: true })).toHaveCount(0);
+    await expect(edit).toHaveAttribute("href", recordPath + "/edit");
+    expect((await edit.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    if (testInfo.project.name === "mobile-chromium") {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    }
+    await edit.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(new RegExp(recordPath + "/edit$"));
+    await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(recordPath + "$"));
+    await expect(resources).toBeVisible();
+
+    const denied = await browser.newContext({ baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:4173" });
+    try {
+      const deniedPage = await denied.newPage();
+      await loginAsLeader(deniedPage, { email: "test.scout.section.leader@example.com", password: password! });
+      await deniedPage.goto(recordPath);
+      await expect(deniedPage.getByRole("alert").filter({ hasText: /outside your permitted sections|no longer available/ })).toBeVisible();
+      await expect(deniedPage.getByRole("link", { name: "Edit Event", exact: true })).toHaveCount(0);
+      await deniedPage.goto(recordPath + "/edit");
+      await expect(deniedPage.getByRole("alert")).toBeVisible();
+      await expect(deniedPage.getByRole("textbox", { name: /Event title/ })).toHaveCount(0);
+    } finally {
+      await denied.close();
+    }
+  } finally {
+    if (previous.exists) await setting.set(previous.data()!);
+    else await setting.delete();
+  }
+});
