@@ -17,7 +17,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -39,7 +39,15 @@ export default function JoinManagement() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<JoinStatus | "all">("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedStatus = searchParams.get("status");
+  const statusFilter = statuses.find((status) => status === selectedStatus) ?? "all";
+  const setStatusFilter = (status: JoinStatus | "all") => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (status === "all") nextParams.delete("status");
+    else nextParams.set("status", status);
+    setSearchParams(nextParams, { replace: true, preventScrollReset: true });
+  };
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
   const load = async () => {
@@ -75,7 +83,7 @@ export default function JoinManagement() {
   return <Box data-testid="page-join-management" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title="Join Us Management" description="Process joining enquiries, track contacts and manage the waiting list." />
+      <LeaderPageHeader title="Join Us Management" actions={<Button component={Link} to="/leader/join/add" variant="contained" color="success">Add to waiting list</Button>} />
 
       <Box role="group" aria-label="Join enquiry status summary" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(6, 1fr)" }, gap: 2, mb: 3 }}>
         {summaryFilters.map(([label, value, status]) => { const active = statusFilter === status; return <Paper key={status} variant="outlined" role="button" tabIndex={0} aria-pressed={active} aria-controls="join-results" onClick={() => selectStatus(status)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectStatus(status); } }} sx={{ p: 2.5, textAlign: "center", cursor: "pointer", borderWidth: active ? 2 : 1, borderColor: active ? "secondary.main" : "divider", transition: "transform .15s ease, box-shadow .15s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: 3 }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>

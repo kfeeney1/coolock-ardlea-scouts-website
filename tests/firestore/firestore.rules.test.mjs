@@ -12,6 +12,7 @@ import {
   getDocs,
   collection,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -518,6 +519,63 @@ test("public join applications accept valid canonical submissions and reject inv
   }));
 });
 
+
+test("SW-629 leaders can add scoped waiting-list entries without gaining list or record access", async () => {
+  await seedDocuments([
+    ["adminUsers/entry-leader", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/entry-group", { active: true, role: "leader", sections: ["Group"] }],
+    ["adminUsers/entry-inactive", { active: false, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/entry-admin", { active: true, role: "admin", sections: ["Group"] }]
+  ]);
+  const leader = testEnv.authenticatedContext("entry-leader").firestore();
+  const group = testEnv.authenticatedContext("entry-group").firestore();
+  const inactive = testEnv.authenticatedContext("entry-inactive").firestore();
+  const admin = testEnv.authenticatedContext("entry-admin").firestore();
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  const id = "leader-cc973158-1cc2-4459-ae81-87d219a8c456";
+  const entry = {
+    childFirstName: "Test", childLastName: "Prospect", dateOfBirth: "2016-05-10",
+    parentName: "Test Parent", relationship: "Parent", emailAddress: "parent@example.com",
+    mobileNumber: "0870000000", section: "Scouts", status: "waiting-list",
+    source: "leader", createdBy: "entry-leader", submittedAt: serverTimestamp()
+  };
+  const path = (key = id) => "joinApplications/" + key;
+  const receipt = "adminUsers/entry-leader/waitingListSubmissions/" + id;
+  const submit = () => runTransaction(leader, async (transaction) => {
+    if ((await transaction.get(doc(leader, receipt))).exists()) return;
+    transaction.set(doc(leader, path()), entry);
+    transaction.set(doc(leader, receipt), { submittedAt: serverTimestamp() });
+  });
+
+  await assertFails(setDoc(doc(publicDb, path()), entry));
+  await assertFails(setDoc(doc(inactive, path()), { ...entry, createdBy: "entry-inactive" }));
+  await assertFails(setDoc(doc(leader, path()), { ...entry, section: "Cubs" }));
+  await assertFails(setDoc(doc(leader, path()), { ...entry, emailAddress: "invalid" }));
+  await assertFails(setDoc(doc(leader, path()), { ...entry, dateOfBirth: "2017-02-29" }));
+  await assertFails(setDoc(doc(leader, path()), { ...entry, status: "accepted" }));
+  await assertFails(setDoc(doc(leader, path()), { ...entry, memberId: "member-1" }));
+  await assertFails(setDoc(doc(leader, receipt), { submittedAt: serverTimestamp() }));
+
+  await assertSucceeds(submit());
+  await assertSucceeds(submit());
+  await assertFails(getDoc(doc(leader, path())));
+  await assertFails(getDocs(query(collection(leader, "joinApplications"), where("section", "==", "Scouts"))));
+  await assertFails(updateDoc(doc(leader, path()), { status: "closed" }));
+  await assertFails(getDoc(doc(group, receipt)));
+
+  const saved = await assertSucceeds(getDoc(doc(admin, path())));
+  assert.equal(saved.data().status, "waiting-list");
+  assert.equal(saved.data().memberId, undefined);
+  const allEntries = await assertSucceeds(getDocs(collection(admin, "joinApplications")));
+  assert.equal(allEntries.size, 1);
+  await assertSucceeds(updateDoc(doc(admin, path()), { status: "closed" }));
+  await assertSucceeds(submit());
+  assert.equal((await getDoc(doc(admin, path()))).data().status, "closed");
+
+  await assertSucceeds(setDoc(doc(group, path("leader-cc973158-1cc2-4459-ae81-87d219a8c457")), {
+    ...entry, createdBy: "entry-group", section: "Cubs"
+  }));
+});
 
 test("leaderChildRelationships enforce authorised reads and canonical admin/group-leader writes", async () => {
   await seedDocuments([

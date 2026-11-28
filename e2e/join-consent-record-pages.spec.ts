@@ -38,6 +38,69 @@ test("Join Us enquiry tiles open full-page records", async ({ page }, testInfo) 
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("SW-629 dashboard opens the scoped waiting list in one action", async ({ page }) => {
+  await loginAdmin(page, "test.scout.section.leader@example.com");
+  await page.getByRole("link", { name: "Waiting list", exact: true }).click();
+
+  await expect(page).toHaveURL(/\/leader\/join\?status=waiting-list$/);
+  await expect(page.getByRole("combobox", { name: "Status", exact: true })).toHaveText("Waiting List");
+  await expect(page.getByTestId("join-record-TEST_flow_join_waiting")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Status", exact: true })).toHaveText("Waiting List");
+  await expect(page.getByTestId("join-record-TEST_flow_join_waiting")).toBeVisible();
+  await page.getByRole("combobox", { name: "Status", exact: true }).click();
+  await page.getByRole("option", { name: "All Statuses", exact: true }).click();
+  await expect(page.getByTestId("join-record-TEST_flow_join_new")).toHaveCount(0);
+});
+
+test("SW-629 dashboard shortcut and direct URL require Join Us access", async ({ page }) => {
+  await loginAdmin(page, "test.scout.programme.scouter@example.com");
+  await expect(page.getByRole("link", { name: "Waiting list", exact: true })).toHaveCount(0);
+
+  await page.goto("/leader/join?status=waiting-list");
+  await expect(page).toHaveURL(/\/leader$/);
+  await expect(page.getByTestId("page-join-management")).toHaveCount(0);
+});
+
+test("SW-629 a programme scouter adds an entry for their section without waiting-list view access", async ({ page, browser }) => {
+  const lastName = "Prospect-" + randomUUID().slice(0, 8);
+  await loginAdmin(page, "test.scout.programme.scouter@example.com");
+  await page.getByRole("link", { name: "Add to waiting list", exact: true }).click();
+
+  await expect(page.getByRole("combobox", { name: "Section", exact: true })).toHaveText("Scouts");
+  await page.getByRole("combobox", { name: "Section", exact: true }).click();
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await page.getByRole("option", { name: "Scouts", exact: true }).click();
+  await page.getByLabel("First name").fill("TEST");
+  await page.getByLabel("Last name").fill(lastName);
+  await page.getByLabel("Date of birth", { exact: true }).fill("10-05-2016");
+  await page.getByLabel("Parent / guardian name").fill("Test Parent");
+  await page.getByLabel("Relationship", { exact: true }).fill("Parent");
+  await page.getByLabel("Mobile number").fill("0870000000");
+  await page.getByLabel("Email address").fill("sw629-waiting-list@example.com");
+  await page.getByRole("button", { name: "Save waiting-list entry" }).click();
+  await expect(page.getByText("Added to the waiting list.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View waiting list", exact: true })).toHaveCount(0);
+
+  const leaderContext = await browser.newContext();
+  try {
+    const leaderPage = await leaderContext.newPage();
+    await loginAdmin(leaderPage, "test.scout.section.leader@example.com");
+    await leaderPage.getByRole("link", { name: "Waiting list", exact: true }).click();
+    const record = leaderPage.getByRole("link", { name: "Open TEST " + lastName, exact: true });
+    await expect(record).toContainText("Waiting List");
+    await leaderPage.reload();
+    await expect(record).toContainText("Waiting List");
+    await expect(record).not.toContainText("Member Created");
+    await record.click();
+    await expect(leaderPage.getByRole("heading", { name: "TEST " + lastName, exact: true })).toBeVisible();
+    await expect(leaderPage.getByRole("button", { name: "Stage Contact", exact: true })).toBeVisible();
+  } finally {
+    await leaderContext.close();
+  }
+});
+
 test("SW-296 Join Us edits remain local until explicit Save and persist after Save", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");

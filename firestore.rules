@@ -550,7 +550,8 @@ service cloud.firestore {
         return isActiveLeader() && (isAdmin() || isGroupLeader() || isJoinSectionLeader(section));
       }
       function _validateWrite11(_writeData) {
-        return _writeData.childFirstName is string && _writeData.childLastName is string
+        return !applicationId.matches('leader-.*')
+        && _writeData.childFirstName is string && _writeData.childLastName is string
         && _writeData.dateOfBirth is string && _writeData.parentName is string
         && _writeData.emailAddress is string && _writeData.mobileNumber is string
         && _writeData.section is string
@@ -558,13 +559,42 @@ service cloud.firestore {
         && _writeData.status == "new" && _writeData.source == "website" && _writeData.submittedAt == request.time
         && !_writeData.keys().hasAny(["childDob", "dob", "childName", "name", "phone", "phoneNumber", "parentPhone", "parentMobile", "scoutSection"]);
       }
+      function validLeaderJoinEntry(data) {
+        return isActiveLeader() && data.section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]
+          && (profile().role in ["admin", "super-admin"] || profileHasSection("Group")
+            || profileHasSection(data.section))
+          && data.keys().hasOnly(["childFirstName", "childLastName", "dateOfBirth", "parentName", "relationship",
+            "emailAddress", "mobileNumber", "section", "status", "source", "submittedAt", "createdBy"])
+          && data.status == "waiting-list" && data.source == "leader" && data.createdBy == request.auth.uid
+          && data.submittedAt == request.time
+          && data.childFirstName is string && data.childFirstName.size() <= 80 && data.childFirstName.matches('.*\\S.*')
+          && data.childLastName is string && data.childLastName.size() <= 80 && data.childLastName.matches('.*\\S.*')
+          && data.parentName is string && data.parentName.size() <= 150 && data.parentName.matches('.*\\S.*')
+          && data.relationship is string && data.relationship.size() <= 80 && data.relationship.matches('.*\\S.*')
+          && data.dateOfBirth is string && appointmentDateKey(data.dateOfBirth, -1) > 0
+          && data.emailAddress is string && data.emailAddress.size() <= 254 && data.emailAddress.matches('[^\\s@]+@[^\\s@]+\\.[^\\s@]+')
+          && data.mobileNumber is string && data.mobileNumber.matches('[0-9 +()\\-]{7,20}');
+      }
       allow create: if _validateWrite11(request.resource.data);
+      allow create: if applicationId.matches('leader-[a-f0-9-]{36}') && validLeaderJoinEntry(request.resource.data);
       allow read: if canManageJoinSection(resource.data.section);
       allow update: if canManageJoinSection(resource.data.section)
         && request.resource.data.section == resource.data.section
         && request.resource.data.status in ["new", "contacted", "waiting-list", "accepted", "closed"]
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "notes", "contactHistory", "updatedAt", "memberId", "convertedAt", "convertedBy", "reconciledMemberAt", "reconciledMemberBy"]);
       allow delete: if false;
+    }
+
+    // A leader who can add entries may retry using their own receipt without reading the waiting list.
+    match /adminUsers/{uid}/waitingListSubmissions/{applicationId} {
+      function submittedApplication() {
+        return getAfter(/databases/$(database)/documents/joinApplications/$(applicationId)).data;
+      }
+      allow get: if isActiveLeader() && uid == request.auth.uid;
+      allow create: if isActiveLeader() && uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(["submittedAt"]) && request.resource.data.submittedAt == request.time
+        && submittedApplication().source == "leader" && submittedApplication().createdBy == uid
+        && submittedApplication().submittedAt == request.time;
     }
 
     match /weeklyRosterMembers/{rosterId} {
