@@ -22,21 +22,21 @@ service cloud.firestore {
     }
     function profile() { return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data; }
     function parentProfile() { return get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data; }
-    function isCanonicalLeaderProfile() {
-      let data = profile();
+    function isCanonicalLeaderProfile(data, roles) {
       return data.active == true
-        && data.role in ["leader", "admin", "super-admin"]
+        && data.role in roles
         && data.sections is list
         && data.sections.size() > 0
         && !data.keys().hasAny(["section"]);
     }
-    function isActiveLeader() {
+    function isActiveLeaderWithRole(roles) {
       return signedIn()
         && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
-        && isCanonicalLeaderProfile();
+        && isCanonicalLeaderProfile(profile(), roles);
     }
-    function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
-    function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
+    function isActiveLeader() { return isActiveLeaderWithRole(["leader", "admin", "super-admin"]); }
+    function isSuperAdmin() { return isActiveLeaderWithRole(["super-admin"]); }
+    function isAdmin() { return isActiveLeaderWithRole(["super-admin", "admin"]); }
     function appointmentDateKey(value, fallback) {
       // Match real calendar dates, including Gregorian leap days. Invalid
       // values return a sentinel so another valid appointment can still grant.
@@ -213,15 +213,26 @@ service cloud.firestore {
         || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
     }
     // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
-    function eventSectionAppointmentMatches(appointment, sectionAliases) {
+    function sectionAppointmentMatches(appointment, sectionAliases) {
       return appointment is map
         && appointment.get("active", true) == true
         && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
         && appointment.get("scope", "") in sectionAliases;
     }
-    function eventSectionAppointmentAt(data, index, sectionAliases) {
+    function sectionAppointmentAt(data, index, sectionAliases) {
       return data.appointments.size() > index
-        && eventSectionAppointmentMatches(data.appointments[index], sectionAliases);
+        && sectionAppointmentMatches(data.appointments[index], sectionAliases);
+    }
+    function sectionAppointmentTriplet(data, index, aliases) {
+      return sectionAppointmentAt(data, index, aliases)
+        || sectionAppointmentAt(data, index + 1, aliases)
+        || sectionAppointmentAt(data, index + 2, aliases);
+    }
+    function sectionAppointmentsMatch(data, aliases) {
+      return sectionAppointmentTriplet(data, 0, aliases)
+        || sectionAppointmentTriplet(data, 3, aliases)
+        || sectionAppointmentTriplet(data, 6, aliases)
+        || sectionAppointmentTriplet(data, 9, aliases);
     }
     function hasEventSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
@@ -232,18 +243,7 @@ service cloud.firestore {
               || !(leadership.appointments is list) || leadership.appointments.size() == 0)
           ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
             && leadership.organisationSection in aliases
-          : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
-            || eventSectionAppointmentAt(leadership, 1, aliases)
-            || eventSectionAppointmentAt(leadership, 2, aliases)
-            || eventSectionAppointmentAt(leadership, 3, aliases)
-            || eventSectionAppointmentAt(leadership, 4, aliases)
-            || eventSectionAppointmentAt(leadership, 5, aliases)
-            || eventSectionAppointmentAt(leadership, 6, aliases)
-            || eventSectionAppointmentAt(leadership, 7, aliases)
-            || eventSectionAppointmentAt(leadership, 8, aliases)
-            || eventSectionAppointmentAt(leadership, 9, aliases)
-            || eventSectionAppointmentAt(leadership, 10, aliases)
-            || eventSectionAppointmentAt(leadership, 11, aliases)));
+          : leadership.appointments is list && sectionAppointmentsMatch(leadership, aliases));
     }
     function canAccessEventSection(section) {
       // Every caller enforces active-leader access before this scoped check.
@@ -733,12 +733,6 @@ service cloud.firestore {
           && entry.get("memberId", "") == memberId
           && entry.get("attendance", "") == "present";
       }
-      function badgeworkSectionAppointmentMatches(appointment, sectionAliases) {
-        return appointment is map
-          && appointment.get("active", true) == true
-          && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-          && appointment.get("scope", "") in sectionAliases;
-      }
       function weeklyMeetingPresentEntryAt(entries, index, memberId) {
         return entries.size() > index
           && weeklyMeetingPresentEntryMatches(entries[index], memberId);
@@ -747,10 +741,6 @@ service cloud.firestore {
         let aliases = badgeworkSectionAliases(section);
         return (data.keys().hasAny(["section"]) && data.section is string && data.section in aliases)
           || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(aliases));
-      }
-      function badgeworkSectionAppointmentAt(data, index, sectionAliases) {
-        return data.appointments.size() > index
-          && badgeworkSectionAppointmentMatches(data.appointments[index], sectionAliases);
       }
       function weeklyMeetingHasPresentMemberGroup(entries, memberId, start) {
         return weeklyMeetingPresentEntryAt(entries, start, memberId)
@@ -781,18 +771,7 @@ service cloud.firestore {
               || !(leadership.appointments is list) || leadership.appointments.size() == 0)
               && leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
               && leadership.organisationSection == section
-            || (leadership.appointments is list && (badgeworkSectionAppointmentAt(leadership, 0, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 1, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 2, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 3, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 4, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 5, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 6, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 7, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 8, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 9, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 10, sectionAliases)
-            || badgeworkSectionAppointmentAt(leadership, 11, sectionAliases))));
+            || (leadership.appointments is list && sectionAppointmentsMatch(leadership, sectionAliases)));
       }
       function weeklyMeetingHasPresentMember(meeting, memberId) {
         let entries = meeting.entries;

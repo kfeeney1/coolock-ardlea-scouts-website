@@ -25,10 +25,11 @@ test("compiler-limit diagnostics classify known failures without leaking message
 
 test("shared leader checks expand canonical profile reads only once", () => {
   const rules = readFileSync("firestore.rules", "utf8");
-  for (const name of ["isCanonicalLeaderProfile", "profileHasSection"]) {
-    const body = rules.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?^    \\}`, "m"))?.[0] ?? "";
-    assert.equal([...body.matchAll(/profile\(\)/g)].length, 1, name);
-  }
+  const account = rules.match(/function isActiveLeaderWithRole\(roles\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
+  assert.equal([...account.matchAll(/profile\(\)/g)].length, 1);
+  assert.match(account, /isCanonicalLeaderProfile\(profile\(\), roles\)/);
+  const scope = rules.match(/function profileHasSection\(section\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
+  assert.equal([...scope.matchAll(/profile\(\)/g)].length, 1);
   const section = rules.match(/function hasSection\(section\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
   assert.equal([...section.matchAll(/isActiveLeader\(\)/g)].length, 1);
   assert.doesNotMatch(section, /isAdmin\(/);
