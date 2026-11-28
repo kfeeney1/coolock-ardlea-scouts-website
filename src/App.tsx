@@ -80,6 +80,7 @@ const ConsentRecordPage = lazy(() => import("./pages/ConsentRecordPage"));
 const MemberMedicalDirectory = lazy(() => import("./pages/MemberMedicalDirectory"));
 const QuickMedicalInformationPage = lazy(() => import("./pages/QuickMedicalInformationPage"));
 const LeaderInfo = lazy(() => import("./pages/LeaderInfo"));
+const AddWaitingListEntry = lazy(() => import("./pages/AddWaitingListEntry"));
 const JoinManagement = lazy(() => import("./pages/JoinManagement"));
 const JoinRecordPage = lazy(() => import("./pages/JoinRecordPage"));
 const MemberManagement = lazy(() => import("./pages/MemberManagement"));
@@ -169,6 +170,7 @@ export default function App() {
         <Route path="/leader/medical/:consentId" element={protectedRoute(<QuickMedicalInformationPage />)} />
         <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
         <Route path="/leader/join" element={protectedRoute(<ProtectedJoinManagementRoute><JoinManagement /></ProtectedJoinManagementRoute>)} />
+        <Route path="/leader/join/add" element={protectedRoute(<AddWaitingListEntry />)} />
         <Route path="/leader/join/:applicationId" element={protectedRoute(<ProtectedJoinManagementRoute><JoinRecordPage /></ProtectedJoinManagementRoute>)} />
         <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
         <Route path="/leader/members/:memberId" element={protectedRoute(<MemberRecordPage />)} />

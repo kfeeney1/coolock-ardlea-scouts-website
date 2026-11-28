@@ -74,6 +74,7 @@
     "/leader/consents/:consentId": "leader",
     "/leader/info": "leader",
     "/leader/join": "leader",
+    "/leader/join/add": "leader",
     "/leader/join/:applicationId": "leader",
     "/leader/members": "leader",
     "/leader/members/:memberId": "leader",

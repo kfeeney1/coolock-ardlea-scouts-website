@@ -1,6 +1,7 @@
 import { formatSiteDateTime } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import DashboardCalendarButton from "../components/admin/DashboardCalendarButton";
+import DashboardWaitingListButton from "../components/admin/DashboardWaitingListButton";
 import DashboardHallBookingsButton from "../components/admin/DashboardHallBookingsButton";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
@@ -129,6 +130,7 @@ export default function AdminDashboard() {
             <LeaderDashboardHeader />
             <DashboardCalendarButton />
             <DashboardHallBookingsButton />
+            <DashboardWaitingListButton />
             <Box id="group-polls" sx={{ scrollMarginTop: 24 }}><LeaderPollsPanel /></Box>
             <AdminOverviewPanel />
             {adminProfile?.role === "super-admin" && <OperationalHealthPanel />}

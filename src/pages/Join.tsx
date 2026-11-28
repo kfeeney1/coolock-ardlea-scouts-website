@@ -19,7 +19,7 @@ import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
-import { submitJoinApplication } from "../services/joinApplications";
+import { joinEmailPattern, submitJoinApplication } from "../services/joinApplications";
 import type { JoinApplication } from "../services/joinApplications";
 import { brandColours } from "../theme/theme";
 
@@ -41,7 +41,6 @@ const EMPTY_FORM: JoinApplication = {
     contactConsent: false
 };
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^[\d\s+\-()]{7,20}$/;
 
 export default function Join() {
@@ -65,7 +64,7 @@ export default function Join() {
         if (!form.parentName.trim()) return "Enter the parent or guardian name.";
         if (!form.relationship.trim()) return "Enter the relationship to the young person.";
         if (!phonePattern.test(form.mobileNumber.trim())) return "Enter a valid mobile number.";
-        if (!emailPattern.test(form.emailAddress.trim())) return "Enter a valid email address.";
+        if (!joinEmailPattern.test(form.emailAddress.trim())) return "Enter a valid email address.";
         if (!youthSections.some((section) => section.value === form.section)) return "Choose a valid Scout section.";
         if (!form.informationConfirmed) return "Confirm that the information is accurate.";
         if (!form.contactConsent) return "Consent to being contacted about this joining enquiry.";

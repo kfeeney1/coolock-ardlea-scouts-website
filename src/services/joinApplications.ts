@@ -1,11 +1,13 @@
-import { reportSecondaryFailure } from "./applicationErrors.ts";
+import { reportSecondaryFailure, ServiceFailure } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
+    doc,
+    runTransaction,
     serverTimestamp
 } from "firebase/firestore";
 
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 import { notifyJoinApplication } from "./emailNotifications";
 
 export type JoinApplication = {
@@ -25,6 +27,41 @@ export type JoinApplication = {
     informationConfirmed: boolean;
     contactConsent: boolean;
 };
+
+export const joinEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const joinPhonePattern = /^[\d +()\-]{7,20}$/;
+
+export type WaitingListEntry = Pick<JoinApplication,
+    "childFirstName" | "childLastName" | "dateOfBirth" | "parentName" | "relationship" |
+    "mobileNumber" | "emailAddress" | "section">;
+
+export async function addWaitingListEntry(entry: WaitingListEntry, requestId: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+
+    const applicationId = "leader-" + requestId;
+    const applicationRef = doc(db, "joinApplications", applicationId);
+    const receiptRef = doc(db, "adminUsers", user.uid, "waitingListSubmissions", applicationId);
+
+    await runTransaction(db, async (transaction) => {
+        if ((await transaction.get(receiptRef)).exists()) return;
+        transaction.set(applicationRef, {
+            childFirstName: cleanText(entry.childFirstName, 80),
+            childLastName: cleanText(entry.childLastName, 80),
+            dateOfBirth: entry.dateOfBirth,
+            parentName: cleanText(entry.parentName, 150),
+            relationship: cleanText(entry.relationship, 80),
+            mobileNumber: entry.mobileNumber.trim(),
+            emailAddress: entry.emailAddress.trim().toLowerCase(),
+            section: entry.section,
+            status: "waiting-list",
+            source: "leader",
+            createdBy: user.uid,
+            submittedAt: serverTimestamp()
+        });
+        transaction.set(receiptRef, { submittedAt: serverTimestamp() });
+    });
+}
 
 const cleanText = (
     value: string,
