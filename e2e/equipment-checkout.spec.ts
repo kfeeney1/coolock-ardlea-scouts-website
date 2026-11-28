@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 
 type Credentials = { email: string; password: string };
 
@@ -294,6 +295,7 @@ test("History stays on the audit record and Move Store uses its own item-specifi
   await page.getByRole("button", { name: "History", exact: true }).click();
   await expect(page.getByRole("dialog", { name: `${itemName} history` }).getByText("Stock moved out", { exact: true })).toBeVisible();
   await page.getByRole("dialog", { name: `${itemName} history` }).getByRole("button", { name: "Close" }).click();
+  await waitForTransientOverlayHistory(page);
   await page.reload();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
   await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
