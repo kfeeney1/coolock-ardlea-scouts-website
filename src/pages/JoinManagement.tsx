@@ -39,15 +39,10 @@ export default function JoinManagement() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState("all");
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedStatus = searchParams.get("status");
-  const statusFilter = statuses.find((status) => status === selectedStatus) ?? "all";
-  const setStatusFilter = (status: JoinStatus | "all") => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (status === "all") nextParams.delete("status");
-    else nextParams.set("status", status);
-    setSearchParams(nextParams, { replace: true, preventScrollReset: true });
-  };
+  const [searchParams] = useSearchParams();
+  const requestedStatus = statuses.find((status) => status === searchParams.get("status")) ?? "all";
+  const [statusFilter, setStatusFilter] = useState<JoinStatus | "all">(requestedStatus);
+  useEffect(() => setStatusFilter(requestedStatus), [requestedStatus]);
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
   const load = async () => {
