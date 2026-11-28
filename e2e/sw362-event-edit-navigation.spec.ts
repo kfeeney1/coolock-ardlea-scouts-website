@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
@@ -143,6 +144,7 @@ test("SW-391 backend failures retain create and edit drafts and retries persist 
   await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-10");
   await page.getByLabel("Section").click();
   await page.getByRole("option", { name: "Cubs", exact: true }).click();
+  await waitForTransientOverlayHistory(page);
   await expect(page.getByLabel("Event type")).toHaveText("Activity");
 
   failNextSave = true;

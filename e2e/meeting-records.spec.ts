@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
@@ -42,6 +43,7 @@ test("section leader sees only section meeting type and can persist edits", asyn
   await expect(page.getByRole("option", { name: "Group Leaders Meeting", exact: true })).toHaveCount(0);
   await expect(page.getByRole("option", { name: "Group Council Meeting", exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
+  await waitForTransientOverlayHistory(page);
 
   const fixtureHeading = page.getByText(fixtureTitle, { exact: true });
   await expect(fixtureHeading).toBeVisible();
