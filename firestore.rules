@@ -2433,70 +2433,71 @@ service cloud.firestore {
       // Parent Login setting remains readable only by an active Super Admin.
       allow get: if (signedIn() && settingsId == "session")
         || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "meetingExperience", "badgeworkExperience", "attendanceExperience", "reportsExperience", "maintenanceExperience", "calendarExperience", "leaderTrainingExperience", "meetingRecordsExperience", "eventEditExperience", "eventRecordExperience"])
-        || (settingsId == "parentLogin" && isSuperAdmin())
-        || (settingsId == "parentConsent" && isSuperAdmin())
-        || (settingsId == "hallHire" && isSuperAdmin())
+        || (settingsId in ["parentLogin", "parentConsent", "hallHire"] && isSuperAdmin())
         || settingsId in ["hallHirePublic", "hallHireReadiness"]
         || (settingsId == "hallHireVenue" && (isSuperAdmin() || (resource.data.confirmed == true
           && resource.data.keys().hasOnly(["confirmed", "name", "introduction", "facilities", "address", "accessibility", "imageUrl", "imageAlt"]))))
         || settingsId == "publicNavigation";
       allow list: if false;
       function _validateWrite75(_writeData) {
-        return settingsId == "hallHire" && isSuperAdmin()
-        && _writeData.enabled is bool
-        && _writeData.updatedBy == request.auth.uid && _writeData.updatedAt == request.time
-        && _writeData.keys().hasOnly(["enabled", "updatedBy", "updatedAt"])
-        && (!_writeData.enabled || (get(/databases/$(database)/documents/hall/group).data.get("ready", false) == true
-          && get(/databases/$(database)/documents/siteSettings/hallHireReadiness).data.get("ready", false) == true))
-        && getAfter(/databases/$(database)/documents/siteSettings/hallHirePublic).data.enabled == _writeData.enabled
-        || settingsId == "hallHirePublic" && isSuperAdmin()
-        && _writeData.enabled is bool && _writeData.keys().hasOnly(["enabled"])
-        && getAfter(/databases/$(database)/documents/siteSettings/hallHire).data.enabled == _writeData.enabled
-        || settingsId == "maintenanceExperience" && isSuperAdmin()
-        && _writeData.sdkRevision == 1
-        && _writeData.version in ["existing", "redesigned"]
-        && _writeData.updatedBy == request.auth.uid
-        && _writeData.updatedAt == request.time
-        && _writeData.keys().hasOnly(["version", "sdkRevision", "updatedAt", "updatedBy"])
-        || settingsId in ["leaderNavigation", "scheduleExperience", "meetingExperience", "badgeworkExperience", "attendanceExperience", "reportsExperience", "calendarExperience", "leaderTrainingExperience", "meetingRecordsExperience", "eventEditExperience", "eventRecordExperience"] && isSuperAdmin()
-        && _writeData.version in ["existing", "redesigned"]
-        && _writeData.updatedBy == request.auth.uid
-        && _writeData.updatedAt == request.time
-        && _writeData.keys().hasOnly(["version", "updatedAt", "updatedBy"])
-        || settingsId == "session" && isAdmin()
-        && _writeData.parentInactivityMinutes is number
-        && _writeData.parentInactivityMinutes >= 5
-        && _writeData.parentInactivityMinutes <= 240
-        && _writeData.leaderDesktopInactivityMinutes is number
-        && _writeData.leaderDesktopInactivityMinutes >= 5
-        && _writeData.leaderDesktopInactivityMinutes <= 240
-        && _writeData.leaderPhoneInactivityMinutes is number
-        && _writeData.leaderPhoneInactivityMinutes >= 5
-        && _writeData.leaderPhoneInactivityMinutes <= 240
-        && _writeData.updatedBy == request.auth.uid
-        && _writeData.updatedAt == request.time
-        && _writeData.keys().hasOnly(["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes", "updatedAt", "updatedBy"])
-        || settingsId == "parentLogin" && isSuperAdmin()
-        && _writeData.parentLoginEnabled is bool
-        && _writeData.updatedBy == request.auth.uid
-        && _writeData.updatedAt == request.time
-        && _writeData.keys().hasOnly(["parentLoginEnabled", "updatedAt", "updatedBy"])
-        && getAfter(/databases/$(database)/documents/siteSettings/publicNavigation).data.parentLoginEnabled == _writeData.parentLoginEnabled
-        || settingsId == "parentConsent" && isSuperAdmin()
-        && _writeData.parentConsentEnabled is bool
-        && _writeData.updatedBy == request.auth.uid
-        && _writeData.updatedAt == request.time
-        && _writeData.keys().hasOnly(["parentConsentEnabled", "updatedAt", "updatedBy"])
-        && getAfter(/databases/$(database)/documents/siteSettings/publicNavigation).data.parentConsentEnabled == _writeData.parentConsentEnabled
-        || settingsId == "publicNavigation" && isSuperAdmin()
-        && _writeData.parentLoginEnabled is bool
-        && _writeData.keys().hasOnly(["parentLoginEnabled", "parentConsentEnabled"])
-        && getAfter(/databases/$(database)/documents/siteSettings/parentLogin).data.parentLoginEnabled == _writeData.parentLoginEnabled
-        && ((!existsAfter(/databases/$(database)/documents/siteSettings/parentConsent)
-              && !("parentConsentEnabled" in _writeData.keys()))
-          || (existsAfter(/databases/$(database)/documents/siteSettings/parentConsent)
+        return settingsId == "session"
+          ? isAdmin()
+            && _writeData.parentInactivityMinutes is number
+            && _writeData.parentInactivityMinutes >= 5
+            && _writeData.parentInactivityMinutes <= 240
+            && _writeData.leaderDesktopInactivityMinutes is number
+            && _writeData.leaderDesktopInactivityMinutes >= 5
+            && _writeData.leaderDesktopInactivityMinutes <= 240
+            && _writeData.leaderPhoneInactivityMinutes is number
+            && _writeData.leaderPhoneInactivityMinutes >= 5
+            && _writeData.leaderPhoneInactivityMinutes <= 240
+            && _writeData.updatedBy == request.auth.uid
+            && _writeData.updatedAt == request.time
+            && _writeData.keys().hasOnly(["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes", "updatedAt", "updatedBy"])
+          : isSuperAdmin() && (
+            settingsId == "hallHire"
+              && _writeData.enabled is bool
+              && _writeData.updatedBy == request.auth.uid && _writeData.updatedAt == request.time
+              && _writeData.keys().hasOnly(["enabled", "updatedBy", "updatedAt"])
+              && (!_writeData.enabled || (get(/databases/$(database)/documents/hall/group).data.get("ready", false) == true
+                && get(/databases/$(database)/documents/siteSettings/hallHireReadiness).data.get("ready", false) == true))
+              && getAfter(/databases/$(database)/documents/siteSettings/hallHirePublic).data.enabled == _writeData.enabled
+            || settingsId == "hallHirePublic"
+              && _writeData.enabled is bool && _writeData.keys().hasOnly(["enabled"])
+              && getAfter(/databases/$(database)/documents/siteSettings/hallHire).data.enabled == _writeData.enabled
+            || settingsId == "maintenanceExperience"
+              && _writeData.sdkRevision == 1
+              && _writeData.version in ["existing", "redesigned"]
+              && _writeData.updatedBy == request.auth.uid
+              && _writeData.updatedAt == request.time
+              && _writeData.keys().hasOnly(["version", "sdkRevision", "updatedAt", "updatedBy"])
+            || settingsId in ["leaderNavigation", "scheduleExperience", "meetingExperience", "badgeworkExperience", "attendanceExperience", "reportsExperience", "calendarExperience", "leaderTrainingExperience", "meetingRecordsExperience", "eventEditExperience", "eventRecordExperience"]
+              && _writeData.version in ["existing", "redesigned"]
+              && _writeData.updatedBy == request.auth.uid
+              && _writeData.updatedAt == request.time
+              && _writeData.keys().hasOnly(["version", "updatedAt", "updatedBy"])
+            || settingsId == "parentLogin"
+              && _writeData.parentLoginEnabled is bool
+              && _writeData.updatedBy == request.auth.uid
+              && _writeData.updatedAt == request.time
+              && _writeData.keys().hasOnly(["parentLoginEnabled", "updatedAt", "updatedBy"])
+              && getAfter(/databases/$(database)/documents/siteSettings/publicNavigation).data.parentLoginEnabled == _writeData.parentLoginEnabled
+            || settingsId == "parentConsent"
               && _writeData.parentConsentEnabled is bool
-              && getAfter(/databases/$(database)/documents/siteSettings/parentConsent).data.parentConsentEnabled == _writeData.parentConsentEnabled));
+              && _writeData.updatedBy == request.auth.uid
+              && _writeData.updatedAt == request.time
+              && _writeData.keys().hasOnly(["parentConsentEnabled", "updatedAt", "updatedBy"])
+              && getAfter(/databases/$(database)/documents/siteSettings/publicNavigation).data.parentConsentEnabled == _writeData.parentConsentEnabled
+            || settingsId == "publicNavigation"
+              && _writeData.parentLoginEnabled is bool
+              && _writeData.keys().hasOnly(["parentLoginEnabled", "parentConsentEnabled"])
+              && getAfter(/databases/$(database)/documents/siteSettings/parentLogin).data.parentLoginEnabled == _writeData.parentLoginEnabled
+              && ((!existsAfter(/databases/$(database)/documents/siteSettings/parentConsent)
+                  && !("parentConsentEnabled" in _writeData.keys()))
+                || (existsAfter(/databases/$(database)/documents/siteSettings/parentConsent)
+                  && _writeData.parentConsentEnabled is bool
+                  && getAfter(/databases/$(database)/documents/siteSettings/parentConsent).data.parentConsentEnabled == _writeData.parentConsentEnabled))
+          );
       }
       allow create, update: if _validateWrite75(request.resource.data);
       allow delete: if false;

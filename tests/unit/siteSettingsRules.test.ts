@@ -12,13 +12,10 @@ test("site settings keep session reads separate from Super Admin-only canonical 
 
     const block = rules.slice(start, end);
     assert.match(block, /allow get: if \(signedIn\(\) && settingsId == "session"\)/);
-    assert.match(block, /settingsId == "parentLogin" && isSuperAdmin\(\)/);
-    assert.match(block, /settingsId == "parentConsent" && isSuperAdmin\(\)/);
+    assert.match(block, /settingsId in \["parentLogin", "parentConsent", "hallHire"\] && isSuperAdmin\(\)/);
     assert.match(block, /settingsId == "publicNavigation"/);
-    assert.match(block, /settingsId == "session" && isAdmin\(\)/);
-    assert.match(block, /settingsId == "parentLogin" && isSuperAdmin\(\)/);
-    assert.match(block, /settingsId == "parentConsent" && isSuperAdmin\(\)/);
-    assert.match(block, /settingsId == "publicNavigation" && isSuperAdmin\(\)/);
+    assert.match(block, /return settingsId == "session"\s*\? isAdmin\(\)/);
+    assert.match(block, /: isSuperAdmin\(\) && \(\s*settingsId == "hallHire"[\s\S]*?\|\| settingsId == "parentLogin"[\s\S]*?\|\| settingsId == "parentConsent"[\s\S]*?\|\| settingsId == "publicNavigation"[\s\S]*?\n\s*\);/);
     assert.match(block, /allow delete: if false/);
     assert.doesNotMatch(block, /allow (create|update).*isActiveLeader\(\)/);
 });
