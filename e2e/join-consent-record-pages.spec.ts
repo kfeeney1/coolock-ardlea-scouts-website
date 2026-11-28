@@ -74,9 +74,9 @@ test("SW-629 a programme scouter adds an entry for their section without waiting
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
   await page.getByLabel("First name").fill("TEST");
   await page.getByLabel("Last name").fill(lastName);
-  await page.getByLabel("Date of birth", { exact: true }).fill("10-05-2016");
+  await page.getByRole("textbox", { name: "Date of birth", exact: true }).fill("10-05-2016");
   await page.getByLabel("Parent / guardian name").fill("Test Parent");
-  await page.getByLabel("Relationship", { exact: true }).fill("Parent");
+  await page.getByRole("textbox", { name: "Relationship", exact: true }).fill("Parent");
   await page.getByLabel("Mobile number").fill("0870000000");
   await page.getByLabel("Email address").fill("sw629-waiting-list@example.com");
   await page.getByRole("button", { name: "Save waiting-list entry" }).click();
