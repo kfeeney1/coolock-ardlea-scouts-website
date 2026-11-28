@@ -15,7 +15,8 @@ test("parent current programme scope is refreshed from members before section pr
   const rules = readFileSync("firestore.rules", "utf8");
   const helper = rules.match(/function isApprovedParentForSections\(sections\) \{[\s\S]*?^ {4,6}\}/m)?.[0] ?? "";
   assert.doesNotMatch(helper, /linkedSections/);
-  assert.match(helper, /parentMemberAtMatchesSections/);
+  assert.deepEqual([...helper.matchAll(/parentMemberPairMatchesSections\(memberIds, (\d+), sections\)/g)].map((match) => Number(match[1])), [0, 2, 4, 6]);
+  assert.match(rules, /return parentMemberAtMatchesSections\(memberIds, index, sections\)\s*\|\| parentMemberAtMatchesSections\(memberIds, index \+ 1, sections\)/);
   assert.match(helper, /"Group", "All Sections"/);
 });
 
