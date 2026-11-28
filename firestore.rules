@@ -148,6 +148,10 @@ service cloud.firestore {
       let path = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
       return exists(path) && hasGroupAppointment(get(path).data, roles);
     }
+    function isAdminOrGroupLeader() {
+      return isActiveLeader() && (profile().role in ["admin", "super-admin"]
+        || currentGroupAppointment(groupLeadershipRoles()));
+    }
     function isGroupLeaderOrSecretary() {
       return isActiveLeader() && currentGroupAppointment(groupLeadershipRoles().concat(["group secretary"]));
     }
@@ -186,6 +190,11 @@ service cloud.firestore {
     function hasSection(section) {
       return isActiveLeader()
         && (profile().role in ["super-admin", "admin"] || profileHasSection(section));
+    }
+    function hasSectionOrGroupLeader(section) {
+      return isActiveLeader()
+        && (profile().role in ["super-admin", "admin"] || profileHasSection(section)
+          || currentGroupAppointment(groupLeadershipRoles()));
     }
     function memberHasSection(data, section) {
       return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
@@ -285,6 +294,10 @@ service cloud.firestore {
       let memberId = memberIds.size() > index ? memberIds[index] : null;
       return memberId is string && parentMemberCurrentlyInSections(memberId, sections);
     }
+    function parentMemberPairMatchesSections(memberIds, index, sections) {
+      return parentMemberAtMatchesSections(memberIds, index, sections)
+        || parentMemberAtMatchesSections(memberIds, index + 1, sections);
+    }
     function isApprovedParentForSections(sections) {
       let parent = parentProfile();
       let memberIds = parent.get("memberIds", null);
@@ -293,14 +306,10 @@ service cloud.firestore {
         && parent.status == "approved"
         && memberIds is list && memberIds.size() <= 8
         && (sections.hasAny(["Group", "All Sections"])
-          || parentMemberAtMatchesSections(memberIds, 0, sections)
-          || parentMemberAtMatchesSections(memberIds, 1, sections)
-          || parentMemberAtMatchesSections(memberIds, 2, sections)
-          || parentMemberAtMatchesSections(memberIds, 3, sections)
-          || parentMemberAtMatchesSections(memberIds, 4, sections)
-          || parentMemberAtMatchesSections(memberIds, 5, sections)
-          || parentMemberAtMatchesSections(memberIds, 6, sections)
-          || parentMemberAtMatchesSections(memberIds, 7, sections));
+          || parentMemberPairMatchesSections(memberIds, 0, sections)
+          || parentMemberPairMatchesSections(memberIds, 2, sections)
+          || parentMemberPairMatchesSections(memberIds, 4, sections)
+          || parentMemberPairMatchesSections(memberIds, 6, sections));
     }
     function isApprovedParentForSection(section) {
       return isApprovedParentForSections([section].toSet());
@@ -313,7 +322,7 @@ service cloud.firestore {
     }
 
     match /policyDocuments/{documentId} {
-      function canManagePolicies() { return isAdmin() || isGroupLeader(); }
+      function canManagePolicies() { return isAdminOrGroupLeader(); }
       function canReadPolicyAudience(audience) {
         return audience == "public"
           || (audience == "authenticated" && (isActiveLeader() || isApprovedParent()))
@@ -373,7 +382,7 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/siteSettings/leaderTrainingExperience).data.get("version", "existing") == "redesigned";
       }
       function trainingReader() {
-        return isActiveLeader() && (request.auth.uid == leaderUid || isAdmin() || isGroupLeader());
+        return isActiveLeader() && (request.auth.uid == leaderUid || isAdminOrGroupLeader());
       }
       function trainingWriter() { return isAdmin() || canDelegateLeaderTarget(leaderUid); }
       function validTraining(data) {
@@ -400,7 +409,7 @@ service cloud.firestore {
 
     match /adminUsers/{userId} {
       allow get: if isActiveLeader();
-      allow list: if isAdmin() || isGroupLeader() || (isRoverSectionLeader() && resource.data.active == true && resource.data.role == "leader");
+      allow list: if isAdminOrGroupLeader() || (isRoverSectionLeader() && resource.data.active == true && resource.data.role == "leader");
       allow create: if isAdmin() && maintenanceDirectoryInvalidated()
         && request.resource.data.role == "leader"
         && request.resource.data.active == true
@@ -439,7 +448,7 @@ service cloud.firestore {
     match /leaderChildRelationships/{relationshipId} {
       allow get, list: if canViewAllFinance();
       function _validateWrite3(_writeData) {
-        return (isAdmin() || isGroupLeader())
+        return isAdminOrGroupLeader()
         && _writeData.leaderUid is string
         && _writeData.memberId is string
         && relationshipId == _writeData.leaderUid + "--" + _writeData.memberId
@@ -457,7 +466,7 @@ service cloud.firestore {
       }
       allow create: if _validateWrite3(request.resource.data);
       function _validateWrite4(_writeData, _storedData) {
-        return (isAdmin() || isGroupLeader())
+        return isAdminOrGroupLeader()
         && _writeData.active is bool
         && _writeData.leaderUid == _storedData.leaderUid
         && _writeData.memberId == _storedData.memberId
@@ -547,7 +556,7 @@ service cloud.firestore {
             || hasJoinSectionLeaderAppointment(leadership, section));
       }
       function canManageJoinSection(section) {
-        return isActiveLeader() && (isAdmin() || isGroupLeader() || isJoinSectionLeader(section));
+        return isAdminOrGroupLeader() || isJoinSectionLeader(section);
       }
       function _validateWrite11(_writeData) {
         return _writeData.childFirstName is string && _writeData.childLastName is string
@@ -1456,7 +1465,7 @@ service cloud.firestore {
       function _validateWrite38(_writeData) {
         return isActiveLeader()
         && _writeData.section is string
-        && (hasSection(_writeData.section) || isGroupLeader())
+        && hasSectionOrGroupLeader(_writeData.section)
         && _writeData.meetingDate is string
         && _writeData.status in ["open", "closed"]
         && _writeData.location is string
@@ -1514,11 +1523,11 @@ service cloud.firestore {
     match /programmeLibrary/{templateId} {
       allow get, list: if isActiveLeader()
         && resource.data.section is string
-        && (hasSection(resource.data.section) || isGroupLeader());
+        && hasSectionOrGroupLeader(resource.data.section);
       function _validateWrite41(_writeData) {
         return isActiveLeader()
         && _writeData.section is string
-        && (hasSection(_writeData.section) || isGroupLeader())
+        && hasSectionOrGroupLeader(_writeData.section)
         && _writeData.kind in ["activity", "badgework"]
         && _writeData.name is string
         && _writeData.leader is string
@@ -1538,7 +1547,7 @@ service cloud.firestore {
         return isActiveLeader()
         && _storedData.section is string
         && _writeData.section == _storedData.section
-        && (hasSection(_storedData.section) || isGroupLeader())
+        && hasSectionOrGroupLeader(_storedData.section)
         && _writeData.kind in ["activity", "badgework"]
         && _writeData.name is string
         && _writeData.leader is string
@@ -1556,7 +1565,7 @@ service cloud.firestore {
       allow update: if _validateWrite42(request.resource.data, resource.data);
       allow delete: if isActiveLeader()
         && resource.data.section is string
-        && (hasSection(resource.data.section) || isGroupLeader());
+        && hasSectionOrGroupLeader(resource.data.section);
     }
 
     match /parentWeeklyMeetings/{weeklyMeetingId} {
@@ -1570,7 +1579,7 @@ service cloud.firestore {
         return isActiveLeader()
         && hallDateUnchanged(_writeData)
         && _writeData.section is string
-        && (hasSection(_writeData.section) || isGroupLeader())
+        && hasSectionOrGroupLeader(_writeData.section)
         && _writeData.meetingDate is string
         && _writeData.status in ["open", "closed"]
         && _writeData.location is string
@@ -2531,7 +2540,7 @@ service cloud.firestore {
         return isActiveLeader()
         && (_writeData.sourceType != "event" || eventReferenceVisible(_writeData.sourceId))
         && _writeData.section is string
-        && (hasSection(_writeData.section) || isGroupLeader())
+        && hasSectionOrGroupLeader(_writeData.section)
         && _writeData.sourceType in ["weeklyMeeting", "event", "activity"]
         && _writeData.sourceId is string
         && _writeData.sourceLabel is string
@@ -2549,7 +2558,7 @@ service cloud.firestore {
         return isActiveLeader()
         && (_storedData.sourceType != "event" || eventReferenceVisible(_storedData.sourceId))
         && _storedData.section is string
-        && (hasSection(_storedData.section) || isGroupLeader())
+        && hasSectionOrGroupLeader(_storedData.section)
         && _writeData.section == _storedData.section
         && _writeData.sourceId == _storedData.sourceId
         && _writeData.sourceType == _storedData.sourceType
@@ -2565,7 +2574,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    function pollIsGroupManager() { return isAdmin() || isGroupLeader(); }
+    function pollIsGroupManager() { return isAdminOrGroupLeader(); }
     function pollCanManageAudienceIndex(index) {
       return isActiveLeader() && (
         pollIsGroupManager()
